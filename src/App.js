@@ -206,7 +206,7 @@ const App = () => {
         onCancel: () => {},
       });
     }
-  }, []); // Executa apenas uma vez na montagem do componente
+  }, [firebaseConfig]); // Adicionado firebaseConfig como dependência
 
   // Carrega e salva a ficha no Firestore em tempo real via onSnapshot
   useEffect(() => {
