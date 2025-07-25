@@ -58,8 +58,20 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
 // Componente principal da aplicação
 const App = () => {
   // Configuração do Firebase (fornecida pelo ambiente do Canvas)
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  // IMPORTANTE: Substitua os valores abaixo pelas suas credenciais REAIS do Firebase.
+  // Você pode encontrá-las no Console do Firebase > Project overview > Configurações do projeto (engrenagem) > Seus apps (app web)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
+    authDomain: "storycraft-a5f7e.firebaseapp.com",
+    projectId: "storycraft-a5f7e",
+    storageBucket: "storycraft-a5f7e.firebasestorage.app",
+    messagingSenderId: "727724875985",
+    appId: "1:727724875985:web:97411448885c68c289e5f0",
+    measurementId: "G-JH03Y2NZDK" // Adicionado o measurementId que você forneceu
+  };
+  // O appId para o caminho do Firestore pode ser obtido diretamente do firebaseConfig
+  const appId = firebaseConfig.appId;
+
 
   // Estados para Firebase
   const [db, setDb] = useState(null);
