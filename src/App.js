@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs } from 'firebase/firestore';
-
-// Removido MASTER_UID fixo. Agora o status de mestre é lido do Firestore.
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, deleteDoc } from 'firebase/firestore'; // Importado deleteDoc
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -22,6 +20,19 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
     onCancel();
     onClose();
   };
+
+  // Determina o texto do botão de confirmação baseado no tipo de modal
+  const confirmButtonText = useMemo(() => {
+    switch (type) {
+      case 'confirm':
+        return 'Confirmar';
+      case 'prompt':
+        return 'Adicionar'; // Usado para adicionar itens/perks após prompt
+      case 'info':
+      default:
+        return 'OK'; // Para mensagens informativas
+    }
+  }, [type]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -43,14 +54,16 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
               type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
-            {type === 'confirm' ? 'Confirmar' : 'Adicionar'}
+            {confirmButtonText} {/* Usando o texto dinâmico */}
           </button>
-          <button
-            onClick={handleCancel}
-            className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-          >
-            Cancelar
-          </button>
+          {type !== 'info' && ( // "Info" modals geralmente só precisam de um botão "OK"
+            <button
+              onClick={handleCancel}
+              className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -108,7 +121,7 @@ const App = () => {
     light: '✨',
     darkness: '🌑',
     spirit: '👻',
-    other: ' arcane',
+    other: '🪄', // Alterado para um emoji mais genérico de magia
   };
 
   // Inicializa Firebase e configura o listener de autenticação
@@ -183,7 +196,10 @@ const App = () => {
           const userCharacterSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
           const charSnapshot = await getDocs(userCharacterSheetsRef);
           charSnapshot.docs.forEach(doc => {
-            allChars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
+            // Filtrar personagens com soft delete (se houver) e adicionar à lista
+            if (!doc.data().deleted) { // Apenas adiciona se não estiver marcado como deletado
+              allChars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
+            }
           });
         }
         setCharactersList(allChars);
@@ -193,7 +209,12 @@ const App = () => {
         const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(charactersCollectionRef);
         const querySnapshot = await getDocs(q);
-        const chars = querySnapshot.docs.map(doc => ({ id: doc.id, ownerUid: user.uid, ...doc.data() }));
+        const chars = querySnapshot.docs.map(doc => {
+            if (!doc.data().deleted) { // Apenas adiciona se não estiver marcado como deletado
+                return { id: doc.id, ownerUid: user.uid, ...doc.data() };
+            }
+            return null;
+        }).filter(Boolean); // Filtra os nulos
         setCharactersList(chars);
         setViewingAllCharacters(false);
       }
@@ -233,6 +254,13 @@ const App = () => {
       unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          if (data.deleted) { // Se a ficha foi deletada (soft delete), desseleciona
+            setCharacter(null);
+            setSelectedCharacterId(null);
+            fetchCharactersList(); // Recarrega a lista para remover o item deletado
+            setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+            return;
+          }
           const deserializedData = { ...data };
           try {
             // Deserializa os campos que foram stringificados como JSON
@@ -259,9 +287,10 @@ const App = () => {
           setCharacter(deserializedData);
           console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
         } else {
-          console.log("Nenhuma ficha encontrada para o ID selecionado. Criando nova ficha.");
+          console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
           setSelectedCharacterId(null);
+          fetchCharactersList(); // Recarrega a lista para refletir a exclusão, se for o caso
         }
       }, (error) => {
         console.error("Erro ao ouvir a ficha no Firestore:", error);
@@ -277,22 +306,21 @@ const App = () => {
       setCharacter(null);
     }
     return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId]);
+  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]); // Adicionado fetchCharactersList
+
 
   // Salva a ficha no Firestore
   useEffect(() => {
     if (db && user && isAuthReady && character && selectedCharacterId) {
       // O proprietário da ficha ou o mestre podem salvá-la
       const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
-      if (user.uid !== charToSaveOwnerUid && !isMaster) { // Apenas o proprietário OU o mestre pode escrever
+      // Se não encontrou o proprietário, mas o usuário atual é o proprietário, usa o UID atual
+      const targetUidForSave = charToSaveOwnerUid || user.uid; 
+
+      if (user.uid !== targetUidForSave && !isMaster) { // Apenas o proprietário OU o mestre pode escrever
         console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
         return;
       }
-
-      // Se o usuário não for o proprietário, mas for o mestre, ele está editando a ficha de outro.
-      // Neste caso, o documento deve ser salvo no caminho do PROPRIETÁRIO original.
-      const targetUidForSave = (user.uid === charToSaveOwnerUid || isMaster) ? charToSaveOwnerUid : user.uid;
-
 
       const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharacterId}`);
       const saveCharacter = async () => {
@@ -301,6 +329,7 @@ const App = () => {
           dataToSave.id = selectedCharacterId;
           dataToSave.ownerUid = targetUidForSave; // Garante que o ownerUid seja o do proprietário original
 
+          // Stringify os objetos aninhados para Firestore
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -311,6 +340,11 @@ const App = () => {
           dataToSave.abilities = JSON.stringify(dataToSave.abilities);
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
+          
+          // Remove o campo 'deleted' se ele existir, para evitar que ele seja salvo se não for mais necessário
+          if ('deleted' in dataToSave) {
+            delete dataToSave.deleted;
+          }
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
           console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
@@ -324,7 +358,7 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]); // Adicionado isMaster
+  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]);
 
 
   // Lida com mudanças nos campos de texto simples
@@ -603,7 +637,7 @@ const App = () => {
   const handleReset = () => {
     setModal({
       isVisible: true,
-      message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos.',
+      message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos. (Esta ação NÃO exclui a ficha do banco de dados)',
       type: 'confirm',
       onConfirm: () => {
         setCharacter({
@@ -614,7 +648,7 @@ const App = () => {
           magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
         });
-        setSelectedCharacterId(null);
+        // Não reseta selectedCharacterId aqui, apenas o conteúdo da ficha
       },
       onCancel: () => {},
     });
@@ -694,6 +728,16 @@ const App = () => {
                     spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.spirit },
                     other: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.other },
                   },
+                  // Garante que outros campos complexos sejam arrays vazios se ausentes no JSON
+                  inventory: importedData.inventory || [],
+                  wallet: importedData.wallet || { zeni: 0 },
+                  advantages: importedData.advantages || [],
+                  disadvantages: importedData.disadvantages || [],
+                  abilities: importedData.abilities || [],
+                  specializations: importedData.specializations || [],
+                  equippedItems: importedData.equippedItems || [],
+                  history: importedData.history || '',
+                  notes: importedData.notes || '',
                 };
 
                 try {
@@ -808,14 +852,14 @@ const App = () => {
   const handleBackToList = () => {
     setSelectedCharacterId(null);
     setCharacter(null);
-    fetchCharactersList();
+    fetchCharactersList(); // Garante que a lista seja atualizada ao voltar
   };
 
-  // Função para excluir um personagem
+  // Função para excluir um personagem (mudado para deleteDoc)
   const handleDeleteCharacter = (charId, charName, ownerUid) => {
     setModal({
       isVisible: true,
-      message: `Tem certeza que deseja EXCLUIR o personagem '${charName}'? Esta ação é irreversível.`,
+      message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'? Esta ação é irreversível.`,
       type: 'confirm',
       onConfirm: async () => {
         if (!db || !user) return;
@@ -826,11 +870,11 @@ const App = () => {
         setIsLoading(true);
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
-          await setDoc(characterDocRef, { deleted: true }, { merge: true }); // Soft delete
+          await deleteDoc(characterDocRef); // Usa deleteDoc para remover permanentemente
           setSelectedCharacterId(null);
-          setCharacter(null);
-          fetchCharactersList();
-          setModal({ isVisible: true, message: `Personagem '${charName}' excluído com sucesso.`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setCharacter(null); // Limpa o personagem selecionado
+          fetchCharactersList(); // Recarrega a lista para remover o item excluído
+          setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } catch (error) {
           console.error("Erro ao excluir personagem:", error);
           setModal({ isVisible: true, message: `Erro ao excluir personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
