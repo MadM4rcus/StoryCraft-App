@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react'; // Adicionado useMemo
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -60,7 +60,7 @@ const App = () => {
   // Configuração do Firebase (fornecida pelo ambiente do Canvas)
   // IMPORTANTE: Substitua os valores abaixo pelas suas credenciais REAIS do Firebase.
   // Você pode encontrá-las no Console do Firebase > Project overview > Configurações do projeto (engrenagem) > Seus apps (app web)
-  const firebaseConfig = {
+  const firebaseConfig = useMemo(() => ({ // Envolvido em useMemo
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
     projectId: "storycraft-a5f7e",
@@ -68,7 +68,8 @@ const App = () => {
     messagingSenderId: "727724875985",
     appId: "1:727724875985:web:97411448885c68c289e5f0",
     measurementId: "G-JH03Y2NZDK" // Adicionado o measurementId que você forneceu
-  };
+  }), []); // Array de dependências vazio, pois a config é constante
+  
   // O appId para o caminho do Firestore pode ser obtido diretamente do firebaseConfig
   const appId = firebaseConfig.appId;
 
@@ -206,7 +207,7 @@ const App = () => {
         onCancel: () => {},
       });
     }
-  }, [firebaseConfig]); // Adicionado firebaseConfig como dependência
+  }, [firebaseConfig]); // firebaseConfig como dependência
 
   // Carrega e salva a ficha no Firestore em tempo real via onSnapshot
   useEffect(() => {
