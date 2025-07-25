@@ -114,7 +114,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis
   const magicAttributeEmojis = {
-    fire: '🔥',
+    fire: '�',
     water: '💧',
     air: '🌬️',
     earth: '🌍',
@@ -143,14 +143,14 @@ const App = () => {
         parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, startIndex)}</span>);
       }
 
-      // Adiciona a imagem
+      // Adiciona a imagem com float e tamanho pequeno
       parts.push(
         <img
           key={`image-${startIndex}`}
           src={imageUrl}
           alt="Imagem da história"
-          className="max-w-full h-auto rounded-md shadow-md my-2"
-          onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
+          className="float-left max-w-[100px] h-auto rounded-md shadow-md mr-4 mb-2" // max-w-[100px] para "pequenininha"
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/000000/FFFFFF?text=Erro'; }} // Menor placeholder
         />
       );
       lastIndex = endIndex;
@@ -160,6 +160,9 @@ const App = () => {
     if (lastIndex < text.length) {
       parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
     }
+
+    // Adiciona um clear div para garantir que o layout não seja quebrado por floats subsequentes
+    parts.push(<div key="clear-float" className="clear-both"></div>);
 
     return <div className="whitespace-pre-wrap break-words">{parts}</div>;
   };
@@ -875,6 +878,10 @@ const App = () => {
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
             };
 
+            // Define o personagem no estado local imediatamente
+            setCharacter(newCharacterData);
+            setSelectedCharacterId(newCharId);
+
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
             dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
@@ -889,8 +896,7 @@ const App = () => {
             dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
 
             await setDoc(characterDocRef, dataToSave);
-            setSelectedCharacterId(newCharId);
-            fetchCharactersList();
+            fetchCharactersList(); // Recarrega a lista para garantir que o novo personagem apareça
             setModal({ isVisible: true, message: `Personagem '${name}' criado com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
           } catch (error) {
             console.error("Erro ao criar novo personagem:", error);
@@ -1721,3 +1727,4 @@ const App = () => {
 };
 
 export default App;
+�
