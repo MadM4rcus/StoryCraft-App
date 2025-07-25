@@ -99,6 +99,18 @@ const App = () => {
   // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
+  // Mapeamento de atributos mágicos para emojis
+  const magicAttributeEmojis = {
+    fire: '🔥',
+    water: '💧',
+    air: '🌬️',
+    earth: '🌍',
+    light: '✨',
+    darkness: '🌑',
+    spirit: '👻',
+    other: ' arcane',
+  };
+
   // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
@@ -270,19 +282,24 @@ const App = () => {
   // Salva a ficha no Firestore
   useEffect(() => {
     if (db && user && isAuthReady && character && selectedCharacterId) {
-      // Apenas o proprietário da ficha pode salvá-la
+      // O proprietário da ficha ou o mestre podem salvá-la
       const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
-      if (user.uid !== charToSaveOwnerUid) {
+      if (user.uid !== charToSaveOwnerUid && !isMaster) { // Apenas o proprietário OU o mestre pode escrever
         console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
         return;
       }
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${selectedCharacterId}`);
+      // Se o usuário não for o proprietário, mas for o mestre, ele está editando a ficha de outro.
+      // Neste caso, o documento deve ser salvo no caminho do PROPRIETÁRIO original.
+      const targetUidForSave = (user.uid === charToSaveOwnerUid || isMaster) ? charToSaveOwnerUid : user.uid;
+
+
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharacterId}`);
       const saveCharacter = async () => {
         try {
           const dataToSave = { ...character };
           dataToSave.id = selectedCharacterId;
-          dataToSave.ownerUid = user.uid;
+          dataToSave.ownerUid = targetUidForSave; // Garante que o ownerUid seja o do proprietário original
 
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
@@ -307,7 +324,7 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId]);
+  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]); // Adicionado isMaster
 
 
   // Lida com mudanças nos campos de texto simples
@@ -323,7 +340,7 @@ const App = () => {
   const handleMainAttributeChange = (e) => {
     const { name, value, dataset } = e.target;
     const attributeName = dataset.attribute;
-    const subField = name;
+    const parsedValue = parseInt(value, 10) || 0;
 
     setCharacter(prevChar => ({
       ...prevChar,
@@ -331,7 +348,7 @@ const App = () => {
         ...prevChar.mainAttributes,
         [attributeName]: {
           ...prevChar.mainAttributes[attributeName],
-          [subField]: parseInt(value, 10) || 0,
+          [name]: parsedValue,
         },
       },
     }));
@@ -591,9 +608,10 @@ const App = () => {
       onConfirm: () => {
         setCharacter({
           name: '', photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto', age: '', height: '', gender: '', race: '', class: '', alignment: '',
-          mainAttributes: { hp: { current: 100, max: 100 }, mp: { current: 50, max: 50 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-          basicAttributes: { strength: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, dexterity: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, intelligence: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, constitution: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, wisdom: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, charisma: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-          magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+          level: 0, xp: 100, // Novos campos XP e Nível
+          mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 }, // HP/MP iniciam em 0
+          basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
+          magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
         });
         setSelectedCharacterId(null);
@@ -640,10 +658,47 @@ const App = () => {
               type: 'confirm',
               onConfirm: async () => {
                 const newCharId = crypto.randomUUID();
-                const newCharacterData = { ...importedData, id: newCharId, ownerUid: user.uid };
+                // Garante que XP e Level sejam definidos ao importar, se não existirem
+                const importedCharacterData = {
+                  ...importedData,
+                  id: newCharId,
+                  ownerUid: user.uid,
+                  xp: importedData.xp !== undefined ? importedData.xp : 100,
+                  level: importedData.level !== undefined ? importedData.level : 0,
+                  // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON importado
+                  mainAttributes: {
+                    hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
+                    mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
+                    initiative: importedData.mainAttributes?.initiative || 0,
+                    fa: importedData.mainAttributes?.fa || 0,
+                    fm: importedData.mainAttributes?.fm || 0,
+                    fd: importedData.mainAttributes?.fd || 0,
+                  },
+                  basicAttributes: {
+                    strength: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.strength },
+                    dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.dexterity },
+                    intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.intelligence },
+                    constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constitution },
+                    wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.wisdom },
+                    charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.charisma },
+                    armor: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armor },
+                    firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.firepower },
+                  },
+                  magicAttributes: {
+                    fire: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fire },
+                    water: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.water },
+                    air: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.air },
+                    earth: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.earth },
+                    light: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.light },
+                    darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.darkness },
+                    spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.spirit },
+                    other: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.other },
+                  },
+                };
+
                 try {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
-                    const dataToSave = { ...newCharacterData };
+                    const dataToSave = { ...importedCharacterData };
                     dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
                     dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
                     dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -707,8 +762,9 @@ const App = () => {
               name: name,
               photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
-              mainAttributes: { hp: { current: 100, max: 100 }, mp: { current: 50, max: 50 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-              basicAttributes: { strength: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, dexterity: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, intelligence: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, constitution: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, wisdom: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, charisma: { base: 10, permBonus: 0, condBonus: 0, total: 10 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              level: 0, xp: 100, // Novos campos XP e Nível com valores iniciais
+              mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+              basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
             };
@@ -1021,6 +1077,15 @@ const App = () => {
                     <label htmlFor="alignment" className="block text-sm font-medium text-gray-300 mb-1">Alinhamento:</label>
                     <input type="text" id="alignment" name="alignment" value={character.alignment} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                   </div>
+                  {/* Novos campos de Nível e XP */}
+                  <div>
+                    <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Nível:</label>
+                    <input type="number" id="level" name="level" value={character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                  </div>
+                  <div>
+                    <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
+                    <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                  </div>
                 </div>
               </div>
             </section>
@@ -1040,7 +1105,7 @@ const App = () => {
                       value={character.mainAttributes.hp.current}
                       onChange={handleMainAttributeChange}
                       className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
+                      disabled={user.uid !== character.ownerUid} // Jogador pode alterar HP atual
                     />
                     <span className="text-gray-300">/</span>
                     <input
@@ -1050,7 +1115,7 @@ const App = () => {
                       value={character.mainAttributes.hp.max}
                       onChange={handleMainAttributeChange}
                       className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
+                      disabled={!isMaster} // Apenas mestre pode alterar HP máximo
                     />
                   </div>
                 </div>
@@ -1065,7 +1130,7 @@ const App = () => {
                       value={character.mainAttributes.mp.current}
                       onChange={handleMainAttributeChange}
                       className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
+                      disabled={user.uid !== character.ownerUid} // Jogador pode alterar MP atual
                     />
                     <span className="text-gray-300">/</span>
                     <input
@@ -1075,7 +1140,7 @@ const App = () => {
                       value={character.mainAttributes.mp.max}
                       onChange={handleMainAttributeChange}
                       className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
+                      disabled={!isMaster} // Apenas mestre pode alterar MP máximo
                     />
                   </div>
                 </div>
@@ -1096,6 +1161,9 @@ const App = () => {
                     />
                   </div>
                 ))}
+                <p className="col-span-full text-sm text-gray-400 mt-2 text-center">
+                  *A Iniciativa é baseada na Destreza ou Sabedoria (com custo de Mana para Sabedoria).
+                </p>
               </div>
             </section>
 
@@ -1136,7 +1204,9 @@ const App = () => {
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
                   {Object.entries(character.magicAttributes).map(([key, attr]) => (
                     <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
-                      <label className="capitalize text-lg font-medium text-gray-200 block mb-1">{key}:</label>
+                      <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
+                        {magicAttributeEmojis[key] || ''} {key}:
+                      </label>
                       <div className="grid grid-cols-4 gap-2 text-sm">
                         <div className="flex flex-col">
                           <span className="text-gray-400">Base</span>
