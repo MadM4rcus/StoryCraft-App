@@ -124,6 +124,46 @@ const App = () => {
     other: '🪄', // Alterado para um emoji mais genérico de magia
   };
 
+  // Função auxiliar para renderizar texto com links de imagem
+  const renderTextWithImages = (text) => {
+    if (!text) return null;
+    const parts = [];
+    // Regex para encontrar URLs de imagem comuns
+    const imageUrlRegex = /(https?:\/\/[^\s]+\.(?:png|jpe?g|gif|svg|webp|bmp|tiff|ico))/gi;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = imageUrlRegex.exec(text)) !== null) {
+      const imageUrl = match[0];
+      const startIndex = match.index;
+      const endIndex = imageUrlRegex.lastIndex;
+
+      // Adiciona texto antes da URL da imagem
+      if (startIndex > lastIndex) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, startIndex)}</span>);
+      }
+
+      // Adiciona a imagem
+      parts.push(
+        <img
+          key={`image-${startIndex}`}
+          src={imageUrl}
+          alt="Imagem da história"
+          className="max-w-full h-auto rounded-md shadow-md my-2"
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
+        />
+      );
+      lastIndex = endIndex;
+    }
+
+    // Adiciona qualquer texto restante após a última URL da imagem
+    if (lastIndex < text.length) {
+      parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+    }
+
+    return <div className="whitespace-pre-wrap break-words">{parts}</div>;
+  };
+
   // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
@@ -264,16 +304,16 @@ const App = () => {
           const deserializedData = { ...data };
           try {
             // Deserializa os campos que foram stringificados como JSON
-            if (typeof deserializedData.mainAttributes === 'string') deserializedData.mainAttributes = JSON.parse(deserializedData.mainAttributes);
-            if (typeof deserializedData.basicAttributes === 'string') deserializedData.basicAttributes = JSON.parse(deserializedData.basicAttributes);
-            if (typeof deserializedData.magicAttributes === 'string') deserializedData.magicAttributes = JSON.parse(deserializedData.magicAttributes);
-            if (typeof deserializedData.inventory === 'string') deserializedData.inventory = JSON.parse(deserializedData.inventory);
-            if (typeof deserializedData.wallet === 'string') deserializedData.wallet = JSON.parse(deserializedData.wallet);
-            if (typeof deserializedData.advantages === 'string') deserializedData.advantages = JSON.parse(deserializedData.advantages);
-            if (typeof deserializedData.disadvantages === 'string') deserializedData.disadvantages = JSON.parse(deserializedData.disadvantages);
-            if (typeof deserializedData.abilities === 'string') deserializedData.abilities = JSON.parse(deserializedData.abilities);
-            if (typeof deserializedData.specializations === 'string') deserializedData.specializations = JSON.parse(deserializedData.specializations);
-            if (typeof deserializedData.equippedItems === 'string') deserializedData.equippedItems = JSON.parse(deserializedData.equippedItems);
+            deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
+            deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
+            deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
+            deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
+            deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
+            deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
+            deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
+            deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
+            deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
+            deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
           } catch (e) {
             console.error("Erro ao deserializar dados do Firestore:", e);
             setModal({
@@ -284,6 +324,24 @@ const App = () => {
               onCancel: () => {},
             });
           }
+
+          // Garante que todos os campos de array/objeto existam e sejam do tipo correto
+          deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
+          deserializedData.basicAttributes = deserializedData.basicAttributes || { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.magicAttributes = deserializedData.magicAttributes || { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.inventory = deserializedData.inventory || [];
+          deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
+          deserializedData.advantages = deserializedData.advantages || [];
+          deserializedData.disadvantages = deserializedData.disadvantages || [];
+          deserializedData.abilities = deserializedData.abilities || [];
+          deserializedData.specializations = deserializedData.specializations || [];
+          deserializedData.equippedItems = deserializedData.equippedItems || [];
+          deserializedData.history = deserializedData.history || '';
+          deserializedData.notes = deserializedData.notes || '';
+          deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
+          deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+
+
           setCharacter(deserializedData);
           console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
         } else {
@@ -306,7 +364,7 @@ const App = () => {
       setCharacter(null);
     }
     return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]); // Adicionado fetchCharactersList
+  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]);
 
 
   // Salva a ficha no Firestore
@@ -434,7 +492,7 @@ const App = () => {
             onConfirm: (itemDescription) => {
               setCharacter(prevChar => ({
                 ...prevChar,
-                inventory: [...prevChar.inventory, { name: itemName, description: itemDescription }],
+                inventory: [...(prevChar.inventory || []), { name: itemName, description: itemDescription }],
               }));
             },
             onCancel: () => {},
@@ -449,7 +507,7 @@ const App = () => {
   const handleRemoveItem = (indexToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      inventory: prevChar.inventory.filter((_, index) => index !== indexToRemove),
+      inventory: (prevChar.inventory || []).filter((_, index) => index !== indexToRemove),
     }));
   };
 
@@ -458,7 +516,7 @@ const App = () => {
     const value = parseInt(e.target.value, 10) || 0;
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...prevChar.wallet, zeni: value },
+      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: value },
     }));
   };
 
@@ -482,7 +540,7 @@ const App = () => {
                 onConfirm: (value) => {
                   setCharacter(prevChar => ({
                     ...prevChar,
-                    [type]: [...prevChar[type], { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }],
+                    [type]: [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }],
                   }));
                 },
                 onCancel: () => {},
@@ -500,15 +558,17 @@ const App = () => {
   const handleRemovePerk = (type, indexToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      [type]: prevChar[type].filter((_, index) => index !== indexToRemove),
+      [type]: (prevChar[type] || []).filter((_, index) => index !== indexToRemove),
     }));
   };
 
   // Lida com a mudança de origem da Vantagem/Desvantagem
   const handlePerkOriginChange = (type, index, originType) => {
     setCharacter(prevChar => {
-      const updatedPerks = [...prevChar[type]];
-      updatedPerks[index].origin[originType] = !updatedPerks[index].origin[originType];
+      const updatedPerks = [...(prevChar[type] || [])];
+      if (updatedPerks[index]) { // Garante que o item existe antes de tentar modificar
+        updatedPerks[index].origin[originType] = !updatedPerks[index].origin[originType];
+      }
       return { ...prevChar, [type]: updatedPerks };
     });
   };
@@ -528,7 +588,7 @@ const App = () => {
             onConfirm: (description) => {
               setCharacter(prevChar => ({
                 ...prevChar,
-                abilities: [...prevChar.abilities, { title, description }],
+                abilities: [...(prevChar.abilities || []), { title, description }],
               }));
             },
             onCancel: () => {},
@@ -543,7 +603,7 @@ const App = () => {
   const handleRemoveAbility = (indexToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      abilities: prevChar.abilities.filter((_, index) => index !== indexToRemove),
+      abilities: (prevChar.abilities || []).filter((_, index) => index !== indexToRemove),
     }));
   };
 
@@ -557,7 +617,7 @@ const App = () => {
         if (name) {
           setCharacter(prevChar => ({
             ...prevChar,
-            specializations: [...prevChar.specializations, { name, modifier: 0, bonus: 0 }],
+            specializations: [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }],
           }));
         }
       },
@@ -569,15 +629,17 @@ const App = () => {
   const handleRemoveSpecialization = (indexToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      specializations: prevChar.specializations.filter((_, index) => index !== indexToRemove),
+      specializations: (prevChar.specializations || []).filter((_, index) => index !== indexToRemove),
     }));
   };
 
   // Lida com a mudança de modificador/bônus da Especialização
   const handleSpecializationChange = (index, field, value) => {
     setCharacter(prevChar => {
-      const updatedSpecs = [...prevChar.specializations];
-      updatedSpecs[index][field] = parseInt(value, 10) || 0;
+      const updatedSpecs = [...(prevChar.specializations || [])];
+      if (updatedSpecs[index]) { // Garante que o item existe antes de tentar modificar
+        updatedSpecs[index][field] = parseInt(value, 10) || 0;
+      }
       return { ...prevChar, specializations: updatedSpecs };
     });
   };
@@ -602,7 +664,7 @@ const App = () => {
                 onConfirm: (attributes) => {
                   setCharacter(prevChar => ({
                     ...prevChar,
-                    equippedItems: [...prevChar.equippedItems, { name, description, attributes }],
+                    equippedItems: [...(prevChar.equippedItems || []), { name, description, attributes }],
                   }));
                 },
                 onCancel: () => {},
@@ -620,7 +682,7 @@ const App = () => {
   const handleRemoveEquippedItem = (indexToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      equippedItems: prevChar.equippedItems.filter((_, index) => index !== indexToRemove),
+      equippedItems: (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove),
     }));
   };
 
@@ -1545,8 +1607,10 @@ const App = () => {
                       <textarea
                         value={item.attributes}
                         onChange={(e) => {
-                          const updatedItems = [...character.equippedItems];
-                          updatedItems[index].attributes = e.target.value;
+                          const updatedItems = [...(character.equippedItems || [])];
+                          if (updatedItems[index]) { // Garante que o item existe antes de tentar modificar
+                            updatedItems[index].attributes = e.target.value;
+                          }
                           setCharacter({ ...character, equippedItems: updatedItems });
                         }}
                         rows="2"
@@ -1572,6 +1636,11 @@ const App = () => {
                 placeholder="Escreva aqui a história completa do seu personagem, eventos importantes, etc."
                 disabled={user.uid !== character.ownerUid && !isMaster}
               ></textarea>
+              {/* Área para exibir imagens da história */}
+              <div className="mt-4 p-3 bg-gray-600 rounded-md border border-gray-500">
+                <h3 className="text-lg font-semibold text-gray-300 mb-2">Visualização da História:</h3>
+                {renderTextWithImages(character.history)}
+              </div>
 
               <h2 className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2">Anotações</h2>
               <textarea
@@ -1583,6 +1652,11 @@ const App = () => {
                 placeholder="Anotações diversas sobre o personagem, campanhas, NPCs, etc."
                 disabled={user.uid !== character.ownerUid && !isMaster}
               ></textarea>
+              {/* Área para exibir imagens das anotações */}
+              <div className="mt-4 p-3 bg-gray-600 rounded-md border border-gray-500">
+                <h3 className="text-lg font-semibold text-gray-300 mb-2">Visualização das Anotações:</h3>
+                {renderTextWithImages(character.notes)}
+              </div>
             </section>
 
             {/* Botões de Ação */}
