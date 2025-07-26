@@ -852,31 +852,10 @@ const App = () => {
     e.dataTransfer.setData("text/html", e.target); // Necessário para Firefox
   };
 
-  const handleDragOver = (e, index) => {
+  const handleDragOver = (e) => {
     e.preventDefault(); // Permite o drop
-    const draggedOverItem = e.currentTarget;
-    const draggedItem = draggedItemRef.current;
-
-    if (draggedItem === null || draggedItem === index) return;
-
-    const currentCharacterHistory = [...character.history];
-    const dragged = currentCharacterHistory[draggedItem];
-    
-    // Remove o item arrastado da posição original
-    currentCharacterHistory.splice(draggedItem, 1);
-    // Insere o item arrastado na nova posição
-    currentCharacterHistory.splice(index, 0, dragged);
-
-    // Atualiza o estado para refletir a nova ordem visualmente
-    // Não atualizamos o estado do personagem aqui para evitar saves excessivos durante o drag.
-    // A atualização final será no handleDrop.
-    setCharacter(prevChar => ({
-      ...prevChar,
-      history: currentCharacterHistory
-    }));
-
-    // Atualiza a referência do item arrastado para a nova posição
-    draggedItemRef.current = index;
+    // Remove a lógica de reordenamento visual aqui.
+    // A reordenação real e a atualização do estado ocorrem apenas no handleDrop.
   };
 
   const handleDrop = (e, dropIndex) => {
@@ -2055,7 +2034,7 @@ const App = () => {
                           className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
                           draggable
                           onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDragOver={(e) => handleDragOver(e)} {/* Removido 'index' e lógica de setCharacter aqui */}
                           onDrop={(e) => handleDrop(e, index)}
                         >
                           {(user.uid === character.ownerUid || isMaster) && (
