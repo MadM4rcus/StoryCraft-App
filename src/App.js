@@ -144,7 +144,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '🔥',
+    fogo: '�',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -854,7 +854,6 @@ const App = () => {
 
   const handleDragOver = (e) => {
     e.preventDefault(); // Permite o drop
-    // Remove a lógica de reordenamento visual aqui.
     // A reordenação real e a atualização do estado ocorrem apenas no handleDrop.
   };
 
@@ -2034,7 +2033,7 @@ const App = () => {
                           className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
                           draggable
                           onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e)} {/* Removido 'index' e lógica de setCharacter aqui */}
+                          onDragOver={(e) => handleDragOver(e)}
                           onDrop={(e) => handleDrop(e, index)}
                         >
                           {(user.uid === character.ownerUid || isMaster) && (
