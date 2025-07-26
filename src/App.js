@@ -132,7 +132,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '�',
+    agua: '💧',
     ar: '🌬️',
     terra: '🪨', // Alterado para o emoji de rocha
     luz: '🌟',
