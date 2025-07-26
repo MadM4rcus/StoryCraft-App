@@ -140,7 +140,7 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍�',
+    constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
