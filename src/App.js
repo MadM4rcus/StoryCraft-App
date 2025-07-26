@@ -96,7 +96,11 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  // selectedCharacterId agora é lido diretamente da URL
+  const selectedCharacterId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('charId');
+  }, [window.location.search]); // Depende da URL
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -135,10 +139,10 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍�',
+    constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '🦴',
+    armadura: '�',
     poderDeFogo: '🎯',
   };
 
@@ -169,7 +173,8 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null);
+          // Limpar selectedCharacterId ao deslogar
+          window.history.pushState({}, '', window.location.pathname);
           setViewingAllCharacters(false);
           setIsMaster(false);
         }
@@ -191,7 +196,8 @@ const App = () => {
   useEffect(() => {
     let unsubscribeRole = () => {};
     if (db && user && isAuthReady) {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/userRoles/${user.uid}`);
+      // O caminho para o documento do papel de mestre foi alterado para o documento do próprio usuário
+      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
       unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
         if (docSnap.exists() && docSnap.data().isMaster === true) {
           setIsMaster(true);
@@ -282,7 +288,8 @@ const App = () => {
           const data = docSnap.data();
           if (data.deleted) {
             setCharacter(null);
-            setSelectedCharacterId(null);
+            // Atualiza a URL ao ser excluído
+            window.history.pushState({}, '', window.location.pathname);
             fetchCharactersList();
             setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
@@ -358,7 +365,8 @@ const App = () => {
         } else {
           console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
-          setSelectedCharacterId(null);
+          // Atualiza a URL ao não encontrar a ficha
+          window.history.pushState({}, '', window.location.pathname);
           fetchCharactersList();
         }
       }, (error) => {
@@ -1029,7 +1037,8 @@ const App = () => {
                     dataToSave.history = JSON.stringify(dataToSave.history);
 
                     await setDoc(characterDocRef, dataToSave);
-                    setSelectedCharacterId(newCharId);
+                    // Atualiza a URL com o novo charId
+                    window.history.pushState({}, '', `?charId=${newCharId}`);
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
@@ -1088,7 +1097,8 @@ const App = () => {
             };
 
             setCharacter(newCharacterData);
-            setSelectedCharacterId(newCharId);
+            // Atualiza a URL com o novo charId
+            window.history.pushState({}, '', `?charId=${newCharId}`);
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -1125,13 +1135,15 @@ const App = () => {
 
   // Função para selecionar um personagem da lista
   const handleSelectCharacter = (charId) => {
-    setSelectedCharacterId(charId);
+    // Atualiza a URL para selecionar o personagem
+    window.history.pushState({}, '', `?charId=${charId}`);
     setViewingAllCharacters(false);
   };
 
   // Função para voltar para a lista de personagens
   const handleBackToList = () => {
-    setSelectedCharacterId(null);
+    // Limpa o charId da URL para voltar à lista
+    window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
   };
@@ -1152,7 +1164,8 @@ const App = () => {
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef);
-          setSelectedCharacterId(null);
+          // Atualiza a URL ao ser excluído
+          window.history.pushState({}, '', window.location.pathname);
           setCharacter(null);
           fetchCharactersList();
           setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1201,7 +1214,8 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
-      setSelectedCharacterId(null);
+      // Limpa o charId da URL ao deslogar
+      window.history.pushState({}, '', window.location.pathname);
       setViewingAllCharacters(false);
       setIsMaster(false);
       setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1661,6 +1675,7 @@ const App = () => {
                             onChange={(e) => handleInventoryItemChange(index, 'description', e.target.value)}
                             rows="2"
                             className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            placeholder="Descrição do item"
                             disabled={user.uid !== character.ownerUid && !isMaster}
                           ></textarea>
                         </li>
@@ -1764,6 +1779,7 @@ const App = () => {
                               onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
                               rows="2"
                               className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                              placeholder="Descrição da vantagem"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             ></textarea>
                             <div className="flex gap-3 text-sm text-gray-400 mt-2">
@@ -1829,6 +1845,7 @@ const App = () => {
                               onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
                               rows="2"
                               className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                              placeholder="Descrição da desvantagem"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             ></textarea>
                             <div className="flex gap-3 text-sm text-gray-400 mt-2">
@@ -1898,6 +1915,7 @@ const App = () => {
                             onChange={(e) => handleAbilityChange(index, 'description', e.target.value)}
                             rows="2"
                             className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            placeholder="Descrição da habilidade"
                             disabled={user.uid !== character.ownerUid && !isMaster}
                           ></textarea>
                         </li>
