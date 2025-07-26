@@ -131,7 +131,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '�',
+    fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨', // Alterado para o emoji de rocha
@@ -1457,31 +1457,31 @@ const App = () => {
             {/* Atributos Básicos */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">Atributos Básicos</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Reduzido o gap para 4 */}
                 {/* Atributos Físicos */}
                 <div>
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
                   {Object.entries(character.basicAttributes).map(([key, attr]) => (
-                    <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
+                    <div key={key} className="mb-2 p-2 bg-gray-600 rounded-md"> {/* Reduzido o mb para 2 */}
                       <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
-                        {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {/* Formata para exibir "Poder De Fogo" */}
+                        {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
                       </label>
-                      <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
+                      <div className="flex justify-between items-center gap-1 text-sm"> {/* Ajustado para flex e items-center, gap para 1 */}
                         <div className="flex flex-col items-center flex-1">
                           <span className="text-gray-400 text-xs text-center">Base</span>
-                          <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Bônus Perm.</span>
-                          <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <span className="text-gray-400 text-xs text-center">Perm.</span> {/* Texto mais curto */}
+                          <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Bônus Cond.</span>
-                          <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <span className="text-gray-400 text-xs text-center">Cond.</span> {/* Texto mais curto */}
+                          <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
                           <span className="text-gray-400 text-xs text-center">Total</span>
-                          <input type="number" value={attr.total} readOnly className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed" />
+                          <input type="number" value={attr.total} readOnly className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura reduzida */}
                         </div>
                       </div>
                     </div>
@@ -1492,26 +1492,26 @@ const App = () => {
                 <div>
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
                   {Object.entries(character.magicAttributes).map(([key, attr]) => (
-                    <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
+                    <div key={key} className="mb-2 p-2 bg-gray-600 rounded-md"> {/* Reduzido o mb para 2 */}
                       <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
-                        {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}: {/* Capitaliza a primeira letra para exibição */}
+                        {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}:
                       </label>
-                      <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
+                      <div className="flex justify-between items-center gap-1 text-sm"> {/* Ajustado para flex e items-center, gap para 1 */}
                         <div className="flex flex-col items-center flex-1">
                           <span className="text-gray-400 text-xs text-center">Base</span>
-                          <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Bônus Perm.</span>
-                          <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <span className="text-gray-400 text-xs text-center">Perm.</span> {/* Texto mais curto */}
+                          <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Bônus Cond.</span>
-                          <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                          <span className="text-gray-400 text-xs text-center">Cond.</span> {/* Texto mais curto */}
+                          <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
                         </div>
                         <div className="flex flex-col items-center flex-1">
                           <span className="text-gray-400 text-xs text-center">Total</span>
-                          <input type="number" value={attr.total} readOnly className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed" />
+                          <input type="number" value={attr.total} readOnly className="w-16 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura reduzida */}
                         </div>
                       </div>
                     </div>
