@@ -97,11 +97,10 @@ const App = () => {
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   // selectedCharacterId agora é lido diretamente da URL
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const selectedCharacterId = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('charId');
-  }, [window.location.search]); // Depende da URL
+  }, [window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps // Depende da URL
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -153,7 +152,7 @@ const App = () => {
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
-    luz: '🌟',
+    luz: '�',
     trevas: '🌑',
     espirito: '🌀',
     outro: '🪄',
