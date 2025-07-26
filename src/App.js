@@ -10,15 +10,17 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const handleConfirm = () => {
     if (type === 'prompt') {
       onConfirm(inputValue);
+      // IMPORTANTE: NÃO chame onClose() aqui para prompts. O componente pai (App)
+      // gerenciará o fechamento/transição para prompts multi-passos.
     } else {
       onConfirm();
+      onClose(); // Para tipos 'confirm' ou 'info', feche imediatamente.
     }
-    onClose();
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose();
+    onClose(); // Sempre feche ao cancelar.
   };
 
   // Determina o texto do botão de confirmação baseado no tipo de modal
@@ -94,7 +96,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null); // CORRIGIDO: Agora é um estado useState
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -183,7 +185,7 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null); // CORRIGIDO: Define como null ao deslogar
+          setSelectedCharacterId(null);
           setViewingAllCharacters(false);
           setIsMaster(false); // Limpa o status de mestre ao deslogar
         }
@@ -304,7 +306,7 @@ const App = () => {
           const data = docSnap.data();
           if (data.deleted) { // Se a ficha foi deletada (soft delete), desseleciona
             setCharacter(null);
-            setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
+            setSelectedCharacterId(null);
             fetchCharactersList(); // Recarrega a lista para remover o item deletado
             setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
@@ -355,7 +357,7 @@ const App = () => {
         } else {
           console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
-          setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
+          setSelectedCharacterId(null);
           fetchCharactersList(); // Recarrega a lista para refletir a exclusão, se for o caso
         }
       }, (error) => {
@@ -505,27 +507,35 @@ const App = () => {
       message: 'Digite o nome do item:',
       type: 'prompt',
       onConfirm: (itemName) => {
-        console.log("Modal de item confirmado. Nome:", itemName); // Log de depuração
+        console.log("Modal de item confirmado. Nome:", itemName);
         if (itemName) {
-          setModal({
+          setModal({ // Abre o segundo prompt
             isVisible: true,
             message: 'Digite a descrição do item:',
             type: 'prompt',
             onConfirm: (itemDescription) => {
-              console.log("Modal de descrição de item confirmado. Descrição:", itemDescription); // Log de depuração
+              console.log("Modal de descrição de item confirmado. Descrição:", itemDescription);
               setCharacter(prevChar => {
                 const updatedInventory = [...(prevChar.inventory || []), { name: itemName, description: itemDescription }];
-                console.log("Inventário atualizado:", updatedInventory); // Log de depuração
+                console.log("Inventário atualizado:", updatedInventory);
                 return { ...prevChar, inventory: updatedInventory };
               });
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após o passo final
             },
-            onCancel: () => { console.log("Adição de item cancelada na descrição."); }, // Log de depuração
+            onCancel: () => {
+              console.log("Adição de item cancelada na descrição.");
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+            },
           });
         } else {
-          console.log("Nome do item vazio. Adição cancelada."); // Log de depuração
+          console.log("Nome do item vazio. Adição cancelada.");
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o nome estiver vazio
         }
       },
-      onCancel: () => { console.log("Adição de item cancelada no nome."); }, // Log de depuração
+      onCancel: () => {
+        console.log("Adição de item cancelada no nome.");
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
@@ -533,7 +543,7 @@ const App = () => {
   const handleRemoveItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedInventory = (prevChar.inventory || []).filter((_, index) => index !== indexToRemove);
-      console.log("Item removido do inventário:", updatedInventory); // Log de depuração
+      console.log("Item removido do inventário:", updatedInventory);
       return { ...prevChar, inventory: updatedInventory };
     });
   };
@@ -554,36 +564,47 @@ const App = () => {
       message: `Digite o nome da ${type === 'advantages' ? 'Vantagem' : 'Desvantagem'}:`,
       type: 'prompt',
       onConfirm: (name) => {
-        console.log(`Modal de ${type} confirmado. Nome:`, name); // Log de depuração
+        console.log(`Modal de ${type} confirmado. Nome:`, name);
         if (name) {
-          setModal({
+          setModal({ // Passo 2: Descrição
             isVisible: true,
             message: `Digite a descrição da ${name}:`,
             type: 'prompt',
             onConfirm: (description) => {
-              console.log(`Modal de descrição de ${type} confirmado. Descrição:`, description); // Log de depuração
-              setModal({
+              console.log(`Modal de descrição de ${type} confirmado. Descrição:`, description);
+              setModal({ // Passo 3: Valor
                 isVisible: true,
                 message: `Digite o valor da ${name}:`,
                 type: 'prompt',
                 onConfirm: (value) => {
-                  console.log(`Modal de valor de ${type} confirmado. Valor:`, value); // Log de depuração
+                  console.log(`Modal de valor de ${type} confirmado. Valor:`, value);
                   setCharacter(prevChar => {
                     const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
-                    console.log(`Lista de ${type} atualizada:`, updatedPerks); // Log de depuração
+                    console.log(`Lista de ${type} atualizada:`, updatedPerks);
                     return { ...prevChar, [type]: updatedPerks };
                   });
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após o passo final
                 },
-                onCancel: () => { console.log(`Adição de ${type} cancelada no valor.`); }, // Log de depuração
+                onCancel: () => {
+                  console.log(`Adição de ${type} cancelada no valor.`);
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+                },
               });
             },
-            onCancel: () => { console.log(`Adição de ${type} cancelada na descrição.`); }, // Log de depuração
+            onCancel: () => {
+              console.log(`Adição de ${type} cancelada na descrição.`);
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+            },
           });
         } else {
-          console.log(`Nome da ${type} vazio. Adição cancelada.`); // Log de depuração
+          console.log(`Nome da ${type} vazio. Adição cancelada.`);
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o nome estiver vazio
         }
       },
-      onCancel: () => { console.log(`Adição de ${type} cancelada no nome.`); }, // Log de depuração
+      onCancel: () => {
+        console.log(`Adição de ${type} cancelada no nome.`);
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
@@ -591,7 +612,7 @@ const App = () => {
   const handleRemovePerk = (type, indexToRemove) => {
     setCharacter(prevChar => {
       const updatedPerks = (prevChar[type] || []).filter((_, index) => index !== indexToRemove);
-      console.log(`${type} removida:`, updatedPerks); // Log de depuração
+      console.log(`${type} removida:`, updatedPerks);
       return { ...prevChar, [type]: updatedPerks };
     });
   };
@@ -603,7 +624,7 @@ const App = () => {
       if (updatedPerks[index]) { // Garante que o item existe antes de tentar modificar
         updatedPerks[index].origin[originType] = !updatedPerks[index].origin[originType];
       }
-      console.log(`Origem de ${type} atualizada:`, updatedPerks); // Log de depuração
+      console.log(`Origem de ${type} atualizada:`, updatedPerks);
       return { ...prevChar, [type]: updatedPerks };
     });
   };
@@ -615,27 +636,35 @@ const App = () => {
       message: 'Digite o título da Habilidade:',
       type: 'prompt',
       onConfirm: (title) => {
-        console.log("Modal de habilidade confirmado. Título:", title); // Log de depuração
+        console.log("Modal de habilidade confirmado. Título:", title);
         if (title) {
           setModal({
             isVisible: true,
             message: `Digite a descrição da habilidade "${title}":`,
             type: 'prompt',
             onConfirm: (description) => {
-              console.log("Modal de descrição de habilidade confirmado. Descrição:", description); // Log de depuração
+              console.log("Modal de descrição de habilidade confirmado. Descrição:", description);
               setCharacter(prevChar => {
                 const updatedAbilities = [...(prevChar.abilities || []), { title, description }];
-                console.log("Habilidades atualizadas:", updatedAbilities); // Log de depuração
+                console.log("Habilidades atualizadas:", updatedAbilities);
                 return { ...prevChar, abilities: updatedAbilities };
               });
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após o passo final
             },
-            onCancel: () => { console.log("Adição de habilidade cancelada na descrição."); }, // Log de depuração
+            onCancel: () => {
+              console.log("Adição de habilidade cancelada na descrição.");
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+            },
           });
         } else {
-          console.log("Título da habilidade vazio. Adição cancelada."); // Log de depuração
+          console.log("Título da habilidade vazio. Adição cancelada.");
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o título estiver vazio
         }
       },
-      onCancel: () => { console.log("Adição de habilidade cancelada no título."); }, // Log de depuração
+      onCancel: () => {
+        console.log("Adição de habilidade cancelada no título.");
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
@@ -643,7 +672,7 @@ const App = () => {
   const handleRemoveAbility = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedAbilities = (prevChar.abilities || []).filter((_, index) => index !== indexToRemove);
-      console.log("Habilidade removida:", updatedAbilities); // Log de depuração
+      console.log("Habilidade removida:", updatedAbilities);
       return { ...prevChar, abilities: updatedAbilities };
     });
   };
@@ -655,18 +684,23 @@ const App = () => {
       message: 'Digite o nome da Especialização:',
       type: 'prompt',
       onConfirm: (name) => {
-        console.log("Modal de especialização confirmado. Nome:", name); // Log de depuração
+        console.log("Modal de especialização confirmado. Nome:", name);
         if (name) {
           setCharacter(prevChar => {
             const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
-            console.log("Especializações atualizadas:", updatedSpecializations); // Log de depuração
+            console.log("Especializações atualizadas:", updatedSpecializations);
             return { ...prevChar, specializations: updatedSpecializations };
           });
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após o passo final
         } else {
-          console.log("Nome da especialização vazio. Adição cancelada."); // Log de depuração
+          console.log("Nome da especialização vazio. Adição cancelada.");
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o nome estiver vazio
         }
       },
-      onCancel: () => { console.log("Adição de especialização cancelada no nome."); }, // Log de depuração
+      onCancel: () => {
+        console.log("Adição de especialização cancelada no nome.");
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
@@ -674,7 +708,7 @@ const App = () => {
   const handleRemoveSpecialization = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
-      console.log("Especialização removida:", updatedSpecializations); // Log de depuração
+      console.log("Especialização removida:", updatedSpecializations);
       return { ...prevChar, specializations: updatedSpecializations };
     });
   };
@@ -686,7 +720,7 @@ const App = () => {
       if (updatedSpecs[index]) { // Garante que o item existe antes de tentar modificar
         updatedSpecs[index][field] = parseInt(value, 10) || 0;
       }
-      console.log("Especialização alterada:", updatedSpecs); // Log de depuração
+      console.log("Especialização alterada:", updatedSpecs);
       return { ...prevChar, specializations: updatedSpecs };
     });
   };
@@ -698,36 +732,47 @@ const App = () => {
       message: 'Digite o nome do Item Equipado:',
       type: 'prompt',
       onConfirm: (name) => {
-        console.log("Modal de item equipado confirmado. Nome:", name); // Log de depuração
+        console.log("Modal de item equipado confirmado. Nome:", name);
         if (name) {
           setModal({
             isVisible: true,
             message: `Digite a descrição do item "${name}":`,
             type: 'prompt',
             onConfirm: (description) => {
-              console.log("Modal de descrição de item equipado confirmado. Descrição:", description); // Log de depuração
+              console.log("Modal de descrição de item equipado confirmado. Descrição:", description);
               setModal({
                 isVisible: true,
                 message: `Digite os atributos/efeitos do item "${name}" (ex: +5 Força, Dano Fogo):`,
                 type: 'prompt',
                 onConfirm: (attributes) => {
-                  console.log("Modal de atributos de item equipado confirmado. Atributos:", attributes); // Log de depuração
+                  console.log("Modal de atributos de item equipado confirmado. Atributos:", attributes);
                   setCharacter(prevChar => {
                     const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description, attributes }];
-                    console.log("Itens equipados atualizados:", updatedEquippedItems); // Log de depuração
+                    console.log("Itens equipados atualizados:", updatedEquippedItems);
                     return { ...prevChar, equippedItems: updatedEquippedItems };
                   });
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após o passo final
                 },
-                onCancel: () => { console.log("Adição de item equipado cancelada nos atributos."); }, // Log de depuração
+                onCancel: () => {
+                  console.log("Adição de item equipado cancelada nos atributos.");
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+                },
               });
             },
-            onCancel: () => { console.log("Adição de item equipado cancelada na descrição."); }, // Log de depuração
+            onCancel: () => {
+              console.log("Adição de item equipado cancelada na descrição.");
+              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+            },
           });
         } else {
-          console.log("Nome do item equipado vazio. Adição cancelada."); // Log de depuração
+          console.log("Nome do item equipado vazio. Adição cancelada.");
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o nome estiver vazio
         }
       },
-      onCancel: () => { console.log("Adição de item equipado cancelada no nome."); }, // Log de depuração
+      onCancel: () => {
+        console.log("Adição de item equipado cancelada no nome.");
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
@@ -735,7 +780,7 @@ const App = () => {
   const handleRemoveEquippedItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove);
-      console.log("Item equipado removido:", updatedEquippedItems); // Log de depuração
+      console.log("Item equipado removido:", updatedEquippedItems);
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
   };
@@ -934,7 +979,7 @@ const App = () => {
 
             // Define o personagem no estado local imediatamente
             setCharacter(newCharacterData);
-            setSelectedCharacterId(newCharId); // CORRIGIDO: Define o personagem selecionado
+            setSelectedCharacterId(newCharId);
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -958,21 +1003,25 @@ const App = () => {
           } finally {
             setIsLoading(false);
           }
+        } else {
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal se o nome estiver vazio
         }
       },
-      onCancel: () => {},
+      onCancel: () => {
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal ao cancelar
+      },
     });
   };
 
   // Função para selecionar um personagem da lista
   const handleSelectCharacter = (charId) => {
-    setSelectedCharacterId(charId); // CORRIGIDO: Define o personagem selecionado
+    setSelectedCharacterId(charId);
     setViewingAllCharacters(false);
   };
 
   // Função para voltar para a lista de personagens
   const handleBackToList = () => {
-    setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
+    setSelectedCharacterId(null);
     setCharacter(null);
     fetchCharactersList(); // Garante que a lista seja atualizada ao voltar
   };
@@ -993,7 +1042,7 @@ const App = () => {
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef); // Usa deleteDoc para remover permanentemente
-          setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
+          setSelectedCharacterId(null);
           setCharacter(null); // Limpa o personagem selecionado
           fetchCharactersList(); // Recarrega a lista para remover o item excluído
           setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1042,7 +1091,7 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
-      setSelectedCharacterId(null); // CORRIGIDO: Desseleciona ao sair
+      setSelectedCharacterId(null);
       setViewingAllCharacters(false);
       setIsMaster(false); // Garante que o status de mestre seja limpo
       setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
