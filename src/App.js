@@ -96,7 +96,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null); // Corrigido: Adicionado useState(null)
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -1183,6 +1183,30 @@ const App = () => {
           body {
             font-family: 'Inter', sans-serif;
           }
+
+          /* Esconde as setinhas para navegadores WebKit (Chrome, Safari) */
+          input[type="number"]::-webkit-outer-spin-button,
+          input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+            opacity: 0; /* Torna-as invisíveis */
+            width: 0; /* Remove a largura que elas ocupam */
+          }
+
+          /* Esconde as setinhas para Firefox */
+          input[type="number"] {
+            -moz-appearance: textfield;
+          }
+
+          /* Mostra as setinhas ao passar o mouse ou focar para WebKit */
+          input[type="number"]:hover::-webkit-outer-spin-button,
+          input[type="number"]:hover::-webkit-inner-spin-button,
+          input[type="number"]:focus::-webkit-outer-spin-button,
+          input[type="number"]:focus::-webkit-inner-spin-button {
+            -webkit-appearance: inner-spin-button; /* Restaura a aparência */
+            opacity: 1; /* Torna-as visíveis */
+            width: auto; /* Restaura a largura */
+          }
         `}
       </style>
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
@@ -1463,26 +1487,26 @@ const App = () => {
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
                   <div className="grid grid-cols-2 gap-2"> {/* Nova grade para 2 colunas de atributos */}
                     {Object.entries(character.basicAttributes).map(([key, attr]) => (
-                      <div key={key} className="p-2 bg-gray-600 rounded-md"> {/* Removido mb-2, gap cuida do espaçamento */}
-                        <label className="capitalize text-base font-medium text-gray-200 block mb-1"> {/* Texto menor */}
+                      <div key={key} className="p-2 bg-gray-600 rounded-md">
+                        <label className="capitalize text-base font-medium text-gray-200 block mb-1">
                           {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
                         </label>
-                        <div className="flex justify-between items-center gap-0.5 text-xs"> {/* Ajustado para flex e items-center, gap para 0.5, texto menor */}
+                        <div className="flex justify-between items-center gap-1 text-xs"> {/* Aumentado o gap para 1 */}
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Base</span>
-                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
-                            <span className="text-gray-400 text-xs text-center">Perm.</span> {/* Texto mais curto */}
-                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <span className="text-gray-400 text-xs text-center">Perm.</span>
+                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
-                            <span className="text-gray-400 text-xs text-center">Cond.</span> {/* Texto mais curto */}
-                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <span className="text-gray-400 text-xs text-center">Cond.</span>
+                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Total</span>
-                            <input type="number" value={attr.total} readOnly className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura reduzida */}
+                            <input type="number" value={attr.total} readOnly className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-14 */}
                           </div>
                         </div>
                       </div>
@@ -1495,26 +1519,26 @@ const App = () => {
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
                   <div className="grid grid-cols-2 gap-2"> {/* Nova grade para 2 colunas de atributos */}
                     {Object.entries(character.magicAttributes).map(([key, attr]) => (
-                      <div key={key} className="p-2 bg-gray-600 rounded-md"> {/* Removido mb-2, gap cuida do espaçamento */}
-                        <label className="capitalize text-base font-medium text-gray-200 block mb-1"> {/* Texto menor */}
+                      <div key={key} className="p-2 bg-gray-600 rounded-md">
+                        <label className="capitalize text-base font-medium text-gray-200 block mb-1">
                           {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}:
                         </label>
-                        <div className="flex justify-between items-center gap-0.5 text-xs"> {/* Ajustado para flex e items-center, gap para 0.5, texto menor */}
+                        <div className="flex justify-between items-center gap-1 text-xs"> {/* Aumentado o gap para 1 */}
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Base</span>
-                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
-                            <span className="text-gray-400 text-xs text-center">Perm.</span> {/* Texto mais curto */}
-                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <span className="text-gray-400 text-xs text-center">Perm.</span>
+                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
-                            <span className="text-gray-400 text-xs text-center">Cond.</span> {/* Texto mais curto */}
-                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura reduzida */}
+                            <span className="text-gray-400 text-xs text-center">Cond.</span>
+                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-14 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Total</span>
-                            <input type="number" value={attr.total} readOnly className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura reduzida */}
+                            <input type="number" value={attr.total} readOnly className="w-14 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-14 */}
                           </div>
                         </div>
                       </div>
