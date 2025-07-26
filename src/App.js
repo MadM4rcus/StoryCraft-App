@@ -94,7 +94,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null); // Corrigido para useState
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -114,7 +114,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis
   const magicAttributeEmojis = {
-    fire: '🔥',
+    fire: '�',
     water: '💧',
     air: '🌬️',
     earth: '🌍',
@@ -143,14 +143,15 @@ const App = () => {
         parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, startIndex)}</span>);
       }
 
-      // Adiciona a imagem com float e tamanho pequeno
+      // Adiciona a imagem com float e tamanho pequeno, usando a largura máxima configurável
+      const imgWidth = character?.imageMaxWidth || 100; // Usa a largura configurada ou 100px como fallback
       parts.push(
         <img
           key={`image-${startIndex}`}
           src={imageUrl}
           alt="Imagem da história"
-          className="float-left max-w-[100px] h-auto rounded-md shadow-md mr-4 mb-2" // max-w-[100px] para "pequenininha"
-          onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/000000/FFFFFF?text=Erro'; }} // Menor placeholder
+          className={`float-left max-w-[${imgWidth}px] h-auto rounded-md shadow-md mr-4 mb-2`}
+          onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/${imgWidth}x100/000000/FFFFFF?text=Erro`; }} // Placeholder dinâmico
         />
       );
       lastIndex = endIndex;
@@ -182,7 +183,7 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null); // Mantido null para desselecionar ao deslogar
+          setSelectedCharacterId(null);
           setViewingAllCharacters(false);
           setIsMaster(false); // Limpa o status de mestre ao deslogar
         }
@@ -347,6 +348,7 @@ const App = () => {
           deserializedData.notes = deserializedData.notes || '';
           deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
           deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+          deserializedData.imageMaxWidth = deserializedData.imageMaxWidth !== undefined ? deserializedData.imageMaxWidth : 100; // Novo campo para largura da imagem
 
 
           setCharacter(deserializedData);
@@ -429,10 +431,18 @@ const App = () => {
   // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCharacter(prevChar => ({
-      ...prevChar,
-      [name]: value,
-    }));
+    // Converte para número se for um campo numérico específico
+    if (name === 'age' || name === 'level' || name === 'xp' || name === 'imageMaxWidth') {
+      setCharacter(prevChar => ({
+        ...prevChar,
+        [name]: parseInt(value, 10) || 0,
+      }));
+    } else {
+      setCharacter(prevChar => ({
+        ...prevChar,
+        [name]: value,
+      }));
+    }
   };
 
   // Lida com mudanças nos atributos principais (HP, MP, Iniciativa, FA, FM, FD)
@@ -497,10 +507,11 @@ const App = () => {
             message: 'Digite a descrição do item:',
             type: 'prompt',
             onConfirm: (itemDescription) => {
-              setCharacter(prevChar => ({
-                ...prevChar,
-                inventory: [...(prevChar.inventory || []), { name: itemName, description: itemDescription }],
-              }));
+              setCharacter(prevChar => {
+                const updatedInventory = [...(prevChar.inventory || []), { name: itemName, description: itemDescription }];
+                console.log("Inventário atualizado:", updatedInventory); // Log de depuração
+                return { ...prevChar, inventory: updatedInventory };
+              });
             },
             onCancel: () => {},
           });
@@ -512,10 +523,11 @@ const App = () => {
 
   // Lida com a remoção de itens do inventário
   const handleRemoveItem = (indexToRemove) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      inventory: (prevChar.inventory || []).filter((_, index) => index !== indexToRemove),
-    }));
+    setCharacter(prevChar => {
+      const updatedInventory = (prevChar.inventory || []).filter((_, index) => index !== indexToRemove);
+      console.log("Item removido do inventário:", updatedInventory); // Log de depuração
+      return { ...prevChar, inventory: updatedInventory };
+    });
   };
 
   // Lida com a mudança de Zeni
@@ -545,10 +557,11 @@ const App = () => {
                 message: `Digite o valor da ${name}:`,
                 type: 'prompt',
                 onConfirm: (value) => {
-                  setCharacter(prevChar => ({
-                    ...prevChar,
-                    [type]: [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }],
-                  }));
+                  setCharacter(prevChar => {
+                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
+                    console.log(`Lista de ${type} atualizada:`, updatedPerks); // Log de depuração
+                    return { ...prevChar, [type]: updatedPerks };
+                  });
                 },
                 onCancel: () => {},
               });
@@ -563,10 +576,11 @@ const App = () => {
 
   // Lida com a remoção de Vantagem/Desvantagem
   const handleRemovePerk = (type, indexToRemove) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      [type]: (prevChar[type] || []).filter((_, index) => index !== indexToRemove),
-    }));
+    setCharacter(prevChar => {
+      const updatedPerks = (prevChar[type] || []).filter((_, index) => index !== indexToRemove);
+      console.log(`${type} removida:`, updatedPerks); // Log de depuração
+      return { ...prevChar, [type]: updatedPerks };
+    });
   };
 
   // Lida com a mudança de origem da Vantagem/Desvantagem
@@ -576,6 +590,7 @@ const App = () => {
       if (updatedPerks[index]) { // Garante que o item existe antes de tentar modificar
         updatedPerks[index].origin[originType] = !updatedPerks[index].origin[originType];
       }
+      console.log(`Origem de ${type} atualizada:`, updatedPerks); // Log de depuração
       return { ...prevChar, [type]: updatedPerks };
     });
   };
@@ -593,10 +608,11 @@ const App = () => {
             message: `Digite a descrição da habilidade "${title}":`,
             type: 'prompt',
             onConfirm: (description) => {
-              setCharacter(prevChar => ({
-                ...prevChar,
-                abilities: [...(prevChar.abilities || []), { title, description }],
-              }));
+              setCharacter(prevChar => {
+                const updatedAbilities = [...(prevChar.abilities || []), { title, description }];
+                console.log("Habilidades atualizadas:", updatedAbilities); // Log de depuração
+                return { ...prevChar, abilities: updatedAbilities };
+              });
             },
             onCancel: () => {},
           });
@@ -608,10 +624,11 @@ const App = () => {
 
   // Lida com a remoção de Habilidade
   const handleRemoveAbility = (indexToRemove) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      abilities: (prevChar.abilities || []).filter((_, index) => index !== indexToRemove),
-    }));
+    setCharacter(prevChar => {
+      const updatedAbilities = (prevChar.abilities || []).filter((_, index) => index !== indexToRemove);
+      console.log("Habilidade removida:", updatedAbilities); // Log de depuração
+      return { ...prevChar, abilities: updatedAbilities };
+    });
   };
 
   // Lida com a adição de Especialização
@@ -622,10 +639,11 @@ const App = () => {
       type: 'prompt',
       onConfirm: (name) => {
         if (name) {
-          setCharacter(prevChar => ({
-            ...prevChar,
-            specializations: [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }],
-          }));
+          setCharacter(prevChar => {
+            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
+            console.log("Especializações atualizadas:", updatedSpecializations); // Log de depuração
+            return { ...prevChar, specializations: updatedSpecializations };
+          });
         }
       },
       onCancel: () => {},
@@ -634,10 +652,11 @@ const App = () => {
 
   // Lida com a remoção de Especialização
   const handleRemoveSpecialization = (indexToRemove) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      specializations: (prevChar.specializations || []).filter((_, index) => index !== indexToRemove),
-    }));
+    setCharacter(prevChar => {
+      const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
+      console.log("Especialização removida:", updatedSpecializations); // Log de depuração
+      return { ...prevChar, specializations: updatedSpecializations };
+    });
   };
 
   // Lida com a mudança de modificador/bônus da Especialização
@@ -647,6 +666,7 @@ const App = () => {
       if (updatedSpecs[index]) { // Garante que o item existe antes de tentar modificar
         updatedSpecs[index][field] = parseInt(value, 10) || 0;
       }
+      console.log("Especialização alterada:", updatedSpecs); // Log de depuração
       return { ...prevChar, specializations: updatedSpecs };
     });
   };
@@ -669,10 +689,11 @@ const App = () => {
                 message: `Digite os atributos/efeitos do item "${name}" (ex: +5 Força, Dano Fogo):`,
                 type: 'prompt',
                 onConfirm: (attributes) => {
-                  setCharacter(prevChar => ({
-                    ...prevChar,
-                    equippedItems: [...(prevChar.equippedItems || []), { name, description, attributes }],
-                  }));
+                  setCharacter(prevChar => {
+                    const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description, attributes }];
+                    console.log("Itens equipados atualizados:", updatedEquippedItems); // Log de depuração
+                    return { ...prevChar, equippedItems: updatedEquippedItems };
+                  });
                 },
                 onCancel: () => {},
               });
@@ -687,10 +708,11 @@ const App = () => {
 
   // Lida com a remoção de Item Equipado
   const handleRemoveEquippedItem = (indexToRemove) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      equippedItems: (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove),
-    }));
+    setCharacter(prevChar => {
+      const updatedEquippedItems = (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove);
+      console.log("Item equipado removido:", updatedEquippedItems); // Log de depuração
+      return { ...prevChar, equippedItems: updatedEquippedItems };
+    });
   };
 
   // Lida com a mudança de texto para História e Anotações
@@ -716,6 +738,7 @@ const App = () => {
           basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
           magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
+          imageMaxWidth: 100, // Novo campo para largura da imagem
         });
         // Não reseta selectedCharacterId aqui, apenas o conteúdo da ficha
       },
@@ -768,6 +791,7 @@ const App = () => {
                   ownerUid: user.uid,
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
+                  imageMaxWidth: importedData.imageMaxWidth !== undefined ? importedData.imageMaxWidth : 100, // Novo campo para largura da imagem
                   // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON importado
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
@@ -876,6 +900,7 @@ const App = () => {
               photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100, // Novos campos XP e Nível com valores iniciais
+              imageMaxWidth: 100, // Novo campo para largura da imagem
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
               basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
@@ -1202,6 +1227,20 @@ const App = () => {
                     <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
                     <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                   </div>
+                  {/* Novo campo para Largura Máxima da Imagem */}
+                  <div>
+                    <label htmlFor="imageMaxWidth" className="block text-sm font-medium text-gray-300 mb-1">Largura Máx. Imagem (px):</label>
+                    <input
+                      type="number"
+                      id="imageMaxWidth"
+                      name="imageMaxWidth"
+                      value={character.imageMaxWidth}
+                      onChange={handleChange}
+                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
+                      placeholder="Ex: 200"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
@@ -1293,21 +1332,21 @@ const App = () => {
                   {Object.entries(character.basicAttributes).map(([key, attr]) => (
                     <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
                       <label className="capitalize text-lg font-medium text-gray-200 block mb-1">{key}:</label>
-                      <div className="grid grid-cols-4 gap-2 text-sm">
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Base</span>
+                      <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Base</span>
                           <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Perm. Bônus</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Perm. Bônus</span>
                           <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Cond. Bônus</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Cond. Bônus</span>
                           <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Total</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Total</span>
                           <input type="number" value={attr.total} readOnly className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed" />
                         </div>
                       </div>
@@ -1323,21 +1362,21 @@ const App = () => {
                       <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
                         {magicAttributeEmojis[key] || ''} {key}:
                       </label>
-                      <div className="grid grid-cols-4 gap-2 text-sm">
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Base</span>
+                      <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Base</span>
                           <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Perm. Bônus</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Perm. Bônus</span>
                           <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Cond. Bônus</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Cond. Bônus</span>
                           <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-400">Total</span>
+                        <div className="flex flex-col items-center flex-1">
+                          <span className="text-gray-400 text-xs text-center">Total</span>
                           <input type="number" value={attr.total} readOnly className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed" />
                         </div>
                       </div>
