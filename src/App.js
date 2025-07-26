@@ -79,7 +79,7 @@ const App = () => {
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
     projectId: "storycraft-a5f7e",
-    storageBucket: "storycraft-a5f7e.firebasestorage.app",
+    storageBucket: "storycraft-a5f7e.firebaseapp.com",
     messagingSenderId: "727724875985",
     appId: "1:727724875985:web:97411448885c68c289e5f0",
     measurementId: "G-JH03Y2NZDK"
@@ -148,7 +148,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '🔥',
+    fogo: '�',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -216,12 +216,16 @@ const App = () => {
 
   // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
-    if (!db || !user || !isAuthReady) return;
+    if (!db || !user || !isAuthReady) {
+      console.log("fetchCharactersList: DB, user, or auth not ready.");
+      return;
+    }
 
     setIsLoading(true);
     try {
       let allChars = [];
       if (isMaster) {
+        console.log("fetchCharactersList: Master mode, fetching all characters.");
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
         const usersSnapshot = await getDocs(usersCollectionRef);
         
@@ -237,7 +241,9 @@ const App = () => {
         }
         setCharactersList(allChars);
         setViewingAllCharacters(true);
+        console.log("fetchCharactersList: All characters loaded for master.", allChars);
       } else {
+        console.log("fetchCharactersList: Player mode, fetching own characters.");
         const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(charactersCollectionRef);
         const querySnapshot = await getDocs(q);
@@ -249,8 +255,8 @@ const App = () => {
         }).filter(Boolean);
         setCharactersList(chars);
         setViewingAllCharacters(false);
+        console.log("fetchCharactersList: Player characters loaded.", chars);
       }
-      console.log("Lista de personagens carregada.");
     } catch (error) {
       console.error("Erro ao carregar lista de personagens:", error);
       setModal({
@@ -268,6 +274,7 @@ const App = () => {
   // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
   useEffect(() => {
     if (user && db && isAuthReady) {
+      console.log("useEffect (fetchCharactersList trigger): User, DB, Auth ready.");
       fetchCharactersList();
     }
   }, [user, db, isAuthReady, fetchCharactersList]);
@@ -276,58 +283,66 @@ const App = () => {
   useEffect(() => {
     let unsubscribeCharacter = () => {};
     const currentSelectedCharacterId = selectedCharacterId; 
+    console.log('useEffect (character loading) triggered. selectedCharacterId:', currentSelectedCharacterId);
 
     if (db && user && isAuthReady && currentSelectedCharacterId) {
       const loadCharacter = async () => {
         setIsLoading(true);
         let targetUid = user.uid; // Default para o UID do usuário logado
+        let charFound = false; // Flag to track if character is found
 
         if (isMaster) {
-          // Se for mestre, precisamos descobrir o ownerUid do personagem selecionado.
-          // Primeiro, tentamos encontrar na lista de personagens já carregada.
-          const charInList = charactersList.find(c => c.id === currentSelectedCharacterId);
-          if (charInList) {
-            targetUid = charInList.ownerUid;
-          } else {
-            // Se o personagem não estiver na lista (ex: lista ainda não carregada ou personagem de outro jogador),
-            // tentamos buscar o documento diretamente para obter o ownerUid.
-            // Isso é crucial para mestres que podem acessar fichas de qualquer usuário.
-            const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-            let foundOwnerUid = null;
-            try {
-              const usersSnapshot = await getDocs(usersCollectionRef);
-              for (const userDoc of usersSnapshot.docs) {
-                const userUid = userDoc.id;
-                const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
-                const charSnap = await getDoc(charDocRef); // Usar getDoc para uma única busca
-                if (charSnap.exists()) {
-                  foundOwnerUid = userUid;
-                  break;
-                }
+          console.log('Master mode: Searching for ownerUid for character:', currentSelectedCharacterId);
+          // For masters, we need to discover the ownerUid of the selected character.
+          // We will iterate through all users' characterSheets collections.
+          const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+          let foundOwnerUid = null;
+          try {
+            const usersSnapshot = await getDocs(usersCollectionRef);
+            for (const userDoc of usersSnapshot.docs) {
+              const userUid = userDoc.id;
+              const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
+              const charSnap = await getDoc(charDocRef); // Use getDoc for a single fetch
+              if (charSnap.exists()) {
+                foundOwnerUid = userUid;
+                charFound = true;
+                console.log('OwnerUid found for master:', foundOwnerUid);
+                break;
               }
-            } catch (error) {
-              console.error("Erro ao buscar ownerUid para mestre:", error);
             }
-            
-            if (foundOwnerUid) {
-              targetUid = foundOwnerUid;
-            } else {
-              console.warn(`Personagem com ID ${currentSelectedCharacterId} não encontrado em nenhuma coleção de usuário para mestre. Pode ter sido excluído ou ainda não sincronizado.`);
-              setCharacter(null);
-              window.history.pushState({}, '', window.location.pathname);
-              fetchCharactersList();
-              setIsLoading(false);
-              return;
-            }
+          } catch (error) {
+            console.error("Error fetching ownerUid for master:", error);
           }
+          
+          if (foundOwnerUid) {
+            targetUid = foundOwnerUid;
+          } else {
+            console.warn(`Character with ID ${currentSelectedCharacterId} not found in any user collection for master. It might have been deleted or still synchronizing.`);
+            setCharacter(null);
+            window.history.pushState({}, '', window.location.pathname);
+            fetchCharactersList(); // Re-fetch list if character not found or for synchronization
+            setIsLoading(false);
+            return; // Exit early if character not found
+          }
+        } else {
+          // For players, ownerUid is always their own UID
+          charFound = true; // Assume character exists for player until onSnapshot proves otherwise
+        }
+
+        // If for some reason charFound is false (shouldn't happen with the master logic above, but for safety)
+        if (!charFound) { 
+          setIsLoading(false);
+          return;
         }
 
         const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
+        console.log('Setting up onSnapshot for characterDocRef:', characterDocRef.path);
 
         unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.deleted) {
+              console.log('Character found but marked as deleted.');
               setCharacter(null);
               window.history.pushState({}, '', window.location.pathname);
               fetchCharactersList();
@@ -424,16 +439,21 @@ const App = () => {
       };
       loadCharacter(); // Chama a função assíncrona
     } else if (!currentSelectedCharacterId) {
+      console.log('No character ID selected, clearing character state.');
       setCharacter(null);
     }
-    return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster, fetchCharactersList]);
+    return () => {
+      console.log('Cleaning up character onSnapshot listener.');
+      unsubscribeCharacter();
+    };
+  }, [db, user, isAuthReady, selectedCharacterId, appId, isMaster, fetchCharactersList]); // REMOVIDO charactersList das dependências
 
   // Salva a ficha no Firestore
   useEffect(() => {
     if (db && user && isAuthReady && character && selectedCharacterId) {
-      const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
-      const targetUidForSave = charToSaveOwnerUid || user.uid; 
+      // Para mestres, é crucial encontrar o ownerUid correto para salvar.
+      // Se a ficha já está carregada, o ownerUid já está em character.ownerUid
+      const targetUidForSave = character.ownerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
         console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
@@ -476,7 +496,7 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]);
+  }, [character, db, user, isAuthReady, selectedCharacterId, appId, isMaster]);
 
   // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
@@ -628,7 +648,7 @@ const App = () => {
         if (name) {
           setModal({
             isVisible: true,
-            message: `Digite a descrição da ${name}:`,
+            message: 'Digite a descrição do item:',
             type: 'prompt',
             onConfirm: (description) => {
               setModal({
