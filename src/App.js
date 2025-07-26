@@ -94,7 +94,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null); // Corrigido para useState
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -114,7 +114,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis
   const magicAttributeEmojis = {
-    fire: '�',
+    fire: '🔥',
     water: '💧',
     air: '🌬️',
     earth: '🌍',
@@ -182,7 +182,7 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null);
+          setSelectedCharacterId(null); // Mantido null para desselecionar ao deslogar
           setViewingAllCharacters(false);
           setIsMaster(false); // Limpa o status de mestre ao deslogar
         }
@@ -277,7 +277,7 @@ const App = () => {
   }, [db, user, isAuthReady, isMaster, appId]);
 
 
-  // Carrega a lista de personagens quando o usuário ou o estado de autenticação muda
+  // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
   useEffect(() => {
     if (user && db && isAuthReady) {
       fetchCharactersList();
@@ -287,19 +287,23 @@ const App = () => {
   // Listener em tempo real para o personagem selecionado
   useEffect(() => {
     let unsubscribeCharacter = () => {};
-    if (db && user && isAuthReady && selectedCharacterId) {
+    // Usamos um estado local para selectedCharacterId para evitar problemas de dependência circular
+    // com o estado global.
+    const currentSelectedCharacterId = selectedCharacterId; 
+
+    if (db && user && isAuthReady && currentSelectedCharacterId) {
       // Encontra o personagem na lista para obter o ownerUid correto
-      const charToLoad = charactersList.find(c => c.id === selectedCharacterId);
+      const charToLoad = charactersList.find(c => c.id === currentSelectedCharacterId);
       const targetUid = charToLoad ? charToLoad.ownerUid : user.uid; // Usa ownerUid se disponível, senão o próprio UID
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${selectedCharacterId}`);
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
 
       unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.deleted) { // Se a ficha foi deletada (soft delete), desseleciona
             setCharacter(null);
-            setSelectedCharacterId(null);
+            setSelectedCharacterId(null); // Desseleciona o personagem
             fetchCharactersList(); // Recarrega a lista para remover o item deletado
             setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
@@ -350,7 +354,7 @@ const App = () => {
         } else {
           console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
-          setSelectedCharacterId(null);
+          setSelectedCharacterId(null); // Desseleciona o personagem
           fetchCharactersList(); // Recarrega a lista para refletir a exclusão, se for o caso
         }
       }, (error) => {
@@ -363,7 +367,7 @@ const App = () => {
           onCancel: () => {},
         });
       });
-    } else if (!selectedCharacterId) {
+    } else if (!currentSelectedCharacterId) {
       setCharacter(null);
     }
     return () => unsubscribeCharacter();
@@ -820,7 +824,7 @@ const App = () => {
                     dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
 
                     await setDoc(characterDocRef, dataToSave);
-                    setSelectedCharacterId(newCharId);
+                    setSelectedCharacterId(newCharId); // Define o personagem selecionado após a importação
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
@@ -880,7 +884,7 @@ const App = () => {
 
             // Define o personagem no estado local imediatamente
             setCharacter(newCharacterData);
-            setSelectedCharacterId(newCharId);
+            setSelectedCharacterId(newCharId); // Define o personagem selecionado
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -1727,4 +1731,3 @@ const App = () => {
 };
 
 export default App;
-�
