@@ -97,10 +97,11 @@ const App = () => {
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   // selectedCharacterId agora é lido diretamente da URL
+  // O ESLint reclama de window.location.search como dependência desnecessária, mas é intencional aqui.
   const selectedCharacterId = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('charId');
-  }, [window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps // Depende da URL
+  }, [window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -152,7 +153,7 @@ const App = () => {
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
-    luz: '�',
+    luz: '🌟',
     trevas: '🌑',
     espirito: '🌀',
     outro: '🪄',
