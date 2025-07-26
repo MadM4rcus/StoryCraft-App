@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore'; // Adicionado getDoc
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -10,17 +10,15 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const handleConfirm = () => {
     if (type === 'prompt') {
       onConfirm(inputValue);
-      // IMPORTANTE: NÃO chame onClose() aqui para prompts. O componente pai (App)
-      // gerenciará o fechamento/transição para prompts multi-passos.
     } else {
       onConfirm();
-      onClose(); // Para tipos 'confirm' ou 'info', feche imediatamente.
+      onClose();
     }
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose(); // Sempre feche ao cancelar.
+    onClose();
   };
 
   // Determina o texto do botão de confirmação baseado no tipo de modal
@@ -29,10 +27,10 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
       case 'confirm':
         return 'Confirmar';
       case 'prompt':
-        return 'Adicionar'; // Usado para adicionar itens/perks após prompt
+        return 'Adicionar';
       case 'info':
       default:
-        return 'OK'; // Para mensagens informativas
+        return 'OK';
     }
   }, [type]);
 
@@ -56,9 +54,9 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
               type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
-            {confirmButtonText} {/* Usando o texto dinâmico */}
+            {confirmButtonText}
           </button>
-          {type !== 'info' && ( // "Info" modals geralmente só precisam de um botão "OK"
+          {type !== 'info' && (
             <button
               onClick={handleCancel}
               className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
@@ -91,15 +89,19 @@ const App = () => {
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isMaster, setIsMaster] = useState(false); // Estado para o papel de mestre
+  const [isMaster, setIsMaster] = useState(false);
 
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  // selectedCharacterId agora é lido diretamente da URL
-  const selectedCharacterId = useMemo(() => {
+  
+  // selectedCharacterId e ownerUidFromUrl agora são lidos diretamente da URL
+  const { selectedCharacterId, ownerUidFromUrl } = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('charId');
+    return {
+      selectedCharacterId: params.get('charId'),
+      ownerUidFromUrl: params.get('ownerUid')
+    };
   }, [window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
@@ -148,7 +150,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '�',
+    fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -196,7 +198,6 @@ const App = () => {
   useEffect(() => {
     let unsubscribeRole = () => {};
     if (db && user && isAuthReady) {
-      // O caminho para o documento do papel de mestre foi alterado para o documento do próprio usuário
       const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
       unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
         if (docSnap.exists() && docSnap.data().isMaster === true) {
@@ -283,55 +284,59 @@ const App = () => {
   useEffect(() => {
     let unsubscribeCharacter = () => {};
     const currentSelectedCharacterId = selectedCharacterId; 
-    console.log('useEffect (character loading) triggered. selectedCharacterId:', currentSelectedCharacterId);
+    const currentOwnerUidFromUrl = ownerUidFromUrl;
+    console.log('useEffect (character loading) triggered. selectedCharacterId:', currentSelectedCharacterId, 'ownerUidFromUrl:', currentOwnerUidFromUrl, 'isMaster:', isMaster, 'user:', user?.uid);
 
     if (db && user && isAuthReady && currentSelectedCharacterId) {
       const loadCharacter = async () => {
         setIsLoading(true);
-        let targetUid = user.uid; // Default para o UID do usuário logado
-        let charFound = false; // Flag to track if character is found
+        let targetUid = currentOwnerUidFromUrl; // Prioriza ownerUid da URL
 
-        if (isMaster) {
-          console.log('Master mode: Searching for ownerUid for character:', currentSelectedCharacterId);
-          // For masters, we need to discover the ownerUid of the selected character.
-          // We will iterate through all users' characterSheets collections.
-          const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-          let foundOwnerUid = null;
-          try {
-            const usersSnapshot = await getDocs(usersCollectionRef);
-            for (const userDoc of usersSnapshot.docs) {
-              const userUid = userDoc.id;
-              const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
-              const charSnap = await getDoc(charDocRef); // Use getDoc for a single fetch
-              if (charSnap.exists()) {
-                foundOwnerUid = userUid;
-                charFound = true;
-                console.log('OwnerUid found for master:', foundOwnerUid);
-                break;
+        if (!targetUid) { // Se ownerUid não está na URL (ex: acesso direto ou link antigo)
+          if (isMaster) {
+            console.log('Master mode, ownerUid not in URL. Searching for ownerUid for character:', currentSelectedCharacterId);
+            const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+            let foundOwnerUid = null;
+            try {
+              const usersSnapshot = await getDocs(usersCollectionRef);
+              for (const userDoc of usersSnapshot.docs) {
+                const userUid = userDoc.id;
+                const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
+                const charSnap = await getDoc(charDocRef);
+                if (charSnap.exists()) {
+                  foundOwnerUid = userUid;
+                  break;
+                }
               }
+            } catch (error) {
+              console.error("Error fetching ownerUid for master:", error);
             }
-          } catch (error) {
-            console.error("Error fetching ownerUid for master:", error);
-          }
-          
-          if (foundOwnerUid) {
-            targetUid = foundOwnerUid;
+            
+            if (foundOwnerUid) {
+              targetUid = foundOwnerUid;
+            } else {
+              console.warn(`Character with ID ${currentSelectedCharacterId} not found in any user collection for master. It might have been deleted or still synchronizing.`);
+              setCharacter(null);
+              window.history.pushState({}, '', window.location.pathname);
+              fetchCharactersList();
+              setIsLoading(false);
+              return;
+            }
           } else {
-            console.warn(`Character with ID ${currentSelectedCharacterId} not found in any user collection for master. It might have been deleted or still synchronizing.`);
-            setCharacter(null);
-            window.history.pushState({}, '', window.location.pathname);
-            fetchCharactersList(); // Re-fetch list if character not found or for synchronization
-            setIsLoading(false);
-            return; // Exit early if character not found
+            // Para jogadores, se ownerUid não está na URL, deve ser o próprio UID
+            targetUid = user.uid;
+            console.log('Player mode, ownerUid not in URL. Defaulting to user.uid:', targetUid);
           }
         } else {
-          // For players, ownerUid is always their own UID
-          charFound = true; // Assume character exists for player until onSnapshot proves otherwise
+          console.log('OwnerUid found in URL:', targetUid);
         }
 
-        // If for some reason charFound is false (shouldn't happen with the master logic above, but for safety)
-        if (!charFound) { 
+        // Se targetUid ainda é null/undefined após todas as verificações, algo está errado.
+        if (!targetUid) {
+          console.error('Could not determine targetUid for character loading.');
           setIsLoading(false);
+          setCharacter(null);
+          window.history.pushState({}, '', window.location.pathname);
           return;
         }
 
@@ -362,20 +367,16 @@ const App = () => {
               deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
               deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
               
-              // Deserializa o campo 'history' para a nova estrutura de array
               let historyData = deserializedData.history;
               if (typeof historyData === 'string') {
                 try {
-                  // Tenta fazer o parse se for uma string JSON
                   historyData = JSON.parse(historyData);
                 } catch (parseError) {
-                  // Se for uma string mas não um JSON válido (formato antigo), converte para um bloco de texto
                   historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
                 }
               }
-              deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
+              deserializedData.history = Array.isArray(historyData) ? historyData : [];
 
-              // Garante que os campos de imagem existam e tenham valores padrão
               deserializedData.history = deserializedData.history.map(block => {
                 if (block.type === 'image') {
                   return {
@@ -399,7 +400,6 @@ const App = () => {
               });
             }
 
-            // Garante que todos os campos de array/objeto existam e sejam do tipo correto
             deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
             deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
             deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
@@ -420,11 +420,10 @@ const App = () => {
           } else {
             console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
             setCharacter(null);
-            // Atualiza a URL ao não encontrar a ficha
             window.history.pushState({}, '', window.location.pathname);
             fetchCharactersList();
           }
-          setIsLoading(false); // Finaliza o carregamento, seja com sucesso ou erro
+          setIsLoading(false);
         }, (error) => {
           console.error("Erro ao ouvir a ficha no Firestore:", error);
           setModal({
@@ -434,10 +433,10 @@ const App = () => {
             onConfirm: () => {},
             onCancel: () => {},
           });
-          setIsLoading(false); // Finaliza o carregamento em caso de erro no listener
+          setIsLoading(false);
         });
       };
-      loadCharacter(); // Chama a função assíncrona
+      loadCharacter();
     } else if (!currentSelectedCharacterId) {
       console.log('No character ID selected, clearing character state.');
       setCharacter(null);
@@ -446,13 +445,11 @@ const App = () => {
       console.log('Cleaning up character onSnapshot listener.');
       unsubscribeCharacter();
     };
-  }, [db, user, isAuthReady, selectedCharacterId, appId, isMaster, fetchCharactersList]); // REMOVIDO charactersList das dependências
+  }, [db, user, isAuthReady, selectedCharacterId, ownerUidFromUrl, appId, isMaster, fetchCharactersList]);
 
   // Salva a ficha no Firestore
   useEffect(() => {
     if (db && user && isAuthReady && character && selectedCharacterId) {
-      // Para mestres, é crucial encontrar o ownerUid correto para salvar.
-      // Se a ficha já está carregada, o ownerUid já está em character.ownerUid
       const targetUidForSave = character.ownerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
@@ -467,7 +464,6 @@ const App = () => {
           dataToSave.id = selectedCharacterId;
           dataToSave.ownerUid = targetUidForSave;
 
-          // Stringify os objetos aninhados para Firestore
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -478,7 +474,7 @@ const App = () => {
           dataToSave.abilities = JSON.stringify(dataToSave.abilities);
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
-          dataToSave.history = JSON.stringify(dataToSave.history); // Serializa o campo 'history'
+          dataToSave.history = JSON.stringify(dataToSave.history);
           
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
@@ -919,7 +915,6 @@ const App = () => {
       history: (prevChar.history || []).map(block => {
         if (block.id === id) {
           if (block.type === 'image' && (field === 'width' || field === 'height')) {
-            // Garante que width/height sejam números ou string vazia
             return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
           }
           return { ...block, [field]: value };
@@ -942,11 +937,11 @@ const App = () => {
   const handleDragStart = (e, index) => {
     draggedItemRef.current = index;
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", e.target); // Necessário para Firefox
+    e.dataTransfer.setData("text/html", e.target);
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault(); // Permite o drop
+    e.preventDefault();
   };
 
   const handleDrop = (e, dropIndex) => {
@@ -954,7 +949,7 @@ const App = () => {
     const draggedItemIndex = draggedItemRef.current;
     
     if (draggedItemIndex === null || draggedItemIndex === dropIndex) {
-        draggedItemRef.current = null; // Reset
+        draggedItemRef.current = null;
         return;
     }
 
@@ -966,7 +961,7 @@ const App = () => {
         ...prevChar,
         history: newHistory
     }));
-    draggedItemRef.current = null; // Reset após o drop
+    draggedItemRef.current = null;
   };
 
   // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
@@ -1068,11 +1063,10 @@ const App = () => {
                   abilities: importedData.abilities || [],
                   specializations: importedData.specializations || [],
                   equippedItems: importedData.equippedItems || [],
-                  history: importedData.history || [], // Garante que history seja um array
+                  history: importedData.history || [],
                   notes: importedData.notes || '',
                 };
 
-                // Garante que os campos de imagem existam e tenham valores padrão para dados importados
                 importedCharacterData.history = importedCharacterData.history.map(block => {
                   if (block.type === 'image') {
                     return {
@@ -1101,8 +1095,7 @@ const App = () => {
                     dataToSave.history = JSON.stringify(dataToSave.history);
 
                     await setDoc(characterDocRef, dataToSave);
-                    // Atualiza a URL com o novo charId
-                    window.history.pushState({}, '', `?charId=${newCharId}`);
+                    window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`); // Atualizado para incluir ownerUid
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
@@ -1161,8 +1154,7 @@ const App = () => {
             };
 
             setCharacter(newCharacterData);
-            // Atualiza a URL com o novo charId
-            window.history.pushState({}, '', `?charId=${newCharId}`);
+            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`); // Atualizado para incluir ownerUid
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -1198,15 +1190,13 @@ const App = () => {
   };
 
   // Função para selecionar um personagem da lista
-  const handleSelectCharacter = (charId) => {
-    // Atualiza a URL para selecionar o personagem
-    window.history.pushState({}, '', `?charId=${charId}`);
+  const handleSelectCharacter = (charId, ownerUid) => { // Agora aceita ownerUid
+    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`); // Passa ownerUid na URL
     setViewingAllCharacters(false);
   };
 
   // Função para voltar para a lista de personagens
   const handleBackToList = () => {
-    // Limpa o charId da URL para voltar à lista
     window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
@@ -1228,7 +1218,6 @@ const App = () => {
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef);
-          // Atualiza a URL ao ser excluído
           window.history.pushState({}, '', window.location.pathname);
           setCharacter(null);
           fetchCharactersList();
@@ -1278,7 +1267,6 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
-      // Limpa o charId da URL ao deslogar
       window.history.pushState({}, '', window.location.pathname);
       setViewingAllCharacters(false);
       setIsMaster(false);
@@ -1421,7 +1409,7 @@ const App = () => {
                     </div>
                     <div className="flex justify-end gap-2 mt-4">
                       <button
-                        onClick={() => handleSelectCharacter(char.id)}
+                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)} {/* Passando ownerUid aqui */}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
                       >
                         Ver/Editar
