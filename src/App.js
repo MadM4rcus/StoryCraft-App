@@ -94,7 +94,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = null; // Removido o estado local para simplificar a dependência
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null); // CORRIGIDO: Agora é um estado useState
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -120,7 +120,7 @@ const App = () => {
     earth: '🌍',
     light: '✨',
     darkness: '🌑',
-    spirit: '�',
+    spirit: '👻',
     other: '🪄', // Alterado para um emoji mais genérico de magia
   };
 
@@ -183,7 +183,7 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          // setSelectedCharacterId(null); // Já definido como null no estado
+          setSelectedCharacterId(null); // CORRIGIDO: Define como null ao deslogar
           setViewingAllCharacters(false);
           setIsMaster(false); // Limpa o status de mestre ao deslogar
         }
@@ -304,7 +304,7 @@ const App = () => {
           const data = docSnap.data();
           if (data.deleted) { // Se a ficha foi deletada (soft delete), desseleciona
             setCharacter(null);
-            // setSelectedCharacterId(null); // Já definido como null no estado
+            setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
             fetchCharactersList(); // Recarrega a lista para remover o item deletado
             setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
@@ -355,7 +355,7 @@ const App = () => {
         } else {
           console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
-          // setSelectedCharacterId(null); // Já definido como null no estado
+          setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
           fetchCharactersList(); // Recarrega a lista para refletir a exclusão, se for o caso
         }
       }, (error) => {
@@ -817,7 +817,7 @@ const App = () => {
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
                   // imageMaxWidth: importedData.imageMaxWidth !== undefined ? importedData.imageMaxWidth : 100, // Removido o campo imageMaxWidth
-                  // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON importado
+                  // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
                     mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
@@ -934,7 +934,7 @@ const App = () => {
 
             // Define o personagem no estado local imediatamente
             setCharacter(newCharacterData);
-            setSelectedCharacterId(newCharId); // Define o personagem selecionado
+            setSelectedCharacterId(newCharId); // CORRIGIDO: Define o personagem selecionado
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -966,13 +966,13 @@ const App = () => {
 
   // Função para selecionar um personagem da lista
   const handleSelectCharacter = (charId) => {
-    setSelectedCharacterId(charId);
+    setSelectedCharacterId(charId); // CORRIGIDO: Define o personagem selecionado
     setViewingAllCharacters(false);
   };
 
   // Função para voltar para a lista de personagens
   const handleBackToList = () => {
-    setSelectedCharacterId(null);
+    setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
     setCharacter(null);
     fetchCharactersList(); // Garante que a lista seja atualizada ao voltar
   };
@@ -993,7 +993,7 @@ const App = () => {
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef); // Usa deleteDoc para remover permanentemente
-          setSelectedCharacterId(null);
+          setSelectedCharacterId(null); // CORRIGIDO: Desseleciona o personagem
           setCharacter(null); // Limpa o personagem selecionado
           fetchCharactersList(); // Recarrega a lista para remover o item excluído
           setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1042,7 +1042,7 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
-      setSelectedCharacterId(null);
+      setSelectedCharacterId(null); // CORRIGIDO: Desseleciona ao sair
       setViewingAllCharacters(false);
       setIsMaster(false); // Garante que o status de mestre seja limpo
       setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
