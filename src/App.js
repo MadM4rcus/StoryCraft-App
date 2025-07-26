@@ -1403,7 +1403,7 @@ const App = () => {
                       data-attribute="hp"
                       value={character.mainAttributes.hp.current}
                       onChange={handleMainAttributeChange}
-                      className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                      className="w-10 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
                       disabled={user.uid !== character.ownerUid} // Jogador pode alterar HP atual
                     />
                     <span className="text-gray-300">/</span>
@@ -1413,7 +1413,7 @@ const App = () => {
                       data-attribute="hp"
                       value={character.mainAttributes.hp.max}
                       onChange={handleMainAttributeChange}
-                      className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                      className="w-10 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
                       disabled={!isMaster} // Apenas mestre pode alterar HP máximo
                     />
                   </div>
@@ -1428,7 +1428,7 @@ const App = () => {
                       data-attribute="mp"
                       value={character.mainAttributes.mp.current}
                       onChange={handleMainAttributeChange}
-                      className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                      className="w-10 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
                       disabled={user.uid !== character.ownerUid} // Jogador pode alterar MP atual
                     />
                     <span className="text-gray-300">/</span>
@@ -1438,7 +1438,7 @@ const App = () => {
                       data-attribute="mp"
                       value={character.mainAttributes.mp.max}
                       onChange={handleMainAttributeChange}
-                      className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                      className="w-10 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
                       disabled={!isMaster} // Apenas mestre pode alterar MP máximo
                     />
                   </div>
@@ -1455,7 +1455,7 @@ const App = () => {
                       name={attr}
                       value={character.mainAttributes[attr]}
                       onChange={handleSingleMainAttributeChange}
-                      className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                      className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
                       disabled={user.uid !== character.ownerUid && !isMaster}
                     />
                   </div>
@@ -1482,19 +1482,19 @@ const App = () => {
                         <div className="flex justify-between items-center gap-1 text-xs"> {/* Aumentado o gap para 1 */}
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Base</span>
-                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Perm.</span>
-                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Cond.</span>
-                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Total</span>
-                            <input type="number" value={attr.total} readOnly className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.total} readOnly className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-8 */}
                           </div>
                         </div>
                       </div>
@@ -1514,19 +1514,19 @@ const App = () => {
                         <div className="flex justify-between items-center gap-1 text-xs"> {/* Aumentado o gap para 1 */}
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Base</span>
-                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Perm.</span>
-                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Cond.</span>
-                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} /> {/* Largura ajustada para w-8 */}
                           </div>
                           <div className="flex flex-col items-center flex-1">
                             <span className="text-gray-400 text-xs text-center">Total</span>
-                            <input type="number" value={attr.total} readOnly className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-12 */}
+                            <input type="number" value={attr.total} readOnly className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" /> {/* Largura ajustada para w-8 */}
                           </div>
                         </div>
                       </div>
@@ -1592,7 +1592,7 @@ const App = () => {
                   type="number"
                   value={zeniAmount}
                   onChange={handleZeniChange}
-                  className="w-24 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
+                  className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
                   placeholder="Valor"
                   disabled={user.uid !== character.ownerUid && !isMaster}
                 />
@@ -1645,7 +1645,7 @@ const App = () => {
                               type="number"
                               value={perk.value}
                               onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
-                              className="w-16 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                              className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -1710,7 +1710,7 @@ const App = () => {
                               type="number"
                               value={perk.value}
                               onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
-                              className="w-16 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                              className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -1835,7 +1835,7 @@ const App = () => {
                             type="number"
                             value={spec.modifier}
                             onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
-                            className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                            className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                             disabled={user.uid !== character.ownerUid && !isMaster}
                           />
                         </label>
@@ -1845,7 +1845,7 @@ const App = () => {
                             type="number"
                             value={spec.bonus}
                             onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
-                            className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                            className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                             disabled={user.uid !== character.ownerUid && !isMaster}
                           />
                         </label>
