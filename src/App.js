@@ -97,6 +97,7 @@ const App = () => {
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   // selectedCharacterId agora é lido diretamente da URL
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const selectedCharacterId = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('charId');
@@ -139,10 +140,10 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍🩹',
+    constituicao: '❤️‍�',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '�',
+    armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
