@@ -119,23 +119,23 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍🩹',
+    constituicao: '❤️‍�',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
-  // Mapeamento de atributos mágicos para emojis
+  // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fire: '🔥',
-    water: '💧',
-    air: '🌬️',
-    earth: '🌍',
-    light: '🌟', // Alterado para 🌟
-    darkness: '🌑',
-    spirit: '🌀', // Alterado para 🌀
-    other: '🪄',
+    fogo: '🔥',
+    agua: '💧',
+    ar: '🌬️',
+    terra: '🌍',
+    luz: '🌟',
+    trevas: '🌑',
+    espirito: '🌀',
+    outro: '🪄',
   };
 
   // Função auxiliar para renderizar texto com links de imagem
@@ -350,7 +350,7 @@ const App = () => {
           // Garante que todos os campos de array/objeto existam e sejam do tipo correto
           deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
           deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-          deserializedData.magicAttributes = deserializedData.magicAttributes || { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
           deserializedData.inventory = deserializedData.inventory || [];
           deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
           deserializedData.advantages = deserializedData.advantages || [];
@@ -756,12 +756,16 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de modificador/bônus da Especialização (já existente e funcional)
+  // Lida com a mudança de nome, modificador ou bônus da Especialização
   const handleSpecializationChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
-      if (updatedSpecs[index]) { // Garante que o item existe antes de tentar modificar
-        updatedSpecs[index][field] = parseInt(value, 10) || 0;
+      if (updatedSpecs[index]) {
+        if (field === 'name') {
+          updatedSpecs[index][field] = value; // Atribui diretamente para o nome (string)
+        } else {
+          updatedSpecs[index][field] = parseInt(value, 10) || 0; // Converte para número para modificador/bônus
+        }
       }
       console.log("Especialização alterada:", updatedSpecs);
       return { ...prevChar, specializations: updatedSpecs };
@@ -860,7 +864,7 @@ const App = () => {
           level: 0, xp: 100, // Novos campos XP e Nível
           mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 }, // HP/MP iniciam em 0
           basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
-          magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
+          magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
         });
         // Não reseta selectedCharacterId aqui, apenas o conteúdo da ficha
@@ -934,14 +938,14 @@ const App = () => {
                     poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.poderDeFogo },
                   },
                   magicAttributes: {
-                    fire: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fire },
-                    water: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.water },
-                    air: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.air },
-                    earth: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.earth },
-                    light: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.light },
-                    darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.darkness },
-                    spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.spirit },
-                    other: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.other },
+                    fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fogo },
+                    agua: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.agua },
+                    ar: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.ar },
+                    terra: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.terra },
+                    luz: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.luz },
+                    trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.trevas },
+                    espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.espirito },
+                    outro: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.outro },
                   },
                   // Garante que outros campos complexos sejam arrays vazios se ausentes no JSON
                   inventory: importedData.inventory || [],
@@ -1024,7 +1028,7 @@ const App = () => {
               level: 0, xp: 100, // Novos campos XP e Nível com valores iniciais
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
               basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-              magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
             };
 
@@ -1473,7 +1477,7 @@ const App = () => {
                   {Object.entries(character.magicAttributes).map(([key, attr]) => (
                     <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
                       <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
-                        {magicAttributeEmojis[key] || ''} {key}:
+                        {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}: {/* Capitaliza a primeira letra para exibição */}
                       </label>
                       <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
                         <div className="flex flex-col items-center flex-1">
