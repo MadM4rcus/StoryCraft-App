@@ -94,7 +94,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  const [selectedCharacterId, setSelectedCharacterId] = null; // Removido o estado local para simplificar a dependência
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -114,13 +114,13 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis
   const magicAttributeEmojis = {
-    fire: '�',
+    fire: '🔥',
     water: '💧',
     air: '🌬️',
     earth: '🌍',
     light: '✨',
     darkness: '🌑',
-    spirit: '👻',
+    spirit: '�',
     other: '🪄', // Alterado para um emoji mais genérico de magia
   };
 
@@ -143,8 +143,8 @@ const App = () => {
         parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, startIndex)}</span>);
       }
 
-      // Adiciona a imagem com float e tamanho pequeno, usando a largura máxima configurável
-      const imgWidth = character?.imageMaxWidth || 100; // Usa a largura configurada ou 100px como fallback
+      // Adiciona a imagem com float e tamanho fixo de 100px
+      const imgWidth = 100; // Largura fixa em 100px
       parts.push(
         <img
           key={`image-${startIndex}`}
@@ -183,7 +183,7 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null);
+          // setSelectedCharacterId(null); // Já definido como null no estado
           setViewingAllCharacters(false);
           setIsMaster(false); // Limpa o status de mestre ao deslogar
         }
@@ -304,7 +304,7 @@ const App = () => {
           const data = docSnap.data();
           if (data.deleted) { // Se a ficha foi deletada (soft delete), desseleciona
             setCharacter(null);
-            setSelectedCharacterId(null); // Desseleciona o personagem
+            // setSelectedCharacterId(null); // Já definido como null no estado
             fetchCharactersList(); // Recarrega a lista para remover o item deletado
             setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
@@ -348,15 +348,14 @@ const App = () => {
           deserializedData.notes = deserializedData.notes || '';
           deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
           deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
-          deserializedData.imageMaxWidth = deserializedData.imageMaxWidth !== undefined ? deserializedData.imageMaxWidth : 100; // Novo campo para largura da imagem
-
+          // deserializedData.imageMaxWidth = deserializedData.imageMaxWidth !== undefined ? deserializedData.imageMaxWidth : 100; // Removido o campo imageMaxWidth
 
           setCharacter(deserializedData);
           console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
         } else {
           console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
           setCharacter(null);
-          setSelectedCharacterId(null); // Desseleciona o personagem
+          // setSelectedCharacterId(null); // Já definido como null no estado
           fetchCharactersList(); // Recarrega a lista para refletir a exclusão, se for o caso
         }
       }, (error) => {
@@ -412,6 +411,11 @@ const App = () => {
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
+          // Remove imageMaxWidth antes de salvar
+          if ('imageMaxWidth' in dataToSave) {
+            delete dataToSave.imageMaxWidth;
+          }
+
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
           console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
@@ -432,7 +436,7 @@ const App = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Converte para número se for um campo numérico específico
-    if (name === 'age' || name === 'level' || name === 'xp' || name === 'imageMaxWidth') {
+    if (name === 'age' || name === 'level' || name === 'xp') { // Removido imageMaxWidth daqui
       setCharacter(prevChar => ({
         ...prevChar,
         [name]: parseInt(value, 10) || 0,
@@ -501,23 +505,27 @@ const App = () => {
       message: 'Digite o nome do item:',
       type: 'prompt',
       onConfirm: (itemName) => {
+        console.log("Modal de item confirmado. Nome:", itemName); // Log de depuração
         if (itemName) {
           setModal({
             isVisible: true,
             message: 'Digite a descrição do item:',
             type: 'prompt',
             onConfirm: (itemDescription) => {
+              console.log("Modal de descrição de item confirmado. Descrição:", itemDescription); // Log de depuração
               setCharacter(prevChar => {
                 const updatedInventory = [...(prevChar.inventory || []), { name: itemName, description: itemDescription }];
                 console.log("Inventário atualizado:", updatedInventory); // Log de depuração
                 return { ...prevChar, inventory: updatedInventory };
               });
             },
-            onCancel: () => {},
+            onCancel: () => { console.log("Adição de item cancelada na descrição."); }, // Log de depuração
           });
+        } else {
+          console.log("Nome do item vazio. Adição cancelada."); // Log de depuração
         }
       },
-      onCancel: () => {},
+      onCancel: () => { console.log("Adição de item cancelada no nome."); }, // Log de depuração
     });
   };
 
@@ -546,31 +554,36 @@ const App = () => {
       message: `Digite o nome da ${type === 'advantages' ? 'Vantagem' : 'Desvantagem'}:`,
       type: 'prompt',
       onConfirm: (name) => {
+        console.log(`Modal de ${type} confirmado. Nome:`, name); // Log de depuração
         if (name) {
           setModal({
             isVisible: true,
             message: `Digite a descrição da ${name}:`,
             type: 'prompt',
             onConfirm: (description) => {
+              console.log(`Modal de descrição de ${type} confirmado. Descrição:`, description); // Log de depuração
               setModal({
                 isVisible: true,
                 message: `Digite o valor da ${name}:`,
                 type: 'prompt',
                 onConfirm: (value) => {
+                  console.log(`Modal de valor de ${type} confirmado. Valor:`, value); // Log de depuração
                   setCharacter(prevChar => {
                     const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
                     console.log(`Lista de ${type} atualizada:`, updatedPerks); // Log de depuração
                     return { ...prevChar, [type]: updatedPerks };
                   });
                 },
-                onCancel: () => {},
+                onCancel: () => { console.log(`Adição de ${type} cancelada no valor.`); }, // Log de depuração
               });
             },
-            onCancel: () => {},
+            onCancel: () => { console.log(`Adição de ${type} cancelada na descrição.`); }, // Log de depuração
           });
+        } else {
+          console.log(`Nome da ${type} vazio. Adição cancelada.`); // Log de depuração
         }
       },
-      onCancel: () => {},
+      onCancel: () => { console.log(`Adição de ${type} cancelada no nome.`); }, // Log de depuração
     });
   };
 
@@ -602,23 +615,27 @@ const App = () => {
       message: 'Digite o título da Habilidade:',
       type: 'prompt',
       onConfirm: (title) => {
+        console.log("Modal de habilidade confirmado. Título:", title); // Log de depuração
         if (title) {
           setModal({
             isVisible: true,
             message: `Digite a descrição da habilidade "${title}":`,
             type: 'prompt',
             onConfirm: (description) => {
+              console.log("Modal de descrição de habilidade confirmado. Descrição:", description); // Log de depuração
               setCharacter(prevChar => {
                 const updatedAbilities = [...(prevChar.abilities || []), { title, description }];
                 console.log("Habilidades atualizadas:", updatedAbilities); // Log de depuração
                 return { ...prevChar, abilities: updatedAbilities };
               });
             },
-            onCancel: () => {},
+            onCancel: () => { console.log("Adição de habilidade cancelada na descrição."); }, // Log de depuração
           });
+        } else {
+          console.log("Título da habilidade vazio. Adição cancelada."); // Log de depuração
         }
       },
-      onCancel: () => {},
+      onCancel: () => { console.log("Adição de habilidade cancelada no título."); }, // Log de depuração
     });
   };
 
@@ -638,15 +655,18 @@ const App = () => {
       message: 'Digite o nome da Especialização:',
       type: 'prompt',
       onConfirm: (name) => {
+        console.log("Modal de especialização confirmado. Nome:", name); // Log de depuração
         if (name) {
           setCharacter(prevChar => {
             const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
             console.log("Especializações atualizadas:", updatedSpecializations); // Log de depuração
             return { ...prevChar, specializations: updatedSpecializations };
           });
+        } else {
+          console.log("Nome da especialização vazio. Adição cancelada."); // Log de depuração
         }
       },
-      onCancel: () => {},
+      onCancel: () => { console.log("Adição de especialização cancelada no nome."); }, // Log de depuração
     });
   };
 
@@ -678,31 +698,36 @@ const App = () => {
       message: 'Digite o nome do Item Equipado:',
       type: 'prompt',
       onConfirm: (name) => {
+        console.log("Modal de item equipado confirmado. Nome:", name); // Log de depuração
         if (name) {
           setModal({
             isVisible: true,
             message: `Digite a descrição do item "${name}":`,
             type: 'prompt',
             onConfirm: (description) => {
+              console.log("Modal de descrição de item equipado confirmado. Descrição:", description); // Log de depuração
               setModal({
                 isVisible: true,
                 message: `Digite os atributos/efeitos do item "${name}" (ex: +5 Força, Dano Fogo):`,
                 type: 'prompt',
                 onConfirm: (attributes) => {
+                  console.log("Modal de atributos de item equipado confirmado. Atributos:", attributes); // Log de depuração
                   setCharacter(prevChar => {
                     const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description, attributes }];
                     console.log("Itens equipados atualizados:", updatedEquippedItems); // Log de depuração
                     return { ...prevChar, equippedItems: updatedEquippedItems };
                   });
                 },
-                onCancel: () => {},
+                onCancel: () => { console.log("Adição de item equipado cancelada nos atributos."); }, // Log de depuração
               });
             },
-            onCancel: () => {},
+            onCancel: () => { console.log("Adição de item equipado cancelada na descrição."); }, // Log de depuração
           });
+        } else {
+          console.log("Nome do item equipado vazio. Adição cancelada."); // Log de depuração
         }
       },
-      onCancel: () => {},
+      onCancel: () => { console.log("Adição de item equipado cancelada no nome."); }, // Log de depuração
     });
   };
 
@@ -738,7 +763,7 @@ const App = () => {
           basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
           magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
-          imageMaxWidth: 100, // Novo campo para largura da imagem
+          // imageMaxWidth: 100, // Removido o campo imageMaxWidth
         });
         // Não reseta selectedCharacterId aqui, apenas o conteúdo da ficha
       },
@@ -791,7 +816,7 @@ const App = () => {
                   ownerUid: user.uid,
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
-                  imageMaxWidth: importedData.imageMaxWidth !== undefined ? importedData.imageMaxWidth : 100, // Novo campo para largura da imagem
+                  // imageMaxWidth: importedData.imageMaxWidth !== undefined ? importedData.imageMaxWidth : 100, // Removido o campo imageMaxWidth
                   // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON importado
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
@@ -900,7 +925,7 @@ const App = () => {
               photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100, // Novos campos XP e Nível com valores iniciais
-              imageMaxWidth: 100, // Novo campo para largura da imagem
+              // imageMaxWidth: 100, // Removido o campo imageMaxWidth
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
               basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
@@ -1227,20 +1252,7 @@ const App = () => {
                     <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
                     <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                   </div>
-                  {/* Novo campo para Largura Máxima da Imagem */}
-                  <div>
-                    <label htmlFor="imageMaxWidth" className="block text-sm font-medium text-gray-300 mb-1">Largura Máx. Imagem (px):</label>
-                    <input
-                      type="number"
-                      id="imageMaxWidth"
-                      name="imageMaxWidth"
-                      value={character.imageMaxWidth}
-                      onChange={handleChange}
-                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
-                      placeholder="Ex: 200"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                    />
-                  </div>
+                  {/* Removido o campo imageMaxWidth */}
                 </div>
               </div>
             </section>
