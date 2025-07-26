@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore'; // Adicionado getDoc
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -97,7 +97,6 @@ const App = () => {
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   // selectedCharacterId agora é lido diretamente da URL
-  // O ESLint reclama de window.location.search como dependência desnecessária, mas é intencional aqui.
   const selectedCharacterId = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('charId');
@@ -279,112 +278,156 @@ const App = () => {
     const currentSelectedCharacterId = selectedCharacterId; 
 
     if (db && user && isAuthReady && currentSelectedCharacterId) {
-      const charToLoad = charactersList.find(c => c.id === currentSelectedCharacterId);
-      const targetUid = charToLoad ? charToLoad.ownerUid : user.uid;
+      const loadCharacter = async () => {
+        setIsLoading(true);
+        let targetUid = user.uid; // Default para o UID do usuário logado
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
+        if (isMaster) {
+          // Se for mestre, precisamos descobrir o ownerUid do personagem selecionado.
+          // Primeiro, tentamos encontrar na lista de personagens já carregada.
+          const charInList = charactersList.find(c => c.id === currentSelectedCharacterId);
+          if (charInList) {
+            targetUid = charInList.ownerUid;
+          } else {
+            // Se o personagem não estiver na lista (ex: lista ainda não carregada ou personagem de outro jogador),
+            // tentamos buscar o documento diretamente para obter o ownerUid.
+            // Isso é crucial para mestres que podem acessar fichas de qualquer usuário.
+            const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+            let foundOwnerUid = null;
+            try {
+              const usersSnapshot = await getDocs(usersCollectionRef);
+              for (const userDoc of usersSnapshot.docs) {
+                const userUid = userDoc.id;
+                const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
+                const charSnap = await getDoc(charDocRef); // Usar getDoc para uma única busca
+                if (charSnap.exists()) {
+                  foundOwnerUid = userUid;
+                  break;
+                }
+              }
+            } catch (error) {
+              console.error("Erro ao buscar ownerUid para mestre:", error);
+            }
+            
+            if (foundOwnerUid) {
+              targetUid = foundOwnerUid;
+            } else {
+              console.warn(`Personagem com ID ${currentSelectedCharacterId} não encontrado em nenhuma coleção de usuário para mestre. Pode ter sido excluído ou ainda não sincronizado.`);
+              setCharacter(null);
+              window.history.pushState({}, '', window.location.pathname);
+              fetchCharactersList();
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
 
-      unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.deleted) {
+        const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
+
+        unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.deleted) {
+              setCharacter(null);
+              window.history.pushState({}, '', window.location.pathname);
+              fetchCharactersList();
+              setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+              return;
+            }
+            const deserializedData = { ...data };
+            try {
+              deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
+              deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
+              deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
+              deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
+              deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
+              deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
+              deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
+              deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
+              deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
+              deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
+              
+              // Deserializa o campo 'history' para a nova estrutura de array
+              let historyData = deserializedData.history;
+              if (typeof historyData === 'string') {
+                try {
+                  // Tenta fazer o parse se for uma string JSON
+                  historyData = JSON.parse(historyData);
+                } catch (parseError) {
+                  // Se for uma string mas não um JSON válido (formato antigo), converte para um bloco de texto
+                  historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
+                }
+              }
+              deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
+
+              // Garante que os campos de imagem existam e tenham valores padrão
+              deserializedData.history = deserializedData.history.map(block => {
+                if (block.type === 'image') {
+                  return {
+                    ...block,
+                    width: block.width !== undefined ? block.width : '',
+                    height: block.height !== undefined ? block.height : '',
+                    fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                  };
+                }
+                return block;
+              });
+
+            } catch (e) {
+              console.error("Erro ao deserializar dados do Firestore:", e);
+              setModal({
+                isVisible: true,
+                message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
+                type: 'info',
+                onConfirm: () => {},
+                onCancel: () => {},
+              });
+            }
+
+            // Garante que todos os campos de array/objeto existam e sejam do tipo correto
+            deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
+            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            deserializedData.inventory = deserializedData.inventory || [];
+            deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
+            deserializedData.advantages = deserializedData.advantages || [];
+            deserializedData.disadvantages = deserializedData.disadvantages || [];
+            deserializedData.abilities = deserializedData.abilities || [];
+            deserializedData.specializations = deserializedData.specializations || [];
+            deserializedData.equippedItems = deserializedData.equippedItems || [];
+            deserializedData.history = deserializedData.history || [];
+            deserializedData.notes = deserializedData.notes || '';
+            deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
+            deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+
+            setCharacter(deserializedData);
+            console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
+          } else {
+            console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
             setCharacter(null);
-            // Atualiza a URL ao ser excluído
+            // Atualiza a URL ao não encontrar a ficha
             window.history.pushState({}, '', window.location.pathname);
             fetchCharactersList();
-            setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
-            return;
           }
-          const deserializedData = { ...data };
-          try {
-            deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
-            deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
-            deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
-            deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
-            deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
-            deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
-            deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
-            deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
-            deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
-            deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
-            
-            // Deserializa o campo 'history' para a nova estrutura de array
-            let historyData = deserializedData.history;
-            if (typeof historyData === 'string') {
-              try {
-                // Tenta fazer o parse se for uma string JSON
-                historyData = JSON.parse(historyData);
-              } catch (parseError) {
-                // Se for uma string mas não um JSON válido (formato antigo), converte para um bloco de texto
-                historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
-              }
-            }
-            deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
-
-            // Garante que os campos de imagem existam e tenham valores padrão
-            deserializedData.history = deserializedData.history.map(block => {
-              if (block.type === 'image') {
-                return {
-                  ...block,
-                  width: block.width !== undefined ? block.width : '',
-                  height: block.height !== undefined ? block.height : '',
-                  fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
-                };
-              }
-              return block;
-            });
-
-          } catch (e) {
-            console.error("Erro ao deserializar dados do Firestore:", e);
-            setModal({
-              isVisible: true,
-              message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
-              type: 'info',
-              onConfirm: () => {},
-              onCancel: () => {},
-            });
-          }
-
-          // Garante que todos os campos de array/objeto existam e sejam do tipo correto
-          deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
-          deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-          deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-          deserializedData.inventory = deserializedData.inventory || [];
-          deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
-          deserializedData.advantages = deserializedData.advantages || [];
-          deserializedData.disadvantages = deserializedData.disadvantages || [];
-          deserializedData.abilities = deserializedData.abilities || [];
-          deserializedData.specializations = deserializedData.specializations || [];
-          deserializedData.equippedItems = deserializedData.equippedItems || [];
-          deserializedData.history = deserializedData.history || [];
-          deserializedData.notes = deserializedData.notes || '';
-          deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
-          deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
-
-          setCharacter(deserializedData);
-          console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
-        } else {
-          console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
-          setCharacter(null);
-          // Atualiza a URL ao não encontrar a ficha
-          window.history.pushState({}, '', window.location.pathname);
-          fetchCharactersList();
-        }
-      }, (error) => {
-        console.error("Erro ao ouvir a ficha no Firestore:", error);
-        setModal({
-          isVisible: true,
-          message: `Erro ao carregar ficha do Firestore: ${error.message}`,
-          type: 'info',
-          onConfirm: () => {},
-          onCancel: () => {},
+          setIsLoading(false); // Finaliza o carregamento, seja com sucesso ou erro
+        }, (error) => {
+          console.error("Erro ao ouvir a ficha no Firestore:", error);
+          setModal({
+            isVisible: true,
+            message: `Erro ao carregar ficha do Firestore: ${error.message}`,
+            type: 'info',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+          setIsLoading(false); // Finaliza o carregamento em caso de erro no listener
         });
-      });
+      };
+      loadCharacter(); // Chama a função assíncrona
     } else if (!currentSelectedCharacterId) {
       setCharacter(null);
     }
     return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]);
+  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster, fetchCharactersList]);
 
   // Salva a ficha no Firestore
   useEffect(() => {
