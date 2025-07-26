@@ -114,16 +114,28 @@ const App = () => {
   // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
+  // Mapeamento de atributos básicos para emojis
+  const basicAttributeEmojis = {
+    forca: '💪',
+    destreza: '🏃‍♂️',
+    inteligencia: '🧠',
+    constituicao: '❤️‍🩹',
+    sabedoria: '🧘‍♂️',
+    carisma: '🎭',
+    armadura: '🦴',
+    poderDeFogo: '🎯',
+  };
+
   // Mapeamento de atributos mágicos para emojis
   const magicAttributeEmojis = {
     fire: '🔥',
     water: '💧',
     air: '🌬️',
     earth: '🌍',
-    light: '✨',
+    light: '🌟', // Alterado para 🌟
     darkness: '🌑',
-    spirit: '👻',
-    other: '🪄', // Alterado para um emoji mais genérico de magia
+    spirit: '🌀', // Alterado para 🌀
+    other: '🪄',
   };
 
   // Função auxiliar para renderizar texto com links de imagem
@@ -337,7 +349,7 @@ const App = () => {
 
           // Garante que todos os campos de array/objeto existam e sejam do tipo correto
           deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
-          deserializedData.basicAttributes = deserializedData.basicAttributes || { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
           deserializedData.magicAttributes = deserializedData.magicAttributes || { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
           deserializedData.inventory = deserializedData.inventory || [];
           deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
@@ -350,7 +362,6 @@ const App = () => {
           deserializedData.notes = deserializedData.notes || '';
           deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
           deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
-          // deserializedData.imageMaxWidth = deserializedData.imageMaxWidth !== undefined ? deserializedData.imageMaxWidth : 100; // Removido o campo imageMaxWidth
 
           setCharacter(deserializedData);
           console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
@@ -413,11 +424,6 @@ const App = () => {
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
-          // Remove imageMaxWidth antes de salvar
-          if ('imageMaxWidth' in dataToSave) {
-            delete dataToSave.imageMaxWidth;
-          }
-
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
           console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
@@ -438,7 +444,7 @@ const App = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Converte para número se for um campo numérico específico
-    if (name === 'age' || name === 'level' || name === 'xp') { // Removido imageMaxWidth daqui
+    if (name === 'age' || name === 'level' || name === 'xp') {
       setCharacter(prevChar => ({
         ...prevChar,
         [name]: parseInt(value, 10) || 0,
@@ -539,6 +545,17 @@ const App = () => {
     });
   };
 
+  // Lida com a edição de itens no inventário
+  const handleInventoryItemChange = (index, field, value) => {
+    setCharacter(prevChar => {
+      const updatedInventory = [...(prevChar.inventory || [])];
+      if (updatedInventory[index]) {
+        updatedInventory[index][field] = value;
+      }
+      return { ...prevChar, inventory: updatedInventory };
+    });
+  };
+
   // Lida com a remoção de itens do inventário
   const handleRemoveItem = (indexToRemove) => {
     setCharacter(prevChar => {
@@ -608,6 +625,21 @@ const App = () => {
     });
   };
 
+  // Lida com a edição de Vantagem/Desvantagem
+  const handlePerkChange = (type, index, field, value) => {
+    setCharacter(prevChar => {
+      const updatedPerks = [...(prevChar[type] || [])];
+      if (updatedPerks[index]) {
+        if (field === 'value') {
+          updatedPerks[index][field] = parseInt(value, 10) || 0;
+        } else {
+          updatedPerks[index][field] = value;
+        }
+      }
+      return { ...prevChar, [type]: updatedPerks };
+    });
+  };
+
   // Lida com a remoção de Vantagem/Desvantagem
   const handleRemovePerk = (type, indexToRemove) => {
     setCharacter(prevChar => {
@@ -668,6 +700,17 @@ const App = () => {
     });
   };
 
+  // Lida com a edição de Habilidade
+  const handleAbilityChange = (index, field, value) => {
+    setCharacter(prevChar => {
+      const updatedAbilities = [...(prevChar.abilities || [])];
+      if (updatedAbilities[index]) {
+        updatedAbilities[index][field] = value;
+      }
+      return { ...prevChar, abilities: updatedAbilities };
+    });
+  };
+
   // Lida com a remoção de Habilidade
   const handleRemoveAbility = (indexToRemove) => {
     setCharacter(prevChar => {
@@ -713,7 +756,7 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de modificador/bônus da Especialização
+  // Lida com a mudança de modificador/bônus da Especialização (já existente e funcional)
   const handleSpecializationChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
@@ -776,6 +819,17 @@ const App = () => {
     });
   };
 
+  // Lida com a edição de Item Equipado
+  const handleEquippedItemChange = (index, field, value) => {
+    setCharacter(prevChar => {
+      const updatedEquippedItems = [...(prevChar.equippedItems || [])];
+      if (updatedEquippedItems[index]) {
+        updatedEquippedItems[index][field] = value;
+      }
+      return { ...prevChar, equippedItems: updatedEquippedItems };
+    });
+  };
+
   // Lida com a remoção de Item Equipado
   const handleRemoveEquippedItem = (indexToRemove) => {
     setCharacter(prevChar => {
@@ -805,10 +859,9 @@ const App = () => {
           name: '', photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto', age: '', height: '', gender: '', race: '', class: '', alignment: '',
           level: 0, xp: 100, // Novos campos XP e Nível
           mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 }, // HP/MP iniciam em 0
-          basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
+          basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os básicos em 0
           magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } }, // Todos os mágicos em 0
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
-          // imageMaxWidth: 100, // Removido o campo imageMaxWidth
         });
         // Não reseta selectedCharacterId aqui, apenas o conteúdo da ficha
       },
@@ -861,7 +914,6 @@ const App = () => {
                   ownerUid: user.uid,
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
-                  // imageMaxWidth: importedData.imageMaxWidth !== undefined ? importedData.imageMaxWidth : 100, // Removido o campo imageMaxWidth
                   // Garante que HP/MP e atributos iniciem em 0 se não estiverem no JSON
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
@@ -872,14 +924,14 @@ const App = () => {
                     fd: importedData.mainAttributes?.fd || 0,
                   },
                   basicAttributes: {
-                    strength: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.strength },
-                    dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.dexterity },
-                    intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.intelligence },
-                    constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constitution },
-                    wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.wisdom },
-                    charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.charisma },
-                    armor: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armor },
-                    firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.firepower },
+                    forca: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.forca },
+                    destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.destreza },
+                    inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.inteligencia },
+                    constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constituicao },
+                    sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.sabedoria },
+                    carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.carisma },
+                    armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armadura },
+                    poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.poderDeFogo },
                   },
                   magicAttributes: {
                     fire: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fire },
@@ -970,9 +1022,8 @@ const App = () => {
               photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100, // Novos campos XP e Nível com valores iniciais
-              // imageMaxWidth: 100, // Removido o campo imageMaxWidth
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-              basicAttributes: { strength: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, dexterity: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, intelligence: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constitution: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, wisdom: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, charisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armor: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, firepower: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fire: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, water: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, air: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, earth: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, light: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, darkness: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, spirit: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, other: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: '', notes: '',
             };
@@ -1301,7 +1352,6 @@ const App = () => {
                     <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
                     <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                   </div>
-                  {/* Removido o campo imageMaxWidth */}
                 </div>
               </div>
             </section>
@@ -1392,18 +1442,20 @@ const App = () => {
                   <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
                   {Object.entries(character.basicAttributes).map(([key, attr]) => (
                     <div key={key} className="mb-3 p-2 bg-gray-600 rounded-md">
-                      <label className="capitalize text-lg font-medium text-gray-200 block mb-1">{key}:</label>
+                      <label className="capitalize text-lg font-medium text-gray-200 block mb-1">
+                        {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {/* Formata para exibir "Poder De Fogo" */}
+                      </label>
                       <div className="flex justify-between items-start gap-2 text-sm"> {/* Ajustado para flex e items-start */}
                         <div className="flex flex-col items-center flex-1">
                           <span className="text-gray-400 text-xs text-center">Base</span>
                           <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Perm. Bônus</span>
+                          <span className="text-gray-400 text-xs text-center">Bônus Perm.</span>
                           <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Cond. Bônus</span>
+                          <span className="text-gray-400 text-xs text-center">Bônus Cond.</span>
                           <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
@@ -1429,11 +1481,11 @@ const App = () => {
                           <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Perm. Bônus</span>
+                          <span className="text-gray-400 text-xs text-center">Bônus Perm.</span>
                           <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
-                          <span className="text-gray-400 text-xs text-center">Cond. Bônus</span>
+                          <span className="text-gray-400 text-xs text-center">Bônus Cond.</span>
                           <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                         </div>
                         <div className="flex flex-col items-center flex-1">
@@ -1464,7 +1516,13 @@ const App = () => {
                   character.inventory.map((item, index) => (
                     <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold text-lg">{item.name}</span>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleInventoryItemChange(index, 'name', e.target.value)}
+                          className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
                         {(user.uid === character.ownerUid || isMaster) && (
                           <button
                             onClick={() => handleRemoveItem(index)}
@@ -1474,7 +1532,13 @@ const App = () => {
                           </button>
                         )}
                       </div>
-                      <p className="text-sm text-gray-300 italic">{item.description}</p>
+                      <textarea
+                        value={item.description}
+                        onChange={(e) => handleInventoryItemChange(index, 'description', e.target.value)}
+                        rows="2"
+                        className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      ></textarea>
                     </li>
                   ))
                 )}
@@ -1519,7 +1583,20 @@ const App = () => {
                       character.advantages.map((perk, index) => (
                         <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-lg">{perk.name} ({perk.value})</span>
+                            <input
+                              type="text"
+                              value={perk.name}
+                              onChange={(e) => handlePerkChange('advantages', index, 'name', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            <input
+                              type="number"
+                              value={perk.value}
+                              onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
+                              className="w-20 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemovePerk('advantages', index)}
@@ -1529,8 +1606,14 @@ const App = () => {
                               </button>
                             )}
                           </div>
-                          <p className="text-sm text-gray-300 italic mb-2">{perk.description}</p>
-                          <div className="flex gap-3 text-sm text-gray-400">
+                          <textarea
+                            value={perk.description}
+                            onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
+                            rows="2"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            disabled={user.uid !== character.ownerUid && !isMaster}
+                          ></textarea>
+                          <div className="flex gap-3 text-sm text-gray-400 mt-2">
                             <span>Origem:</span>
                             <label className="flex items-center gap-1">
                               <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('advantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
@@ -1565,7 +1648,20 @@ const App = () => {
                       character.disadvantages.map((perk, index) => (
                         <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-lg">{perk.name} ({perk.value})</span>
+                            <input
+                              type="text"
+                              value={perk.name}
+                              onChange={(e) => handlePerkChange('disadvantages', index, 'name', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            <input
+                              type="number"
+                              value={perk.value}
+                              onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
+                              className="w-20 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemovePerk('disadvantages', index)}
@@ -1575,8 +1671,14 @@ const App = () => {
                               </button>
                             )}
                           </div>
-                          <p className="text-sm text-gray-300 italic mb-2">{perk.description}</p>
-                          <div className="flex gap-3 text-sm text-gray-400">
+                          <textarea
+                            value={perk.description}
+                            onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
+                            rows="2"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            disabled={user.uid !== character.ownerUid && !isMaster}
+                          ></textarea>
+                          <div className="flex gap-3 text-sm text-gray-400 mt-2">
                             <span>Origem:</span>
                             <label className="flex items-center gap-1">
                               <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('disadvantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
@@ -1613,7 +1715,13 @@ const App = () => {
                   character.abilities.map((ability, index) => (
                     <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold text-lg">{ability.title}</span>
+                        <input
+                          type="text"
+                          value={ability.title}
+                          onChange={(e) => handleAbilityChange(index, 'title', e.target.value)}
+                          className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
                         {(user.uid === character.ownerUid || isMaster) && (
                           <button
                             onClick={() => handleRemoveAbility(index)}
@@ -1623,7 +1731,13 @@ const App = () => {
                           </button>
                         )}
                       </div>
-                      <p className="text-sm text-gray-300 italic">{ability.description}</p>
+                      <textarea
+                        value={ability.description}
+                        onChange={(e) => handleAbilityChange(index, 'description', e.target.value)}
+                        rows="2"
+                        className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      ></textarea>
                     </li>
                   ))
                 )}
@@ -1647,7 +1761,13 @@ const App = () => {
                   character.specializations.map((spec, index) => (
                     <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold text-lg">{spec.name}</span>
+                        <input
+                          type="text"
+                          value={spec.name}
+                          onChange={(e) => handleSpecializationChange(index, 'name', e.target.value)}
+                          className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
                         {(user.uid === character.ownerUid || isMaster) && (
                           <button
                             onClick={() => handleRemoveSpecialization(index)}
@@ -1702,7 +1822,13 @@ const App = () => {
                   character.equippedItems.map((item, index) => (
                     <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold text-lg">{item.name}</span>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleEquippedItemChange(index, 'name', e.target.value)}
+                          className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
                         {(user.uid === character.ownerUid || isMaster) && (
                           <button
                             onClick={() => handleRemoveEquippedItem(index)}
@@ -1712,20 +1838,21 @@ const App = () => {
                           </button>
                         )}
                       </div>
-                      <p className="text-sm text-gray-300 italic mb-2">{item.description}</p>
+                      <textarea
+                        value={item.description}
+                        onChange={(e) => handleEquippedItemChange(index, 'description', e.target.value)}
+                        rows="2"
+                        className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y mb-2"
+                        placeholder="Descrição do item"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      ></textarea>
                       <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
                       <textarea
                         value={item.attributes}
-                        onChange={(e) => {
-                          const updatedItems = [...(character.equippedItems || [])];
-                          if (updatedItems[index]) { // Garante que o item existe antes de tentar modificar
-                            updatedItems[index].attributes = e.target.value;
-                          }
-                          setCharacter({ ...character, equippedItems: updatedItems });
-                        }}
+                        onChange={(e) => handleEquippedItemChange(index, 'attributes', e.target.value)}
                         rows="2"
                         className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm resize-y"
-                        placeholder="Ex: +5 Força, Dano de Fogo, etc."
+                        placeholder="Ex: +5 Força, Dano Fogo, etc."
                         disabled={user.uid !== character.ownerUid && !isMaster}
                       ></textarea>
                     </li>
