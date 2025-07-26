@@ -135,7 +135,7 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍🩹',
+    constituicao: '❤️‍�',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
@@ -144,7 +144,7 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '�',
+    fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -312,6 +312,19 @@ const App = () => {
               }
             }
             deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
+
+            // Garante que os campos de imagem existam e tenham valores padrão
+            deserializedData.history = deserializedData.history.map(block => {
+              if (block.type === 'image') {
+                return {
+                  ...block,
+                  width: block.width !== undefined ? block.width : '',
+                  height: block.height !== undefined ? block.height : '',
+                  fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                };
+              }
+              return block;
+            });
 
           } catch (e) {
             console.error("Erro ao deserializar dados do Firestore:", e);
@@ -815,7 +828,7 @@ const App = () => {
           if (url) {
             setCharacter(prevChar => ({
               ...prevChar,
-              history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url }],
+              history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true }],
             }));
           }
           setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -827,12 +840,20 @@ const App = () => {
     }
   };
 
-  const updateHistoryBlock = (id, newValue) => {
+  // Atualiza um campo específico de um bloco de história
+  const updateHistoryBlock = (id, field, value) => {
     setCharacter(prevChar => ({
       ...prevChar,
-      history: (prevChar.history || []).map(block =>
-        block.id === id ? { ...block, value: newValue } : block
-      ),
+      history: (prevChar.history || []).map(block => {
+        if (block.id === id) {
+          if (block.type === 'image' && (field === 'width' || field === 'height')) {
+            // Garante que width/height sejam números ou string vazia
+            return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
+          }
+          return { ...block, [field]: value };
+        }
+        return block;
+      }),
     }));
   };
 
@@ -854,7 +875,6 @@ const App = () => {
 
   const handleDragOver = (e) => {
     e.preventDefault(); // Permite o drop
-    // A reordenação real e a atualização do estado ocorrem apenas no handleDrop.
   };
 
   const handleDrop = (e, dropIndex) => {
@@ -979,6 +999,19 @@ const App = () => {
                   history: importedData.history || [], // Garante que history seja um array
                   notes: importedData.notes || '',
                 };
+
+                // Garante que os campos de imagem existam e tenham valores padrão para dados importados
+                importedCharacterData.history = importedCharacterData.history.map(block => {
+                  if (block.type === 'image') {
+                    return {
+                      ...block,
+                      width: block.width !== undefined ? block.width : '',
+                      height: block.height !== undefined ? block.height : '',
+                      fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                    };
+                  }
+                  return block;
+                });
 
                 try {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
@@ -2047,7 +2080,7 @@ const App = () => {
                           {block.type === 'text' ? (
                             <textarea
                               value={block.value}
-                              onChange={(e) => updateHistoryBlock(block.id, e.target.value)}
+                              onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
                               rows="4"
                               className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                               placeholder="Digite seu texto aqui..."
@@ -2059,8 +2092,48 @@ const App = () => {
                                 src={block.value}
                                 alt="Imagem da história"
                                 className="max-w-full h-auto rounded-md shadow-md"
+                                style={{
+                                  width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
+                                  height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
+                                  objectFit: 'contain'
+                                }}
                                 onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
                               />
+                              {(user.uid === character.ownerUid || isMaster) && (
+                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
+                                  <label className="flex items-center gap-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={block.fitWidth}
+                                      onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
+                                      className="form-checkbox text-purple-500 rounded"
+                                    />
+                                    Ajustar à Largura
+                                  </label>
+                                  {!block.fitWidth && (
+                                    <>
+                                      <label className="flex items-center gap-1">
+                                        Largura (px):
+                                        <input
+                                          type="number"
+                                          value={block.width}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                        />
+                                      </label>
+                                      <label className="flex items-center gap-1">
+                                        Altura (px):
+                                        <input
+                                          type="number"
+                                          value={block.height}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                        />
+                                      </label>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
