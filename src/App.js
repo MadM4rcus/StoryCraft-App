@@ -96,7 +96,7 @@ const App = () => {
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -132,7 +132,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '💧',
+    agua: '�',
     ar: '🌬️',
     terra: '🪨', // Alterado para o emoji de rocha
     luz: '🌟',
