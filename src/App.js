@@ -111,6 +111,9 @@ const App = () => {
   // Estado para indicador de carregamento
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado para o valor de Zeni a ser adicionado/removido
+  const [zeniAmount, setZeniAmount] = useState(0);
+
   // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
@@ -119,7 +122,7 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍�',
+    constituicao: '❤️‍🩹', // Alterado para o emoji de curativo
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
@@ -128,10 +131,10 @@ const App = () => {
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '🔥',
+    fogo: '�',
     agua: '💧',
     ar: '🌬️',
-    terra: '🌍',
+    terra: '🪨', // Alterado para o emoji de rocha
     luz: '🌟',
     trevas: '🌑',
     espirito: '🌀',
@@ -567,11 +570,25 @@ const App = () => {
 
   // Lida com a mudança de Zeni
   const handleZeniChange = (e) => {
-    const value = parseInt(e.target.value, 10) || 0;
+    setZeniAmount(parseInt(e.target.value, 10) || 0);
+  };
+
+  // Lida com a adição de Zeni
+  const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: value },
+      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: (prevChar.wallet.zeni || 0) + zeniAmount },
     }));
+    setZeniAmount(0); // Limpa o campo de entrada
+  };
+
+  // Lida com a remoção de Zeni
+  const handleRemoveZeni = () => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: Math.max(0, (prevChar.wallet.zeni || 0) - zeniAmount) }, // Garante que não fique negativo
+    }));
+    setZeniAmount(0); // Limpa o campo de entrada
   };
 
   // Lida com a adição de Vantagem/Desvantagem
@@ -1549,20 +1566,35 @@ const App = () => {
               </ul>
             </section>
 
-            {/* Carteira */}
+            {/* Zeni */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">Carteira</h2>
-              <div className="flex items-center gap-4">
-                <label htmlFor="zeni" className="text-lg font-medium text-gray-300">Zeni:</label>
-                <input
-                  type="number"
-                  id="zeni"
-                  name="zeni"
-                  value={character.wallet.zeni}
-                  onChange={handleZeniChange}
-                  className="w-32 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-xl font-bold"
-                  disabled={user.uid !== character.ownerUid && !isMaster}
-                />
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">Zeni</h2>
+              <div className="flex flex-col items-start gap-4">
+                <p className="text-xl font-bold text-gray-100">ZENI: {character.wallet.zeni}</p>
+                <div className="flex items-center gap-2 w-full">
+                  <input
+                    type="number"
+                    value={zeniAmount}
+                    onChange={handleZeniChange}
+                    className="w-32 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
+                    placeholder="Valor"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  />
+                  <button
+                    onClick={handleAddZeni}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  >
+                    Adicionar
+                  </button>
+                  <button
+                    onClick={handleRemoveZeni}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  >
+                    Remover
+                  </button>
+                </div>
               </div>
             </section>
 
