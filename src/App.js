@@ -144,7 +144,7 @@ const App = () => {
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '🦴',
+    armadura: '�',
     poderDeFogo: '🎯',
   };
 
@@ -1095,7 +1095,7 @@ const App = () => {
                     dataToSave.history = JSON.stringify(dataToSave.history);
 
                     await setDoc(characterDocRef, dataToSave);
-                    window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`); // Atualizado para incluir ownerUid
+                    window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
@@ -1154,7 +1154,7 @@ const App = () => {
             };
 
             setCharacter(newCharacterData);
-            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`); // Atualizado para incluir ownerUid
+            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -1190,8 +1190,8 @@ const App = () => {
   };
 
   // Função para selecionar um personagem da lista
-  const handleSelectCharacter = (charId, ownerUid) => { // Agora aceita ownerUid
-    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`); // Passa ownerUid na URL
+  const handleSelectCharacter = (charId, ownerUid) => {
+    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
     setViewingAllCharacters(false);
   };
 
@@ -1409,7 +1409,7 @@ const App = () => {
                     </div>
                     <div className="flex justify-end gap-2 mt-4">
                       <button
-                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)} {/* Passando ownerUid aqui */}
+                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
                       >
                         Ver/Editar
