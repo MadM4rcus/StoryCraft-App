@@ -95,14 +95,10 @@ const App = () => {
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   
-  // selectedCharacterId e ownerUidFromUrl agora são lidos diretamente da URL
-  const { selectedCharacterId, ownerUidFromUrl } = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      selectedCharacterId: params.get('charId'),
-      ownerUidFromUrl: params.get('ownerUid')
-    };
-  }, [window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Novos estados para o ID do personagem selecionado e UID do proprietário
+  const [selectedCharIdState, setSelectedCharIdState] = useState(null);
+  const [ownerUidState, setOwnerUidState] = useState(null);
+
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
@@ -138,13 +134,13 @@ const App = () => {
 
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
-    forca: '💪',
+    forca: '�',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '�',
+    armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
@@ -175,7 +171,9 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          // Limpar selectedCharacterId ao deslogar
+          // Limpar selectedCharIdState e ownerUidState ao deslogar
+          setSelectedCharIdState(null);
+          setOwnerUidState(null);
           window.history.pushState({}, '', window.location.pathname);
           setViewingAllCharacters(false);
           setIsMaster(false);
@@ -193,6 +191,15 @@ const App = () => {
       });
     }
   }, [firebaseConfig]);
+
+  // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialCharId = params.get('charId');
+    const initialOwnerUid = params.get('ownerUid');
+    setSelectedCharIdState(initialCharId);
+    setOwnerUidState(initialOwnerUid);
+  }, []); // Executa apenas uma vez no carregamento inicial
 
   // Efeito para carregar o papel do usuário (mestre/jogador) do Firestore
   useEffect(() => {
@@ -283,18 +290,18 @@ const App = () => {
   // Listener em tempo real para o personagem selecionado
   useEffect(() => {
     let unsubscribeCharacter = () => {};
-    const currentSelectedCharacterId = selectedCharacterId; 
-    const currentOwnerUidFromUrl = ownerUidFromUrl;
+    const currentSelectedCharacterId = selectedCharIdState; // Usando o estado
+    const currentOwnerUidFromUrl = ownerUidState; // Usando o estado
     console.log('useEffect (character loading) triggered. selectedCharacterId:', currentSelectedCharacterId, 'ownerUidFromUrl:', currentOwnerUidFromUrl, 'isMaster:', isMaster, 'user:', user?.uid);
 
     if (db && user && isAuthReady && currentSelectedCharacterId) {
       const loadCharacter = async () => {
         setIsLoading(true);
-        let targetUid = currentOwnerUidFromUrl; // Prioriza ownerUid da URL
+        let targetUid = currentOwnerUidFromUrl; // Prioriza ownerUid do estado
 
-        if (!targetUid) { // Se ownerUid não está na URL (ex: acesso direto ou link antigo)
+        if (!targetUid) { // Se ownerUid não está no estado (ex: acesso direto ou link antigo)
           if (isMaster) {
-            console.log('Master mode, ownerUid not in URL. Searching for ownerUid for character:', currentSelectedCharacterId);
+            console.log('Master mode, ownerUid not in state. Searching for ownerUid for character:', currentSelectedCharacterId);
             const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
             let foundOwnerUid = null;
             try {
@@ -314,21 +321,25 @@ const App = () => {
             
             if (foundOwnerUid) {
               targetUid = foundOwnerUid;
+              setOwnerUidState(foundOwnerUid); // Atualiza o estado do ownerUid
             } else {
               console.warn(`Character with ID ${currentSelectedCharacterId} not found in any user collection for master. It might have been deleted or still synchronizing.`);
               setCharacter(null);
+              setSelectedCharIdState(null); // Limpa o estado
+              setOwnerUidState(null); // Limpa o estado
               window.history.pushState({}, '', window.location.pathname);
               fetchCharactersList();
               setIsLoading(false);
               return;
             }
           } else {
-            // Para jogadores, se ownerUid não está na URL, deve ser o próprio UID
+            // Para jogadores, se ownerUid não está no estado, deve ser o próprio UID
             targetUid = user.uid;
-            console.log('Player mode, ownerUid not in URL. Defaulting to user.uid:', targetUid);
+            setOwnerUidState(user.uid); // Atualiza o estado do ownerUid
+            console.log('Player mode, ownerUid not in state. Defaulting to user.uid:', targetUid);
           }
         } else {
-          console.log('OwnerUid found in URL:', targetUid);
+          console.log('OwnerUid found in state:', targetUid);
         }
 
         // Se targetUid ainda é null/undefined após todas as verificações, algo está errado.
@@ -336,6 +347,8 @@ const App = () => {
           console.error('Could not determine targetUid for character loading.');
           setIsLoading(false);
           setCharacter(null);
+          setSelectedCharIdState(null); // Limpa o estado
+          setOwnerUidState(null); // Limpa o estado
           window.history.pushState({}, '', window.location.pathname);
           return;
         }
@@ -349,6 +362,8 @@ const App = () => {
             if (data.deleted) {
               console.log('Character found but marked as deleted.');
               setCharacter(null);
+              setSelectedCharIdState(null); // Limpa o estado
+              setOwnerUidState(null); // Limpa o estado
               window.history.pushState({}, '', window.location.pathname);
               fetchCharactersList();
               setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
@@ -420,6 +435,8 @@ const App = () => {
           } else {
             console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
             setCharacter(null);
+            setSelectedCharIdState(null); // Limpa o estado
+            setOwnerUidState(null); // Limpa o estado
             window.history.pushState({}, '', window.location.pathname);
             fetchCharactersList();
           }
@@ -445,11 +462,11 @@ const App = () => {
       console.log('Cleaning up character onSnapshot listener.');
       unsubscribeCharacter();
     };
-  }, [db, user, isAuthReady, selectedCharacterId, ownerUidFromUrl, appId, isMaster, fetchCharactersList]);
+  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]); // Dependências atualizadas
 
   // Salva a ficha no Firestore
   useEffect(() => {
-    if (db && user && isAuthReady && character && selectedCharacterId) {
+    if (db && user && isAuthReady && character && selectedCharIdState) { // Usando o estado
       const targetUidForSave = character.ownerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
@@ -457,11 +474,11 @@ const App = () => {
         return;
       }
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharacterId}`);
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharIdState}`); // Usando o estado
       const saveCharacter = async () => {
         try {
           const dataToSave = { ...character };
-          dataToSave.id = selectedCharacterId;
+          dataToSave.id = selectedCharIdState; // Usando o estado
           dataToSave.ownerUid = targetUidForSave;
 
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
@@ -492,7 +509,7 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharacterId, appId, isMaster]);
+  }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]); // Dependências atualizadas
 
   // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
@@ -1095,6 +1112,8 @@ const App = () => {
                     dataToSave.history = JSON.stringify(dataToSave.history);
 
                     await setDoc(characterDocRef, dataToSave);
+                    setSelectedCharIdState(newCharId); // Define o estado
+                    setOwnerUidState(user.uid); // Define o estado
                     window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1154,6 +1173,8 @@ const App = () => {
             };
 
             setCharacter(newCharacterData);
+            setSelectedCharIdState(newCharId); // Define o estado
+            setOwnerUidState(user.uid); // Define o estado
             window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
@@ -1191,12 +1212,16 @@ const App = () => {
 
   // Função para selecionar um personagem da lista
   const handleSelectCharacter = (charId, ownerUid) => {
+    setSelectedCharIdState(charId); // Define o estado
+    setOwnerUidState(ownerUid); // Define o estado
     window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
     setViewingAllCharacters(false);
   };
 
   // Função para voltar para a lista de personagens
   const handleBackToList = () => {
+    setSelectedCharIdState(null); // Limpa o estado
+    setOwnerUidState(null); // Limpa o estado
     window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
@@ -1218,6 +1243,8 @@ const App = () => {
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef);
+          setSelectedCharIdState(null); // Limpa o estado
+          setOwnerUidState(null); // Limpa o estado
           window.history.pushState({}, '', window.location.pathname);
           setCharacter(null);
           fetchCharactersList();
@@ -1267,6 +1294,8 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
+      setSelectedCharIdState(null); // Limpa o estado
+      setOwnerUidState(null); // Limpa o estado
       window.history.pushState({}, '', window.location.pathname);
       setViewingAllCharacters(false);
       setIsMaster(false);
@@ -1360,7 +1389,7 @@ const App = () => {
         </section>
 
         {/* Se o usuário está logado e não há personagem selecionado, mostra a lista de personagens */}
-        {user && !selectedCharacterId && (
+        {user && !selectedCharIdState && ( // Usando o estado
           <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
               {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
@@ -1431,7 +1460,7 @@ const App = () => {
         )}
 
         {/* Se um personagem estiver selecionado, mostra a ficha */}
-        {user && selectedCharacterId && character && (
+        {user && selectedCharIdState && character && ( // Usando o estado
           <>
             <div className="mb-4">
               <button
