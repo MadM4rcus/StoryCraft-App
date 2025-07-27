@@ -3,36 +3,36 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, deleteDoc } from 'firebase/firestore';
 
-// Componente Modal para prompts e confirmações personalizadas
+// Custom Modal component for personalized prompts and confirmations
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
 
   const handleConfirm = () => {
     if (type === 'prompt') {
       onConfirm(inputValue);
-      // IMPORTANTE: NÃO chame onClose() aqui para prompts. O componente pai (App)
-      // gerenciará o fechamento/transição para prompts multi-passos.
+      // IMPORTANT: Do NOT call onClose() here for prompts. The parent component (App)
+      // will manage closing/transition for multi-step prompts.
     } else {
       onConfirm();
-      onClose(); // Para tipos 'confirm' ou 'info', feche imediatamente.
+      onClose(); // For 'confirm' or 'info' types, close immediately.
     }
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose(); // Sempre feche ao cancelar.
+    onClose(); // Always close on cancel.
   };
 
-  // Determina o texto do botão de confirmação baseado no tipo de modal
+  // Determines the confirmation button text based on the modal type
   const confirmButtonText = useMemo(() => {
     switch (type) {
       case 'confirm':
         return 'Confirmar';
       case 'prompt':
-        return 'Adicionar'; // Usado para adicionar itens/perks após prompt
+        return 'Adicionar'; // Used to add items/perks after prompt
       case 'info':
       default:
-        return 'OK'; // Para mensagens informativas
+        return 'OK'; // For informational messages
     }
   }, [type]);
 
@@ -56,9 +56,9 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
               type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
-            {confirmButtonText} {/* Usando o texto dinâmico */}
+            {confirmButtonText} {/* Using dynamic text */}
           </button>
-          {type !== 'info' && ( // "Info" modals geralmente só precisam de um botão "OK"
+          {type !== 'info' && ( // "Info" modals usually only need an "OK" button
             <button
               onClick={handleCancel}
               className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
@@ -72,9 +72,9 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   );
 };
 
-// Componente principal da aplicação
+// Main application component
 const App = () => {
-  // Configuração do Firebase
+  // Firebase configuration
   const firebaseConfig = useMemo(() => ({
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
@@ -86,20 +86,20 @@ const App = () => {
   }), []);
   const appId = firebaseConfig.appId;
 
-  // Estados para Firebase
+  // Firebase states
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isMaster, setIsMaster] = useState(false); // Estado para o papel de mestre
+  const [isMaster, setIsMaster] = useState(false); // Master role state
 
-  // Estados para gerenciamento de personagens
+  // Character management states
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
-  // Estado para visibilidade e conteúdo do modal
+  // Modal visibility and content state
   const [modal, setModal] = useState({
     isVisible: false,
     message: '',
@@ -108,17 +108,18 @@ const App = () => {
     onCancel: () => {},
   });
 
-  // Estado para indicador de carregamento
+  // Loading indicator state
   const [isLoading, setIsLoading] = useState(false);
 
-  // Estado para o valor de Zeni a ser adicionado/removido
+  // Zeni amount to be added/removed
   const [zeniAmount, setZeniAmount] = useState(0);
 
-  // Ref para o input de arquivo para acioná-lo programaticamente
+  // Ref for file input to trigger it programmatically
   const fileInputRef = useRef(null);
 
-  // Estados para controlar o colapso das seções
-  const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+  // States to control section collapse
+  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false); // New state for User Status
+  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); // New state for Character Info
   const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
   const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
   const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
@@ -130,19 +131,19 @@ const App = () => {
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
 
-  // Mapeamento de atributos básicos para emojis
+  // Mapping of basic attributes to emojis
   const basicAttributeEmojis = {
     forca: '💪',
     destreza: '🏃‍♂️',
-    inteligencia: '🧠',
+    inteligencia: '�',
     constituicao: '❤️‍',
     sabedoria: '🧘‍♂️',
-    carisma: '�',
+    carisma: '🎭',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
-  // Mapeamento de atributos mágicos para emojis e seus nomes em português
+  // Mapping of magic attributes to emojis and their Portuguese names
   const magicAttributeEmojis = {
     fogo: '🔥',
     agua: '💧',
@@ -154,7 +155,7 @@ const App = () => {
     outro: '🪄',
   };
 
-  // Inicializa Firebase e configura o listener de autenticação
+  // Initializes Firebase and sets up authentication listener
   useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
@@ -176,10 +177,10 @@ const App = () => {
       });
       return () => unsubscribe();
     } catch (error) {
-      console.error("Erro ao inicializar Firebase:", error);
+      console.error("Error initializing Firebase:", error);
       setModal({
         isVisible: true,
-        message: `Erro ao inicializar o aplicativo. Verifique a configuração do Firebase. Detalhes: ${error.message}`,
+        message: `Error initializing the app. Check Firebase configuration. Details: ${error.message}`,
         type: 'info',
         onConfirm: () => {},
         onCancel: () => {},
@@ -187,7 +188,7 @@ const App = () => {
     }
   }, [firebaseConfig]);
 
-  // Efeito para carregar o papel do usuário (mestre/jogador) do Firestore
+  // Effect to load user role (master/player) from Firestore
   useEffect(() => {
     let unsubscribeRole = () => {};
     if (db && user && isAuthReady) {
@@ -199,7 +200,7 @@ const App = () => {
           setIsMaster(false);
         }
       }, (error) => {
-        console.error("Erro ao carregar papel do usuário:", error);
+        console.error("Error loading user role:", error);
         setIsMaster(false);
       });
     } else {
@@ -208,7 +209,7 @@ const App = () => {
     return () => unsubscribeRole();
   }, [db, user, isAuthReady, appId]);
 
-  // Função para carregar a lista de personagens
+  // Function to load the list of characters
   const fetchCharactersList = useCallback(async () => {
     if (!db || !user || !isAuthReady) return;
 
@@ -244,12 +245,12 @@ const App = () => {
         setCharactersList(chars);
         setViewingAllCharacters(false);
       }
-      console.log("Lista de personagens carregada.");
+      console.log("Character list loaded.");
     } catch (error) {
-      console.error("Erro ao carregar lista de personagens:", error);
+      console.error("Error loading character list:", error);
       setModal({
         isVisible: true,
-        message: `Erro ao carregar lista de personagens: ${error.message}`,
+        message: `Error loading character list: ${error.message}`,
         type: 'info',
         onConfirm: () => {},
         onCancel: () => {},
@@ -259,14 +260,14 @@ const App = () => {
     }
   }, [db, user, isAuthReady, isMaster, appId]);
 
-  // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
+  // Loads the character list when user, db or isAuthReady change
   useEffect(() => {
     if (user && db && isAuthReady) {
       fetchCharactersList();
     }
   }, [user, db, isAuthReady, fetchCharactersList]);
 
-  // Listener em tempo real para o personagem selecionado
+  // Real-time listener for the selected character
   useEffect(() => {
     let unsubscribeCharacter = () => {};
     if (db && user && isAuthReady && selectedCharacterId) {
@@ -282,7 +283,7 @@ const App = () => {
             setCharacter(null);
             setSelectedCharacterId(null);
             fetchCharactersList();
-            setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+            setModal({ isVisible: true, message: "The selected sheet has been deleted.", type: "info", onConfirm: () => {}, onCancel: () => {} });
             return;
           }
           const deserializedData = { ...data };
@@ -298,20 +299,20 @@ const App = () => {
             deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
             deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
             
-            // Deserializa o campo 'history' para a nova estrutura de array
+            // Deserializes the 'history' field to the new array structure
             let historyData = deserializedData.history;
             if (typeof historyData === 'string') {
               try {
-                // Tenta fazer o parse se for uma string JSON
+                // Tries to parse if it's a JSON string
                 historyData = JSON.parse(historyData);
               } catch (parseError) {
-                // Se for uma string mas não um JSON válido (formato antigo), converte para um bloco de texto
+                // If it's a string but not a valid JSON (old format), converts to a text block
                 historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
               }
             }
-            deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
+            deserializedData.history = Array.isArray(historyData) ? historyData : []; // Ensures it's an array
 
-            // Garante que os campos de imagem existam e tenham valores padrão
+            // Ensures image fields exist and have default values
             deserializedData.history = deserializedData.history.map(block => {
               if (block.type === 'image') {
                 return {
@@ -325,17 +326,17 @@ const App = () => {
             });
 
           } catch (e) {
-            console.error("Erro ao deserializar dados do Firestore:", e);
+            console.error("Error deserializing Firestore data:", e);
             setModal({
               isVisible: true,
-              message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
+              message: `Error loading sheet data: ${e.message}. Data might be corrupted.`,
               type: 'info',
               onConfirm: () => {},
               onCancel: () => {},
             });
           }
 
-          // Garante que todos os campos de array/objeto existam e sejam do tipo correto
+          // Ensures all array/object fields exist and are of the correct type
           deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
           deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
           deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
@@ -352,18 +353,18 @@ const App = () => {
           deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
 
           setCharacter(deserializedData);
-          console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
+          console.log(`Sheet for '${deserializedData.name}' loaded from Firestore in real-time.`);
         } else {
-          console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
+          console.log("No sheet found for the selected ID or it was deleted.");
           setCharacter(null);
           setSelectedCharacterId(null);
           fetchCharactersList();
         }
       }, (error) => {
-        console.error("Erro ao ouvir a ficha no Firestore:", error);
+        console.error("Error listening to sheet in Firestore:", error);
         setModal({
           isVisible: true,
-          message: `Erro ao carregar ficha do Firestore: ${error.message}`,
+          message: `Error loading sheet from Firestore: ${error.message}`,
           type: 'info',
           onConfirm: () => {},
           onCancel: () => {},
@@ -375,14 +376,14 @@ const App = () => {
     return () => unsubscribeCharacter();
   }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]);
 
-  // Salva a ficha no Firestore
+  // Saves the sheet to Firestore
   useEffect(() => {
     if (db && user && isAuthReady && character && selectedCharacterId) {
       const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
       const targetUidForSave = charToSaveOwnerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
-        console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
+        console.warn("Attempt to save another user's sheet without write permission.");
         return;
       }
 
@@ -393,7 +394,7 @@ const App = () => {
           dataToSave.id = selectedCharacterId;
           dataToSave.ownerUid = targetUidForSave;
 
-          // Stringify os objetos aninhados para Firestore
+          // Stringify nested objects for Firestore
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -404,16 +405,16 @@ const App = () => {
           dataToSave.abilities = JSON.stringify(dataToSave.abilities);
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
-          dataToSave.history = JSON.stringify(dataToSave.history); // Serializa o campo 'history'
+          dataToSave.history = JSON.stringify(dataToSave.history); // Serializes the 'history' field
           
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
-          console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
+          console.log(`Sheet for '${character.name}' automatically saved to Firestore.`);
         } catch (error) {
-          console.error('Erro ao salvar ficha no Firestore automaticamente:', error);
+          console.error('Error saving sheet to Firestore automatically:', error);
         }
       };
       const handler = setTimeout(() => {
@@ -424,7 +425,7 @@ const App = () => {
     }
   }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]);
 
-  // Lida com mudanças nos campos de texto simples
+  // Handles changes in simple text fields
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'age' || name === 'level' || name === 'xp') {
@@ -440,7 +441,7 @@ const App = () => {
     }
   };
 
-  // Lida com mudanças nos atributos principais (HP, MP, Iniciativa, FA, FM, FD)
+  // Handles changes in main attributes (HP, MP, Initiative, FA, FM, FD)
   const handleMainAttributeChange = (e) => {
     const { name, value, dataset } = e.target;
     const attributeName = dataset.attribute;
@@ -458,7 +459,7 @@ const App = () => {
     }));
   };
 
-  // Lida com mudanças nos atributos principais que são apenas um número (Iniciativa, FA, FM, FD)
+  // Handles changes in main attributes that are just a number (Initiative, FA, FM, FD)
   const handleSingleMainAttributeChange = (e) => {
     const { name, value } = e.target;
     setCharacter(prevChar => ({
@@ -470,7 +471,7 @@ const App = () => {
     }));
   };
 
-  // Lida com mudanças nos atributos básicos e mágicos (Valor Base, Bônus Permanente, Bônus Condicional)
+  // Handles changes in basic and magic attributes (Base Value, Permanent Bonus, Conditional Bonus)
   const handleBasicAttributeChange = (category, attributeName, field, value) => {
     setCharacter(prevChar => {
       const updatedAttribute = {
@@ -489,17 +490,17 @@ const App = () => {
     });
   };
 
-  // Lida com a adição de itens ao inventário
+  // Handles adding items to inventory
   const handleAddItem = () => {
     setModal({
       isVisible: true,
-      message: 'Digite o nome do item:',
+      message: 'Enter item name:',
       type: 'prompt',
       onConfirm: (itemName) => {
         if (itemName) {
           setModal({
             isVisible: true,
-            message: 'Digite a descrição do item:',
+            message: 'Enter item description:',
             type: 'prompt',
             onConfirm: (itemDescription) => {
               setCharacter(prevChar => {
@@ -522,7 +523,7 @@ const App = () => {
     });
   };
 
-  // Lida com a edição de itens no inventário
+  // Handles editing items in inventory
   const handleInventoryItemChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedInventory = [...(prevChar.inventory || [])];
@@ -533,7 +534,7 @@ const App = () => {
     });
   };
 
-  // Lida com a remoção de itens do inventário
+  // Handles removing items from inventory
   const handleRemoveItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedInventory = (prevChar.inventory || []).filter((_, index) => index !== indexToRemove);
@@ -541,12 +542,12 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de Zeni
+  // Handles Zeni change
   const handleZeniChange = (e) => {
     setZeniAmount(parseInt(e.target.value, 10) || 0);
   };
 
-  // Lida com a adição de Zeni
+  // Handles adding Zeni
   const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
@@ -555,7 +556,7 @@ const App = () => {
     setZeniAmount(0);
   };
 
-  // Lida com a remoção de Zeni
+  // Handles removing Zeni
   const handleRemoveZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
@@ -564,22 +565,22 @@ const App = () => {
     setZeniAmount(0);
   };
 
-  // Lida com a adição de Vantagem/Desvantagem
+  // Handles adding Advantage/Disadvantage
   const handleAddPerk = (type) => {
     setModal({
       isVisible: true,
-      message: `Digite o nome da ${type === 'advantages' ? 'Vantagem' : 'Desvantagem'}:`,
+      message: `Enter the name of the ${type === 'advantages' ? 'Advantage' : 'Disadvantage'}:`,
       type: 'prompt',
       onConfirm: (name) => {
         if (name) {
           setModal({
             isVisible: true,
-            message: `Digite a descrição da ${name}:`,
+            message: `Enter the description of ${name}:`,
             type: 'prompt',
             onConfirm: (description) => {
               setModal({
                 isVisible: true,
-                message: `Digite o valor da ${name}:`,
+                message: `Enter the value of ${name}:`,
                 type: 'prompt',
                 onConfirm: (value) => {
                   setCharacter(prevChar => {
@@ -607,7 +608,7 @@ const App = () => {
     });
   };
 
-  // Lida com a edição de Vantagem/Desvantagem
+  // Handles editing Advantage/Disadvantage
   const handlePerkChange = (type, index, field, value) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
@@ -622,7 +623,7 @@ const App = () => {
     });
   };
 
-  // Lida com a remoção de Vantagem/Desvantagem
+  // Handles removing Advantage/Disadvantage
   const handleRemovePerk = (type, indexToRemove) => {
     setCharacter(prevChar => {
       const updatedPerks = (prevChar[type] || []).filter((_, index) => index !== indexToRemove);
@@ -630,7 +631,7 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de origem da Vantagem/Desvantagem
+  // Handles changing Advantage/Disadvantage origin
   const handlePerkOriginChange = (type, index, originType) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
@@ -641,17 +642,17 @@ const App = () => {
     });
   };
 
-  // Lida com a adição de Habilidade (Classe/Raça/Customizada)
+  // Handles adding Ability (Class/Race/Custom)
   const handleAddAbility = () => {
     setModal({
       isVisible: true,
-      message: 'Digite o título da Habilidade:',
+      message: 'Enter Ability title:',
       type: 'prompt',
       onConfirm: (title) => {
         if (title) {
           setModal({
             isVisible: true,
-            message: `Digite a descrição da habilidade "${title}":`,
+            message: `Enter description for ability "${title}":`,
             type: 'prompt',
             onConfirm: (description) => {
               setCharacter(prevChar => {
@@ -674,7 +675,7 @@ const App = () => {
     });
   };
 
-  // Lida com a edição de Habilidade
+  // Handles editing Ability
   const handleAbilityChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedAbilities = [...(prevChar.abilities || [])];
@@ -685,7 +686,7 @@ const App = () => {
     });
   };
 
-  // Lida com a remoção de Habilidade
+  // Handles removing Ability
   const handleRemoveAbility = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedAbilities = (prevChar.abilities || []).filter((_, index) => index !== indexToRemove);
@@ -693,11 +694,11 @@ const App = () => {
     });
   };
 
-  // Lida com a adição de Especialização
+  // Handles adding Specialization
   const handleAddSpecialization = () => {
     setModal({
       isVisible: true,
-      message: 'Digite o nome da Especialização:',
+      message: 'Enter Specialization name:',
       type: 'prompt',
       onConfirm: (name) => {
         if (name) {
@@ -716,7 +717,7 @@ const App = () => {
     });
   };
 
-  // Lida com a remoção de Especialização
+  // Handles removing Specialization
   const handleRemoveSpecialization = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
@@ -724,7 +725,7 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de nome, modificador ou bônus da Especialização
+  // Handles changing Specialization name, modifier, or bonus
   const handleSpecializationChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
@@ -739,22 +740,22 @@ const App = () => {
     });
   };
 
-  // Lida com a adição de Item Equipado
+  // Handles adding Equipped Item
   const handleAddEquippedItem = () => {
     setModal({
       isVisible: true,
-      message: 'Digite o nome do Item Equipado:',
+      message: 'Enter Equipped Item name:',
       type: 'prompt',
       onConfirm: (name) => {
         if (name) {
           setModal({
             isVisible: true,
-            message: `Digite a descrição do item "${name}":`,
+            message: `Enter description for item "${name}":`,
             type: 'prompt',
             onConfirm: (description) => {
               setModal({
                 isVisible: true,
-                message: `Digite os atributos/efeitos do item "${name}" (ex: +5 Força, Dano Fogo):`,
+                message: `Enter attributes/effects for item "${name}" (e.g., +5 Strength, Fire Damage):`,
                 type: 'prompt',
                 onConfirm: (attributes) => {
                   setCharacter(prevChar => {
@@ -782,7 +783,7 @@ const App = () => {
     });
   };
 
-  // Lida com a edição de Item Equipado
+  // Handles editing Equipped Item
   const handleEquippedItemChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = [...(prevChar.equippedItems || [])];
@@ -793,7 +794,7 @@ const App = () => {
     });
   };
 
-  // Lida com a remoção de Item Equipado
+  // Handles removing Equipped Item
   const handleRemoveEquippedItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove);
@@ -801,7 +802,7 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de texto para Anotações
+  // Handles text changes for Notes
   const handleNotesChange = (e) => {
     const { name, value } = e.target;
     setCharacter(prevChar => ({
@@ -810,7 +811,7 @@ const App = () => {
     }));
   };
 
-  // Funções para a nova seção de História Modular
+  // Functions for the new Modular History section
   const addHistoryBlock = (type) => {
     if (type === 'text') {
       setCharacter(prevChar => ({
@@ -820,7 +821,7 @@ const App = () => {
     } else if (type === 'image') {
       setModal({
         isVisible: true,
-        message: 'Cole a URL da imagem:',
+        message: 'Paste image URL:',
         type: 'prompt',
         onConfirm: (url) => {
           if (url) {
@@ -838,14 +839,14 @@ const App = () => {
     }
   };
 
-  // Atualiza um campo específico de um bloco de história
+  // Updates a specific field of a history block
   const updateHistoryBlock = (id, field, value) => {
     setCharacter(prevChar => ({
       ...prevChar,
       history: (prevChar.history || []).map(block => {
         if (block.id === id) {
           if (block.type === 'image' && (field === 'width' || field === 'height')) {
-            // Garante que width/height sejam números ou string vazia
+            // Ensures width/height are numbers or empty string
             return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
           }
           return { ...block, [field]: value };
@@ -862,17 +863,17 @@ const App = () => {
     }));
   };
 
-  // Funções para Drag-and-Drop na História
+  // Functions for Drag-and-Drop in History
   const draggedItemRef = useRef(null);
 
   const handleDragStart = (e, index) => {
     draggedItemRef.current = index;
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", e.target); // Necessário para Firefox
+    e.dataTransfer.setData("text/html", e.target); // Required for Firefox
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault(); // Permite o drop
+    e.preventDefault(); // Allows drop
   };
 
   const handleDrop = (e, dropIndex) => {
@@ -892,14 +893,14 @@ const App = () => {
         ...prevChar,
         history: newHistory
     }));
-    draggedItemRef.current = null; // Reset após o drop
+    draggedItemRef.current = null; // Reset after drop
   };
 
-  // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
+  // Function to reset the character sheet to default values using the custom modal
   const handleReset = () => {
     setModal({
       isVisible: true,
-      message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos. (Esta ação NÃO exclui a ficha do banco de dados)',
+      message: 'Are you sure you want to reset the sheet? All data will be lost. (This action does NOT delete the sheet from the database)',
       type: 'confirm',
       onConfirm: () => {
         setCharacter({
@@ -915,10 +916,10 @@ const App = () => {
     });
   };
 
-  // Função para exportar os dados do personagem como JSON
+  // Function to export character data as JSON
   const handleExportJson = () => {
     if (!character) {
-      setModal({ isVisible: true, message: 'Nenhum personagem selecionado para exportar.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'No character selected for export.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
     }
     const jsonString = JSON.stringify(character, null, 2);
@@ -926,19 +927,19 @@ const App = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${character.name || 'ficha_rpg'}.json`;
+    a.download = `${character.name || 'rpg_sheet'}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // Função para acionar o input de arquivo para importação de JSON
+  // Function to trigger file input for JSON import
   const handleImportJsonClick = () => {
     fileInputRef.current.click();
   };
 
-  // Função para lidar com a importação de arquivo JSON
+  // Function to handle JSON file import
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -949,7 +950,7 @@ const App = () => {
           if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
             setModal({
               isVisible: true,
-              message: 'Tem certeza que deseja importar esta ficha? Os dados atuais serão substituídos e um novo personagem será criado.',
+              message: 'Are you sure you want to import this sheet? Current data will be replaced and a new character will be created.',
               type: 'confirm',
               onConfirm: async () => {
                 const newCharId = crypto.randomUUID();
@@ -1028,10 +1029,10 @@ const App = () => {
                     await setDoc(characterDocRef, dataToSave);
                     setSelectedCharacterId(newCharId);
                     fetchCharactersList();
-                    setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    setModal({ isVisible: true, message: `Character '${importedData.name}' imported and saved successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
-                    console.error("Erro ao salvar ficha importada:", error);
-                    setModal({ isVisible: true, message: `Erro ao salvar ficha importada: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    console.error("Error saving imported sheet:", error);
+                    setModal({ isVisible: true, message: `Error saving imported sheet: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 }
               },
               onCancel: () => {},
@@ -1039,7 +1040,7 @@ const App = () => {
           } else {
             setModal({
               isVisible: true,
-              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida.',
+              message: 'The selected JSON file does not appear to be a valid character sheet.',
               type: 'info',
               onConfirm: () => {},
               onCancel: () => {},
@@ -1048,23 +1049,23 @@ const App = () => {
         } catch (error) {
           setModal({
             isVisible: true,
-            message: 'Erro ao ler o arquivo JSON. Certifique-se de que é um JSON válido.',
+            message: 'Error reading JSON file. Make sure it is a valid JSON.',
             type: 'info',
             onConfirm: () => {},
             onCancel: () => {},
           });
-          console.error('Erro ao analisar arquivo JSON:', error);
+          console.error('Error parsing JSON file:', error);
         }
       };
       reader.readAsText(file);
     }
   };
 
-  // Função para criar um novo personagem
+  // Function to create a new character
   const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
-      message: 'Digite o nome do novo personagem:',
+      message: 'Enter the name of the new character:',
       type: 'prompt',
       onConfirm: async (name) => {
         if (name) {
@@ -1103,10 +1104,10 @@ const App = () => {
 
             await setDoc(characterDocRef, dataToSave);
             fetchCharactersList();
-            setModal({ isVisible: true, message: `Personagem '${name}' criado com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            setModal({ isVisible: true, message: `Character '${name}' created successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
           } catch (error) {
-            console.error("Erro ao criar novo personagem:", error);
-            setModal({ isVisible: true, message: `Erro ao criar personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            console.error("Error creating new character:", error);
+            setModal({ isVisible: true, message: `Error creating character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
           } finally {
             setIsLoading(false);
           }
@@ -1120,29 +1121,29 @@ const App = () => {
     });
   };
 
-  // Função para selecionar um personagem da lista
+  // Function to select a character from the list
   const handleSelectCharacter = (charId) => {
     setSelectedCharacterId(charId);
     setViewingAllCharacters(false);
   };
 
-  // Função para voltar para a lista de personagens
+  // Function to go back to the character list
   const handleBackToList = () => {
     setSelectedCharacterId(null);
     setCharacter(null);
     fetchCharactersList();
   };
 
-  // Função para excluir um personagem (mudado para deleteDoc)
+  // Function to delete a character (changed to deleteDoc)
   const handleDeleteCharacter = (charId, charName, ownerUid) => {
     setModal({
       isVisible: true,
-      message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'? Esta ação é irreversível.`,
+      message: `Are you sure you want to PERMANENTLY DELETE character '${charName}'? This action is irreversible.`,
       type: 'confirm',
       onConfirm: async () => {
         if (!db || !user) return;
         if (user.uid !== ownerUid && !isMaster) {
-          setModal({ isVisible: true, message: 'Você não tem permissão para excluir este personagem.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal({ isVisible: true, message: 'You do not have permission to delete this character.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
           return;
         }
         setIsLoading(true);
@@ -1152,10 +1153,10 @@ const App = () => {
           setSelectedCharacterId(null);
           setCharacter(null);
           fetchCharactersList();
-          setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal({ isVisible: true, message: `Character '${charName}' permanently deleted successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } catch (error) {
-          console.error("Erro ao excluir personagem:", error);
-          setModal({ isVisible: true, message: `Erro ao excluir personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          console.error("Error deleting character:", error);
+          setModal({ isVisible: true, message: `Error deleting character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } finally {
           setIsLoading(false);
         }
@@ -1164,26 +1165,26 @@ const App = () => {
     });
   };
 
-  // --- Funções de Autenticação com Google ---
+  // --- Google Authentication Functions ---
   const handleGoogleSignIn = async () => {
     if (!auth) {
-      setModal({ isVisible: true, message: 'Firebase Auth não inicializado.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Firebase Auth not initialized.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
     }
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      setModal({ isVisible: true, message: 'Login com Google realizado com sucesso!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Google login successful!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } catch (error) {
-      console.error("Erro no login com Google:", error);
-      let errorMessage = "Erro ao fazer login com Google.";
+      console.error("Error in Google login:", error);
+      let errorMessage = "Error logging in with Google.";
       if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = "Login cancelado pelo usuário.";
+        errorMessage = "Login canceled by user.";
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = "Requisição de popup de login já em andamento. Por favor, tente novamente.";
+        errorMessage = "Login popup request already in progress. Please try again.";
       } else {
-        errorMessage += ` Detalhes: ${error.message}`;
+        errorMessage += ` Details: ${error.message}`;
       }
       setModal({ isVisible: true, message: errorMessage, type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } finally {
@@ -1201,16 +1202,16 @@ const App = () => {
       setSelectedCharacterId(null);
       setViewingAllCharacters(false);
       setIsMaster(false);
-      setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'You have been successfully disconnected.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-      setModal({ isVisible: true, message: `Erro ao fazer logout: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      console.error("Error logging out:", error);
+      setModal({ isVisible: true, message: `Error logging out: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Função auxiliar para alternar o estado de colapso de uma seção
+  // Helper function to toggle section collapse state
   const toggleSection = (setter) => setter(prev => !prev);
 
   return (
@@ -1222,14 +1223,14 @@ const App = () => {
             font-family: 'Inter', sans-serif;
           }
 
-          /* Esconde as setinhas para navegadores WebKit (Chrome, Safari) */
+          /* Hides spin buttons for WebKit browsers (Chrome, Safari) */
           input[type="number"]::-webkit-outer-spin-button,
           input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
           }
 
-          /* Esconde as setinhas para Firefox */
+          /* Hides spin buttons for Firefox */
           input[type="number"] {
             -moz-appearance: textfield;
           }
@@ -1240,16 +1241,16 @@ const App = () => {
           Ficha StoryCraft
         </h1>
 
-        {/* Informações do Usuário (Firebase Authentication) */}
+        {/* User Status Information (Firebase Authentication) */}
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
           <h2 
             className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
-            onClick={() => toggleSection(setIsInfoCollapsed)}
+            onClick={() => toggleSection(setIsUserStatusCollapsed)} {/* Independent collapse state */}
           >
             Status do Usuário
-            <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+            <span>{isUserStatusCollapsed ? '▼' : '▲'}</span>
           </h2>
-          {!isInfoCollapsed && (
+          {!isUserStatusCollapsed && ( {/* Use new state */}
             <div className="text-center">
               {isAuthReady ? (
                 user ? (
@@ -1290,7 +1291,7 @@ const App = () => {
           )}
         </section>
 
-        {/* Se o usuário está logado e não há personagem selecionado, mostra a lista de personagens */}
+        {/* If user is logged in and no character is selected, show character list */}
         {user && !selectedCharacterId && (
           <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
@@ -1361,7 +1362,7 @@ const App = () => {
           </section>
         )}
 
-        {/* Se um personagem estiver selecionado, mostra a ficha */}
+        {/* If a character is selected, show the sheet */}
         {user && selectedCharacterId && character && (
           <>
             <div className="mb-4">
@@ -1373,16 +1374,16 @@ const App = () => {
               </button>
             </div>
 
-            {/* Informações do Personagem */}
+            {/* Character Information */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsInfoCollapsed)}
+                onClick={() => toggleSection(setIsCharacterInfoCollapsed)} {/* Independent collapse state */}
               >
                 Informações do Personagem
-                <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+                <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isInfoCollapsed && (
+              {!isCharacterInfoCollapsed && ( {/* Use new state */}
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
                   <div className="flex-shrink-0">
                     <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-300 mb-1">Foto (URL):</label>
@@ -1410,7 +1411,7 @@ const App = () => {
                     </div>
                     <div>
                       <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-1">Idade:</label>
-                      <input type="number" id="age" name="age" value={character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="age" name="age" value={character.age === 0 ? '' : character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                     <div>
                       <label htmlFor="height" className="block text-sm font-medium text-gray-300 mb-1">Altura:</label>
@@ -1434,18 +1435,18 @@ const App = () => {
                     </div>
                     <div>
                       <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Nível:</label>
-                      <input type="number" id="level" name="level" value={character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="level" name="level" value={character.level === 0 ? '' : character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                     <div>
                       <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
-                      <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="xp" name="xp" value={character.xp === 0 ? '' : character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                   </div>
                 </div>
               )}
             </section>
 
-            {/* Atributos Principais */}
+            {/* Main Attributes */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1464,9 +1465,10 @@ const App = () => {
                         type="number"
                         name="current"
                         data-attribute="hp"
-                        value={character.mainAttributes.hp.current}
+                        value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        placeholder="0"
                         disabled={user.uid !== character.ownerUid}
                       />
                       <span className="text-gray-300">/</span>
@@ -1474,9 +1476,10 @@ const App = () => {
                         type="number"
                         name="max"
                         data-attribute="hp"
-                        value={character.mainAttributes.hp.max}
+                        value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        placeholder="0"
                         disabled={!isMaster}
                       />
                     </div>
@@ -1489,9 +1492,10 @@ const App = () => {
                         type="number"
                         name="current"
                         data-attribute="mp"
-                        value={character.mainAttributes.mp.current}
+                        value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        placeholder="0"
                         disabled={user.uid !== character.ownerUid}
                       />
                       <span className="text-gray-300">/</span>
@@ -1499,14 +1503,15 @@ const App = () => {
                         type="number"
                         name="max"
                         data-attribute="mp"
-                        value={character.mainAttributes.mp.max}
+                        value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        placeholder="0"
                         disabled={!isMaster}
                       />
                     </div>
                   </div>
-                  {/* Iniciativa, FA, FM, FD */}
+                  {/* Initiative, FA, FM, FD */}
                   {['initiative', 'fa', 'fm', 'fd'].map(attr => (
                     <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                       <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">
@@ -1516,9 +1521,10 @@ const App = () => {
                         type="number"
                         id={attr}
                         name={attr}
-                        value={character.mainAttributes[attr]}
+                        value={character.mainAttributes[attr] === 0 ? '' : character.mainAttributes[attr]}
                         onChange={handleSingleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        placeholder="0"
                         disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                     </div>
@@ -1530,7 +1536,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Atributos Básicos */}
+            {/* Basic Attributes */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1541,7 +1547,7 @@ const App = () => {
               </h2>
               {!isBasicAttributesCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Atributos Físicos */}
+                  {/* Physical Attributes */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
                     <div className="grid grid-cols-1 gap-2">
@@ -1554,19 +1560,19 @@ const App = () => {
                             <div className="flex items-center gap-2 text-xs flex-grow justify-end">
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
+                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" placeholder="0" />
                               </div>
                             </div>
                           </div>
@@ -1575,7 +1581,7 @@ const App = () => {
                     </div>
                   </div>
 
-                  {/* Atributos Mágicos */}
+                  {/* Magic Attributes */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
                     <div className="grid grid-cols-1 gap-2">
@@ -1588,19 +1594,19 @@ const App = () => {
                             <div className="flex items-center gap-2 text-xs flex-grow justify-end">
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
+                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" placeholder="0" />
                               </div>
                             </div>
                           </div>
@@ -1612,7 +1618,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Inventário */}
+            {/* Inventory */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1669,20 +1675,20 @@ const App = () => {
               )}
             </section>
 
-            {/* Carteira */}
+            {/* Wallet */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsWalletCollapsed)}
               >
-                Zeni: {character.wallet.zeni}
+                Zeni: {character.wallet.zeni === 0 ? '' : character.wallet.zeni} {/* Display empty if 0 */}
                 <span>{isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isWalletCollapsed && (
                 <div className="flex items-center gap-2 w-full">
                   <input
                     type="number"
-                    value={zeniAmount}
+                    value={zeniAmount === 0 ? '' : zeniAmount} {/* Display empty if 0 */}
                     onChange={handleZeniChange}
                     className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
                     placeholder="Valor"
@@ -1706,7 +1712,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Vantagens e Desvantagens */}
+            {/* Advantages and Disadvantages */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1717,7 +1723,7 @@ const App = () => {
               </h2>
               {!isPerksCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Vantagens */}
+                  {/* Advantages */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Vantagens</h3>
                     <button
@@ -1743,9 +1749,10 @@ const App = () => {
                               />
                               <input
                                 type="number"
-                                value={perk.value}
+                                value={perk.value === 0 ? '' : perk.value} {/* Display empty if 0 */}
                                 onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1783,7 +1790,7 @@ const App = () => {
                     </ul>
                   </div>
 
-                  {/* Desvantagens */}
+                  {/* Disadvantages */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Desvantagens</h3>
                     <button
@@ -1809,9 +1816,10 @@ const App = () => {
                               />
                               <input
                                 type="number"
-                                value={perk.value}
+                                value={perk.value === 0 ? '' : perk.value} {/* Display empty if 0 */}
                                 onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1852,7 +1860,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Habilidades de Classe/Raça e Customizadas */}
+            {/* Class/Race and Custom Abilities */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1909,7 +1917,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Especializações (Perícias) */}
+            {/* Specializations (Skills) */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1955,9 +1963,10 @@ const App = () => {
                               Modificador:
                               <input
                                 type="number"
-                                value={spec.modifier}
+                                value={spec.modifier === 0 ? '' : spec.modifier} {/* Display empty if 0 */}
                                 onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -1965,9 +1974,10 @@ const App = () => {
                               Bônus:
                               <input
                                 type="number"
-                                value={spec.bonus}
+                                value={spec.bonus === 0 ? '' : spec.bonus} {/* Display empty if 0 */}
                                 onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -1980,7 +1990,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Itens Equipados */}
+            {/* Equipped Items */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2046,7 +2056,7 @@ const App = () => {
               )}
             </section>
 
-            {/* História do Personagem */}
+            {/* Character History */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2117,18 +2127,20 @@ const App = () => {
                                         Largura (px):
                                         <input
                                           type="number"
-                                          value={block.width}
+                                          value={block.width === 0 ? '' : block.width} {/* Display empty if 0 */}
                                           onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                          placeholder="0"
                                         />
                                       </label>
                                       <label className="flex items-center gap-1">
                                         Altura (px):
                                         <input
                                           type="number"
-                                          value={block.height}
+                                          value={block.height === 0 ? '' : block.height} {/* Display empty if 0 */}
                                           onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                          placeholder="0"
                                         />
                                       </label>
                                     </>
@@ -2161,7 +2173,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Anotações */}
+            {/* Notes */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2183,7 +2195,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Botões de Ação */}
+            {/* Action Buttons */}
             <div className="flex flex-wrap justify-center gap-4 mt-8">
               <button
                 onClick={handleExportJson}
@@ -2217,7 +2229,7 @@ const App = () => {
           </>
         )}
 
-        {/* Mensagem se não estiver logado */}
+        {/* Message if not logged in */}
         {!user && (
           <p className="text-center text-gray-400 text-lg mt-8">
             Faça login para começar a criar e gerenciar suas fichas de personagem!
@@ -2225,7 +2237,7 @@ const App = () => {
         )}
       </div>
 
-      {/* Modal Personalizado */}
+      {/* Custom Modal */}
       {modal.isVisible && (
         <CustomModal
           message={modal.message}
