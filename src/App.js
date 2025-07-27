@@ -148,7 +148,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '💧',
+    agua: '�',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -1623,7 +1623,7 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsCharacterInfoCollapsed)} {/* Usando o novo estado */}
+                onClick={() => toggleSection(setIsCharacterInfoCollapsed)}
               >
                 Informações do Personagem
                 <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
