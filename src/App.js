@@ -140,7 +140,7 @@ const App = () => {
     inteligencia: '🧠',
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
-    carisma: '🎭',
+    carisma: '�',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
@@ -148,7 +148,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '�',
+    agua: '💧',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -1634,7 +1634,7 @@ const App = () => {
                     <img
                       src={character.photoUrl}
                       alt="Foto do Personagem"
-                      className="w-48 h-48 object-cover rounded-full border-2 border-purple-500 mb-2 transition-all duration-300 ease-in-out" {/* Aumentado para w-48 h-48 */}
+                      className="w-48 h-48 object-cover rounded-full border-2 border-purple-500 mb-2 transition-all duration-300 ease-in-out"
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Foto'; }}
                     />
                     {(user.uid === character.ownerUid || isMaster) && (
