@@ -1,38 +1,36 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
-// Custom Modal component for personalized prompts and confirmations
+// Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
 
   const handleConfirm = () => {
     if (type === 'prompt') {
       onConfirm(inputValue);
-      // IMPORTANT: Do NOT call onClose() here for prompts. The parent component (App)
-      // will manage closing/transition for multi-step prompts.
     } else {
       onConfirm();
-      onClose(); // For 'confirm' or 'info' types, close immediately.
+      onClose();
     }
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose(); // Always close on cancel.
+    onClose();
   };
 
-  // Determines the confirmation button text based on the modal type
+  // Determina o texto do botão de confirmação baseado no tipo de modal
   const confirmButtonText = useMemo(() => {
     switch (type) {
       case 'confirm':
         return 'Confirmar';
       case 'prompt':
-        return 'Adicionar'; // Used to add items/perks after prompt
+        return 'Confirmar'; // Alterado para "Confirmar" para prompts genéricos
       case 'info':
       default:
-        return 'OK'; // For informational messages
+        return 'OK';
     }
   }, [type]);
 
@@ -56,9 +54,9 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
               type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
-            {confirmButtonText} {/* Using dynamic text */}
+            {confirmButtonText}
           </button>
-          {type !== 'info' && ( // "Info" modals usually only need an "OK" button
+          {type !== 'info' && (
             <button
               onClick={handleCancel}
               className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
@@ -72,34 +70,64 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   );
 };
 
-// Main application component
+// Componente auxiliar para textarea com redimensionamento automático
+// Ele ajusta a altura do textarea com base no seu scrollHeight (conteúdo)
+const AutoResizingTextarea = ({ value, onChange, placeholder, className, disabled }) => {
+    const textareaRef = useRef(null);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            className={`${className} resize-none overflow-hidden`}
+            rows="1"
+            disabled={disabled}
+        />
+    );
+};
+
+
+// Componente principal da aplicação
 const App = () => {
-  // Firebase configuration
+  // Configuração do Firebase
   const firebaseConfig = useMemo(() => ({
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
     projectId: "storycraft-a5f7e",
-    storageBucket: "storycraft-a5f7e.firebasestorage.app",
+    storageBucket: "storycraft-a5f7e.firebaseapp.com",
     messagingSenderId: "727724875985",
     appId: "1:727724875985:web:97411448885c68c289e5f0",
     measurementId: "G-JH03Y2NZDK"
   }), []);
   const appId = firebaseConfig.appId;
 
-  // Firebase states
+  // Estados para Firebase
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isMaster, setIsMaster] = useState(false); // Master role state
+  const [isMaster, setIsMaster] = useState(false);
 
-  // Character management states
+  // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  
+  // Novos estados para o ID do personagem selecionado e UID do proprietário
+  const [selectedCharIdState, setSelectedCharIdState] = useState(null);
+  const [ownerUidState, setOwnerUidState] = useState(null);
+
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
-  // Modal visibility and content state
+  // Estado para visibilidade e conteúdo do modal
   const [modal, setModal] = useState({
     isVisible: false,
     message: '',
@@ -108,18 +136,18 @@ const App = () => {
     onCancel: () => {},
   });
 
-  // Loading indicator state
+  // Estado para indicador de carregamento
   const [isLoading, setIsLoading] = useState(false);
 
-  // Zeni amount to be added/removed
+  // Estado para o valor de Zeni a ser adicionado/removido
   const [zeniAmount, setZeniAmount] = useState(0);
 
-  // Ref for file input to trigger it programmatically
+  // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
-  // States to control section collapse
-  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false); // New state for User Status
-  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); // New state for Character Info
+  // Estados para controlar o colapso das seções
+  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false); // Mantido o nome original para evitar conflito
+  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); // Mantido o nome original para evitar conflito
   const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
   const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
   const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
@@ -131,19 +159,19 @@ const App = () => {
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
 
-  // Mapping of basic attributes to emojis
+  // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍',
+    constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
-  // Mapping of magic attributes to emojis and their Portuguese names
+  // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
     agua: '💧',
@@ -155,7 +183,7 @@ const App = () => {
     outro: '🪄',
   };
 
-  // Initializes Firebase and sets up authentication listener
+  // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
@@ -170,17 +198,20 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          setSelectedCharacterId(null);
+          // Limpar selectedCharIdState e ownerUidState ao deslogar
+          setSelectedCharIdState(null);
+          setOwnerUidState(null);
+          window.history.pushState({}, '', window.location.pathname);
           setViewingAllCharacters(false);
           setIsMaster(false);
         }
       });
       return () => unsubscribe();
     } catch (error) {
-      console.error("Error initializing Firebase:", error);
+      console.error("Erro ao inicializar Firebase:", error);
       setModal({
         isVisible: true,
-        message: `Error initializing the app. Check Firebase configuration. Details: ${error.message}`,
+        message: `Erro ao inicializar o aplicativo. Verifique a configuração do Firebase. Detalhes: ${error.message}`,
         type: 'info',
         onConfirm: () => {},
         onCancel: () => {},
@@ -188,11 +219,20 @@ const App = () => {
     }
   }, [firebaseConfig]);
 
-  // Effect to load user role (master/player) from Firestore
+  // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialCharId = params.get('charId');
+    const initialOwnerUid = params.get('ownerUid');
+    setSelectedCharIdState(initialCharId);
+    setOwnerUidState(initialOwnerUid);
+  }, []); // Executa apenas uma vez no carregamento inicial
+
+  // Efeito para carregar o papel do usuário (mestre/jogador) do Firestore
   useEffect(() => {
     let unsubscribeRole = () => {};
     if (db && user && isAuthReady) {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/userRoles/${user.uid}`);
+      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
       unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
         if (docSnap.exists() && docSnap.data().isMaster === true) {
           setIsMaster(true);
@@ -200,7 +240,7 @@ const App = () => {
           setIsMaster(false);
         }
       }, (error) => {
-        console.error("Error loading user role:", error);
+        console.error("Erro ao carregar papel do usuário:", error);
         setIsMaster(false);
       });
     } else {
@@ -209,14 +249,18 @@ const App = () => {
     return () => unsubscribeRole();
   }, [db, user, isAuthReady, appId]);
 
-  // Function to load the list of characters
+  // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
-    if (!db || !user || !isAuthReady) return;
+    if (!db || !user || !isAuthReady) {
+      console.log("fetchCharactersList: DB, user, ou autenticação não prontos.");
+      return;
+    }
 
     setIsLoading(true);
     try {
       let allChars = [];
       if (isMaster) {
+        console.log("fetchCharactersList: Modo Mestre, buscando todos os personagens.");
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
         const usersSnapshot = await getDocs(usersCollectionRef);
         
@@ -232,7 +276,9 @@ const App = () => {
         }
         setCharactersList(allChars);
         setViewingAllCharacters(true);
+        console.log("fetchCharactersList: Todos os personagens carregados para o mestre.", allChars);
       } else {
+        console.log("fetchCharactersList: Modo Jogador, buscando personagens próprios.");
         const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(charactersCollectionRef);
         const querySnapshot = await getDocs(q);
@@ -244,13 +290,13 @@ const App = () => {
         }).filter(Boolean);
         setCharactersList(chars);
         setViewingAllCharacters(false);
+        console.log("fetchCharactersList: Personagens do jogador carregados.", chars);
       }
-      console.log("Character list loaded.");
     } catch (error) {
-      console.error("Error loading character list:", error);
+      console.error("Erro ao carregar lista de personagens:", error);
       setModal({
         isVisible: true,
-        message: `Error loading character list: ${error.message}`,
+        message: `Erro ao carregar lista de personagens: ${error.message}`,
         type: 'info',
         onConfirm: () => {},
         onCancel: () => {},
@@ -260,142 +306,209 @@ const App = () => {
     }
   }, [db, user, isAuthReady, isMaster, appId]);
 
-  // Loads the character list when user, db or isAuthReady change
+  // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
   useEffect(() => {
     if (user && db && isAuthReady) {
+      console.log("useEffect (gatilho fetchCharactersList): Usuário, DB, Auth prontos.");
       fetchCharactersList();
     }
   }, [user, db, isAuthReady, fetchCharactersList]);
 
-  // Real-time listener for the selected character
+  // Listener em tempo real para o personagem selecionado
   useEffect(() => {
     let unsubscribeCharacter = () => {};
-    if (db && user && isAuthReady && selectedCharacterId) {
-      const charToLoad = charactersList.find(c => c.id === selectedCharacterId);
-      const targetUid = charToLoad ? charToLoad.ownerUid : user.uid;
+    const currentSelectedCharacterId = selectedCharIdState; // Usando o estado
+    const currentOwnerUidFromUrl = ownerUidState; // Usando o estado
+    console.log('useEffect (carregamento de personagem) acionado. selectedCharacterId:', currentSelectedCharacterId, 'ownerUidFromUrl:', currentOwnerUidFromUrl, 'isMaster:', isMaster, 'user:', user?.uid);
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${selectedCharacterId}`);
+    if (db && user && isAuthReady && currentSelectedCharacterId) {
+      const loadCharacter = async () => {
+        setIsLoading(true);
+        let targetUid = currentOwnerUidFromUrl; // Prioriza ownerUid do estado
 
-      unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.deleted) {
-            setCharacter(null);
-            setSelectedCharacterId(null);
-            fetchCharactersList();
-            setModal({ isVisible: true, message: "The selected sheet has been deleted.", type: "info", onConfirm: () => {}, onCancel: () => {} });
-            return;
-          }
-          const deserializedData = { ...data };
-          try {
-            deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
-            deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
-            deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
-            deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
-            deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
-            deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
-            deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
-            deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
-            deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
-            deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
-            
-            // Deserializes the 'history' field to the new array structure
-            let historyData = deserializedData.history;
-            if (typeof historyData === 'string') {
-              try {
-                // Tries to parse if it's a JSON string
-                historyData = JSON.parse(historyData);
-              } catch (parseError) {
-                // If it's a string but not a valid JSON (old format), converts to a text block
-                historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
+        if (!targetUid) { // Se ownerUid não está no estado (ex: acesso direto ou link antigo)
+          if (isMaster) {
+            console.log('Modo Mestre, ownerUid não no estado. Buscando ownerUid para o personagem:', currentSelectedCharacterId);
+            const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+            let foundOwnerUid = null;
+            try {
+              const usersSnapshot = await getDocs(usersCollectionRef);
+              for (const userDoc of usersSnapshot.docs) {
+                const userUid = userDoc.id;
+                const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
+                const charSnap = await getDoc(charDocRef);
+                if (charSnap.exists()) {
+                  foundOwnerUid = userUid;
+                  break;
+                }
               }
+            } catch (error) {
+              console.error("Erro ao buscar ownerUid para mestre:", error);
             }
-            deserializedData.history = Array.isArray(historyData) ? historyData : []; // Ensures it's an array
-
-            // Ensures image fields exist and have default values
-            deserializedData.history = deserializedData.history.map(block => {
-              if (block.type === 'image') {
-                return {
-                  ...block,
-                  width: block.width !== undefined ? block.width : '',
-                  height: block.height !== undefined ? block.height : '',
-                  fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
-                };
-              }
-              return block;
-            });
-
-          } catch (e) {
-            console.error("Error deserializing Firestore data:", e);
-            setModal({
-              isVisible: true,
-              message: `Error loading sheet data: ${e.message}. Data might be corrupted.`,
-              type: 'info',
-              onConfirm: () => {},
-              onCancel: () => {},
-            });
+            
+            if (foundOwnerUid) {
+              targetUid = foundOwnerUid;
+              setOwnerUidState(foundOwnerUid); // Atualiza o estado do ownerUid
+            } else {
+              console.warn(`Personagem com ID ${currentSelectedCharacterId} não encontrado em nenhuma coleção de usuário para o mestre. Pode ter sido excluído ou ainda está sincronizando.`);
+              setCharacter(null);
+              setSelectedCharIdState(null); // Limpa o estado
+              setOwnerUidState(null); // Limpa o estado
+              window.history.pushState({}, '', window.location.pathname);
+              fetchCharactersList();
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            // Para jogadores, se ownerUid não está no estado, deve ser o próprio UID
+            targetUid = user.uid;
+            setOwnerUidState(user.uid); // Atualiza o estado do ownerUid
+            console.log('Modo Jogador, ownerUid não no estado. Usando user.uid por padrão:', targetUid);
           }
-
-          // Ensures all array/object fields exist and are of the correct type
-          deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
-          deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-          deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-          deserializedData.inventory = deserializedData.inventory || [];
-          deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
-          deserializedData.advantages = deserializedData.advantages || [];
-          deserializedData.disadvantages = deserializedData.disadvantages || [];
-          deserializedData.abilities = deserializedData.abilities || [];
-          deserializedData.specializations = deserializedData.specializations || [];
-          deserializedData.equippedItems = deserializedData.equippedItems || [];
-          deserializedData.history = deserializedData.history || [];
-          deserializedData.notes = deserializedData.notes || '';
-          deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
-          deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
-          deserializedData.photoUrl = deserializedData.photoUrl || ''; // Ensure photoUrl is an empty string if not present
-
-          setCharacter(deserializedData);
-          console.log(`Sheet for '${deserializedData.name}' loaded from Firestore in real-time.`);
         } else {
-          console.log("No sheet found for the selected ID or it was deleted.");
-          setCharacter(null);
-          setSelectedCharacterId(null);
-          fetchCharactersList();
+          console.log('OwnerUid encontrado no estado:', targetUid);
         }
-      }, (error) => {
-        console.error("Error listening to sheet in Firestore:", error);
-        setModal({
-          isVisible: true,
-          message: `Error loading sheet from Firestore: ${error.message}`,
-          type: 'info',
-          onConfirm: () => {},
-          onCancel: () => {},
+
+        // Se targetUid ainda é null/undefined após todas as verificações, algo está errado.
+        if (!targetUid) {
+          console.error('Não foi possível determinar o targetUid para o carregamento do personagem.');
+          setIsLoading(false);
+          setCharacter(null);
+          setSelectedCharIdState(null); // Limpa o estado
+          setOwnerUidState(null); // Limpa o estado
+          window.history.pushState({}, '', window.location.pathname);
+          return;
+        }
+
+        const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
+        console.log('Configurando onSnapshot para characterDocRef:', characterDocRef.path);
+
+        unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.deleted) {
+              console.log('Personagem encontrado, mas marcado como excluído.');
+              setCharacter(null);
+              setSelectedCharIdState(null); // Limpa o estado
+              setOwnerUidState(null); // Limpa o estado
+              window.history.pushState({}, '', window.location.pathname);
+              fetchCharactersList();
+              setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+              return;
+            }
+            const deserializedData = { ...data };
+            try {
+              deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
+              deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
+              deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
+              deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
+              deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
+              deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
+              deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
+              deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
+              deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
+              deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
+              
+              let historyData = deserializedData.history;
+              if (typeof historyData === 'string') {
+                try {
+                  historyData = JSON.parse(historyData);
+                } catch (parseError) {
+                  historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
+                }
+              }
+              deserializedData.history = Array.isArray(historyData) ? historyData : [];
+
+              deserializedData.history = deserializedData.history.map(block => {
+                if (block.type === 'image') {
+                  return {
+                    ...block,
+                    width: block.width !== undefined ? block.width : '',
+                    height: block.height !== undefined ? block.height : '',
+                    fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                  };
+                }
+                return block;
+              });
+
+            } catch (e) {
+              console.error("Erro ao deserializar dados do Firestore:", e);
+              setModal({
+                isVisible: true,
+                message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
+                type: 'info',
+                onConfirm: () => {},
+                onCancel: () => {},
+              });
+            }
+
+            deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
+            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            deserializedData.inventory = deserializedData.inventory || [];
+            deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
+            deserializedData.advantages = deserializedData.advantages || [];
+            deserializedData.disadvantages = deserializedData.disadvantages || [];
+            deserializedData.abilities = deserializedData.abilities || [];
+            deserializedData.specializations = deserializedData.specializations || [];
+            deserializedData.equippedItems = deserializedData.equippedItems || [];
+            deserializedData.history = deserializedData.history || [];
+            deserializedData.notes = deserializedData.notes || '';
+            deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
+            deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+            deserializedData.photoUrl = deserializedData.photoUrl || ''; // Garante que photoUrl seja string vazia se não presente
+
+            setCharacter(deserializedData);
+            console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
+          } else {
+            console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
+            setCharacter(null);
+            setSelectedCharIdState(null); // Limpa o estado
+            setOwnerUidState(null); // Limpa o estado
+            window.history.pushState({}, '', window.location.pathname);
+            fetchCharactersList();
+          }
+          setIsLoading(false);
+        }, (error) => {
+          console.error("Erro ao ouvir a ficha no Firestore:", error);
+          setModal({
+            isVisible: true,
+            message: `Erro ao carregar ficha do Firestore: ${error.message}`,
+            type: 'info',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+          setIsLoading(false);
         });
-      });
-    } else if (!selectedCharacterId) {
+      };
+      loadCharacter();
+    } else if (!currentSelectedCharacterId) {
+      console.log('Nenhum ID de personagem selecionado, limpando estado do personagem.');
       setCharacter(null);
     }
-    return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]);
+    return () => {
+      console.log('Limpando listener onSnapshot do personagem.');
+      unsubscribeCharacter();
+    };
+  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]); // Dependências atualizadas
 
-  // Saves the sheet to Firestore
+  // Salva a ficha no Firestore
   useEffect(() => {
-    if (db && user && isAuthReady && character && selectedCharacterId) {
-      const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
-      const targetUidForSave = charToSaveOwnerUid || user.uid; 
+    if (db && user && isAuthReady && character && selectedCharIdState) { // Usando o estado
+      const targetUidForSave = character.ownerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
-        console.warn("Attempt to save another user's sheet without write permission.");
+        console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
         return;
       }
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharacterId}`);
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharIdState}`); // Usando o estado
       const saveCharacter = async () => {
         try {
           const dataToSave = { ...character };
-          dataToSave.id = selectedCharacterId;
+          dataToSave.id = selectedCharIdState; // Usando o estado
           dataToSave.ownerUid = targetUidForSave;
 
-          // Stringify nested objects for Firestore
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -406,16 +519,16 @@ const App = () => {
           dataToSave.abilities = JSON.stringify(dataToSave.abilities);
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
-          dataToSave.history = JSON.stringify(dataToSave.history); // Serializes the 'history' field
+          dataToSave.history = JSON.stringify(dataToSave.history);
           
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
-          console.log(`Sheet for '${character.name}' automatically saved to Firestore.`);
+          console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
         } catch (error) {
-          console.error('Error saving sheet to Firestore automatically:', error);
+          console.error('Erro ao salvar ficha no Firestore automaticamente:', error);
         }
       };
       const handler = setTimeout(() => {
@@ -424,9 +537,9 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]);
+  }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]); // Dependências atualizadas
 
-  // Handles changes in simple text fields
+  // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'age' || name === 'level' || name === 'xp') {
@@ -442,7 +555,7 @@ const App = () => {
     }
   };
 
-  // Handles changes in main attributes (HP, MP, Initiative, FA, FM, FD)
+  // Lida com mudanças nos atributos principais (HP, MP, Iniciativa, FA, FM, FD)
   const handleMainAttributeChange = (e) => {
     const { name, value, dataset } = e.target;
     const attributeName = dataset.attribute;
@@ -460,7 +573,7 @@ const App = () => {
     }));
   };
 
-  // Handles changes in main attributes that are just a number (Initiative, FA, FM, FD)
+  // Lida com mudanças nos atributos principais que são apenas um número (Iniciativa, FA, FM, FD)
   const handleSingleMainAttributeChange = (e) => {
     const { name, value } = e.target;
     setCharacter(prevChar => ({
@@ -472,7 +585,7 @@ const App = () => {
     }));
   };
 
-  // Handles changes in basic and magic attributes (Base Value, Permanent Bonus, Conditional Bonus)
+  // Lida com mudanças nos atributos básicos e mágicos (Valor Base, Bônus Permanente, Bônus Condicional)
   const handleBasicAttributeChange = (category, attributeName, field, value) => {
     setCharacter(prevChar => {
       const updatedAttribute = {
@@ -491,40 +604,15 @@ const App = () => {
     });
   };
 
-  // Handles adding items to inventory
+  // Lida com a adição de itens ao inventário (sem pop-up)
   const handleAddItem = () => {
-    setModal({
-      isVisible: true,
-      message: 'Enter item name:',
-      type: 'prompt',
-      onConfirm: (itemName) => {
-        if (itemName) {
-          setModal({
-            isVisible: true,
-            message: 'Enter item description:',
-            type: 'prompt',
-            onConfirm: (itemDescription) => {
-              setCharacter(prevChar => {
-                const updatedInventory = [...(prevChar.inventory || []), { name: itemName, description: itemDescription }];
-                return { ...prevChar, inventory: updatedInventory };
-              });
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-            onCancel: () => {
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-          });
-        } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+    setCharacter(prevChar => {
+      const updatedInventory = [...(prevChar.inventory || []), { name: '', description: '' }];
+      return { ...prevChar, inventory: updatedInventory };
     });
   };
 
-  // Handles editing items in inventory
+  // Lida com a edição de itens no inventário
   const handleInventoryItemChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedInventory = [...(prevChar.inventory || [])];
@@ -535,7 +623,7 @@ const App = () => {
     });
   };
 
-  // Handles removing items from inventory
+  // Lida com a remoção de itens do inventário
   const handleRemoveItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedInventory = (prevChar.inventory || []).filter((_, index) => index !== indexToRemove);
@@ -543,12 +631,12 @@ const App = () => {
     });
   };
 
-  // Handles Zeni change
+  // Lida com a mudança de Zeni
   const handleZeniChange = (e) => {
     setZeniAmount(parseInt(e.target.value, 10) || 0);
   };
 
-  // Handles adding Zeni
+  // Lida com a adição de Zeni
   const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
@@ -557,7 +645,7 @@ const App = () => {
     setZeniAmount(0);
   };
 
-  // Handles removing Zeni
+  // Lida com a remoção de Zeni
   const handleRemoveZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
@@ -566,50 +654,15 @@ const App = () => {
     setZeniAmount(0);
   };
 
-  // Handles adding Advantage/Disadvantage
+  // Lida com a adição de Vantagem/Desvantagem (sem pop-up para nome/descrição)
   const handleAddPerk = (type) => {
-    setModal({
-      isVisible: true,
-      message: `Enter the name of the ${type === 'advantages' ? 'Advantage' : 'Disadvantage'}:`,
-      type: 'prompt',
-      onConfirm: (name) => {
-        if (name) {
-          setModal({
-            isVisible: true,
-            message: `Enter the description of ${name}:`,
-            type: 'prompt',
-            onConfirm: (description) => {
-              setModal({
-                isVisible: true,
-                message: `Enter the value of ${name}:`,
-                type: 'prompt',
-                onConfirm: (value) => {
-                  setCharacter(prevChar => {
-                    const updatedPerks = [...(prevChar[type] || []), { name: name, description: description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
-                    return { ...prevChar, [type]: updatedPerks };
-                  });
-                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-                },
-                onCancel: () => {
-                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-                },
-              });
-            },
-            onCancel: () => {
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-          });
-        } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+    setCharacter(prevChar => {
+      const updatedPerks = [...(prevChar[type] || []), { name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0 }];
+      return { ...prevChar, [type]: updatedPerks };
     });
   };
 
-  // Handles editing Advantage/Disadvantage
+  // Lida com a edição de Vantagem/Desvantagem
   const handlePerkChange = (type, index, field, value) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
@@ -624,7 +677,7 @@ const App = () => {
     });
   };
 
-  // Handles removing Advantage/Disadvantage
+  // Lida com a remoção de Vantagem/Desvantagem
   const handleRemovePerk = (type, indexToRemove) => {
     setCharacter(prevChar => {
       const updatedPerks = (prevChar[type] || []).filter((_, index) => index !== indexToRemove);
@@ -632,7 +685,7 @@ const App = () => {
     });
   };
 
-  // Handles changing Advantage/Disadvantage origin
+  // Lida com a mudança de origem da Vantagem/Desvantagem
   const handlePerkOriginChange = (type, index, originType) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
@@ -643,40 +696,15 @@ const App = () => {
     });
   };
 
-  // Handles adding Ability (Class/Race/Custom)
+  // Lida com a adição de Habilidade (Classe/Raça/Customizada) (sem pop-up)
   const handleAddAbility = () => {
-    setModal({
-      isVisible: true,
-      message: 'Enter Ability title:',
-      type: 'prompt',
-      onConfirm: (title) => {
-        if (title) {
-          setModal({
-            isVisible: true,
-            message: `Enter description for ability "${title}":`,
-            type: 'prompt',
-            onConfirm: (description) => {
-              setCharacter(prevChar => {
-                const updatedAbilities = [...(prevChar.abilities || []), { title: title, description: description }];
-                return { ...prevChar, abilities: updatedAbilities };
-              });
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-            onCancel: () => {
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-          });
-        } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+    setCharacter(prevChar => {
+      const updatedAbilities = [...(prevChar.abilities || []), { title: '', description: '' }];
+      return { ...prevChar, abilities: updatedAbilities };
     });
   };
 
-  // Handles editing Ability
+  // Lida com a edição de Habilidade
   const handleAbilityChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedAbilities = [...(prevChar.abilities || [])];
@@ -687,7 +715,7 @@ const App = () => {
     });
   };
 
-  // Handles removing Ability
+  // Lida com a remoção de Habilidade
   const handleRemoveAbility = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedAbilities = (prevChar.abilities || []).filter((_, index) => index !== indexToRemove);
@@ -695,30 +723,15 @@ const App = () => {
     });
   };
 
-  // Handles adding Specialization
+  // Lida com a adição de Especialização (sem pop-up para nome)
   const handleAddSpecialization = () => {
-    setModal({
-      isVisible: true,
-      message: 'Enter Specialization name:',
-      type: 'prompt',
-      onConfirm: (name) => {
-        if (name) {
-          setCharacter(prevChar => {
-            const updatedSpecializations = [...(prevChar.specializations || []), { name: name, modifier: 0, bonus: 0 }];
-            return { ...prevChar, specializations: updatedSpecializations };
-          });
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+    setCharacter(prevChar => {
+      const updatedSpecializations = [...(prevChar.specializations || []), { name: '', modifier: 0, bonus: 0 }];
+      return { ...prevChar, specializations: updatedSpecializations };
     });
   };
 
-  // Handles removing Specialization
+  // Lida com a remoção de Especialização
   const handleRemoveSpecialization = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
@@ -726,7 +739,7 @@ const App = () => {
     });
   };
 
-  // Handles changing Specialization name, modifier, or bonus
+  // Lida com a mudança de nome, modificador ou bônus da Especialização
   const handleSpecializationChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
@@ -741,50 +754,15 @@ const App = () => {
     });
   };
 
-  // Handles adding Equipped Item
+  // Lida com a adição de Item Equipado (sem pop-up para nome/descrição/atributos)
   const handleAddEquippedItem = () => {
-    setModal({
-      isVisible: true,
-      message: 'Enter Equipped Item name:',
-      type: 'prompt',
-      onConfirm: (name) => {
-        if (name) {
-          setModal({
-            isVisible: true,
-            message: `Enter description for item "${name}":`,
-            type: 'prompt',
-            onConfirm: (description) => {
-              setModal({
-                isVisible: true,
-                message: `Enter attributes/effects for item "${name}" (e.g., +5 Strength, Fire Damage):`,
-                type: 'prompt',
-                onConfirm: (attributes) => {
-                  setCharacter(prevChar => {
-                    const updatedEquippedItems = [...(prevChar.equippedItems || []), { name: name, description: description, attributes: attributes }];
-                    return { ...prevChar, equippedItems: updatedEquippedItems };
-                  });
-                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-                },
-                onCancel: () => {
-                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-                },
-              });
-            },
-            onCancel: () => {
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-            },
-          });
-        } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+    setCharacter(prevChar => {
+      const updatedEquippedItems = [...(prevChar.equippedItems || []), { name: '', description: '', attributes: '' }];
+      return { ...prevChar, equippedItems: updatedEquippedItems };
     });
   };
 
-  // Handles editing Equipped Item
+  // Lida com a edição de Item Equipado
   const handleEquippedItemChange = (index, field, value) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = [...(prevChar.equippedItems || [])];
@@ -795,7 +773,7 @@ const App = () => {
     });
   };
 
-  // Handles removing Equipped Item
+  // Lida com a remoção de Item Equipado
   const handleRemoveEquippedItem = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove);
@@ -803,7 +781,7 @@ const App = () => {
     });
   };
 
-  // Handles text changes for Notes
+  // Lida com a mudança de texto para Anotações
   const handleNotesChange = (e) => {
     const { name, value } = e.target;
     setCharacter(prevChar => ({
@@ -812,7 +790,7 @@ const App = () => {
     }));
   };
 
-  // Functions for the new Modular History section
+  // Funções para a nova seção de História Modular
   const addHistoryBlock = (type) => {
     if (type === 'text') {
       setCharacter(prevChar => ({
@@ -822,7 +800,7 @@ const App = () => {
     } else if (type === 'image') {
       setModal({
         isVisible: true,
-        message: 'Paste image URL:',
+        message: 'Cole a URL da imagem:',
         type: 'prompt',
         onConfirm: (url) => {
           if (url) {
@@ -840,14 +818,13 @@ const App = () => {
     }
   };
 
-  // Updates a specific field of a history block
+  // Atualiza um campo específico de um bloco de história
   const updateHistoryBlock = (id, field, value) => {
     setCharacter(prevChar => ({
       ...prevChar,
       history: (prevChar.history || []).map(block => {
         if (block.id === id) {
           if (block.type === 'image' && (field === 'width' || field === 'height')) {
-            // Ensures width/height are numbers or empty string
             return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
           }
           return { ...block, [field]: value };
@@ -864,17 +841,17 @@ const App = () => {
     }));
   };
 
-  // Functions for Drag-and-Drop in History
+  // Funções para Drag-and-Drop na História
   const draggedItemRef = useRef(null);
 
   const handleDragStart = (e, index) => {
     draggedItemRef.current = index;
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", e.target); // Required for Firefox
+    e.dataTransfer.setData("text/html", e.target);
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault(); // Allows drop
+    e.preventDefault();
   };
 
   const handleDrop = (e, dropIndex) => {
@@ -882,7 +859,7 @@ const App = () => {
     const draggedItemIndex = draggedItemRef.current;
     
     if (draggedItemIndex === null || draggedItemIndex === dropIndex) {
-        draggedItemRef.current = null; // Reset
+        draggedItemRef.current = null;
         return;
     }
 
@@ -894,14 +871,14 @@ const App = () => {
         ...prevChar,
         history: newHistory
     }));
-    draggedItemRef.current = null; // Reset after drop
+    draggedItemRef.current = null;
   };
 
-  // Function to reset the character sheet to default values using the custom modal
+  // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
   const handleReset = () => {
     setModal({
       isVisible: true,
-      message: 'Are you sure you want to reset the sheet? All data will be lost. (This action does NOT delete the sheet from the database)',
+      message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos. (Esta ação NÃO exclui a ficha do banco de dados)',
       type: 'confirm',
       onConfirm: () => {
         setCharacter({
@@ -917,10 +894,10 @@ const App = () => {
     });
   };
 
-  // Function to export character data as JSON
+  // Função para exportar os dados do personagem como JSON
   const handleExportJson = () => {
     if (!character) {
-      setModal({ isVisible: true, message: 'No character selected for export.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Nenhum personagem selecionado para exportar.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
     }
     const jsonString = JSON.stringify(character, null, 2);
@@ -928,19 +905,19 @@ const App = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${character.name || 'rpg_sheet'}.json`;
+    a.download = `${character.name || 'ficha_rpg'}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // Function to trigger file input for JSON import
+  // Função para acionar o input de arquivo para importação de JSON
   const handleImportJsonClick = () => {
     fileInputRef.current.click();
   };
 
-  // Function to handle JSON file import
+  // Função para lidar com a importação de arquivo JSON
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -951,7 +928,7 @@ const App = () => {
           if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
             setModal({
               isVisible: true,
-              message: 'Are you sure you want to import this sheet? Current data will be replaced and a new character will be created.',
+              message: 'Tem certeza que deseja importar esta ficha? Os dados atuais serão substituídos e um novo personagem será criado.',
               type: 'confirm',
               onConfirm: async () => {
                 const newCharId = crypto.randomUUID();
@@ -961,7 +938,7 @@ const App = () => {
                   ownerUid: user.uid,
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
-                  photoUrl: importedData.photoUrl || '', // Ensure photoUrl is empty string if not present
+                  photoUrl: importedData.photoUrl || '', // Garante que photoUrl seja string vazia se não presente
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
                     mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
@@ -1029,12 +1006,14 @@ const App = () => {
                     dataToSave.history = JSON.stringify(dataToSave.history);
 
                     await setDoc(characterDocRef, dataToSave);
-                    setSelectedCharacterId(newCharId);
+                    setSelectedCharIdState(newCharId); // Define o estado
+                    setOwnerUidState(user.uid); // Define o estado
+                    window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
                     fetchCharactersList();
-                    setModal({ isVisible: true, message: `Character '${importedData.name}' imported and saved successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 } catch (error) {
-                    console.error("Error saving imported sheet:", error);
-                    setModal({ isVisible: true, message: `Error saving imported sheet: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    console.error("Erro ao salvar ficha importada:", error);
+                    setModal({ isVisible: true, message: `Erro ao salvar ficha importada: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
                 }
               },
               onCancel: () => {},
@@ -1042,7 +1021,7 @@ const App = () => {
           } else {
             setModal({
               isVisible: true,
-              message: 'The selected JSON file does not appear to be a valid character sheet.',
+              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida.',
               type: 'info',
               onConfirm: () => {},
               onCancel: () => {},
@@ -1051,23 +1030,23 @@ const App = () => {
         } catch (error) {
           setModal({
             isVisible: true,
-            message: 'Error reading JSON file. Make sure it is a valid JSON.',
+            message: 'Erro ao ler o arquivo JSON. Certifique-se de que é um JSON válido.',
             type: 'info',
             onConfirm: () => {},
             onCancel: () => {},
           });
-          console.error('Error parsing JSON file:', error);
+          console.error('Erro ao analisar arquivo JSON:', error);
         }
       };
       reader.readAsText(file);
     }
   };
 
-  // Function to create a new character
+  // Função para criar um novo personagem
   const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
-      message: 'Enter the name of the new character:',
+      message: 'Digite o nome do novo personagem:',
       type: 'prompt',
       onConfirm: async (name) => {
         if (name) {
@@ -1078,7 +1057,7 @@ const App = () => {
               id: newCharId,
               ownerUid: user.uid,
               name: name,
-              photoUrl: '', // Default to empty string for new characters
+              photoUrl: '', // Default para string vazia para o novo comportamento
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100,
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
@@ -1088,7 +1067,9 @@ const App = () => {
             };
 
             setCharacter(newCharacterData);
-            setSelectedCharacterId(newCharId);
+            setSelectedCharIdState(newCharId); // Define o estado
+            setOwnerUidState(user.uid); // Define o estado
+            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
@@ -1106,10 +1087,10 @@ const App = () => {
 
             await setDoc(characterDocRef, dataToSave);
             fetchCharactersList();
-            setModal({ isVisible: true, message: `Character '${name}' created successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            setModal({ isVisible: true, message: `Personagem '${name}' criado com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
           } catch (error) {
-            console.error("Error creating new character:", error);
-            setModal({ isVisible: true, message: `Error creating character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            console.error("Erro ao criar novo personagem:", error);
+            setModal({ isVisible: true, message: `Erro ao criar personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
           } finally {
             setIsLoading(false);
           }
@@ -1123,42 +1104,48 @@ const App = () => {
     });
   };
 
-  // Function to select a character from the list
-  const handleSelectCharacter = (charId) => {
-    setSelectedCharacterId(charId);
+  // Função para selecionar um personagem da lista
+  const handleSelectCharacter = (charId, ownerUid) => {
+    setSelectedCharIdState(charId); // Define o estado
+    setOwnerUidState(ownerUid); // Define o estado
+    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
     setViewingAllCharacters(false);
   };
 
-  // Function to go back to the character list
+  // Função para voltar para a lista de personagens
   const handleBackToList = () => {
-    setSelectedCharacterId(null);
+    setSelectedCharIdState(null); // Limpa o estado
+    setOwnerUidState(null); // Limpa o estado
+    window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
   };
 
-  // Function to delete a character (changed to deleteDoc)
+  // Função para excluir um personagem (mudado para deleteDoc)
   const handleDeleteCharacter = (charId, charName, ownerUid) => {
     setModal({
       isVisible: true,
-      message: `Are you sure you want to PERMANENTLY DELETE character '${charName}'? This action is irreversible.`,
+      message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'? Esta ação é irreversível.`,
       type: 'confirm',
       onConfirm: async () => {
         if (!db || !user) return;
         if (user.uid !== ownerUid && !isMaster) {
-          setModal({ isVisible: true, message: 'You do not have permission to delete this character.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal({ isVisible: true, message: 'Você não tem permissão para excluir este personagem.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
           return;
         }
         setIsLoading(true);
         try {
           const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef);
-          setSelectedCharacterId(null);
+          setSelectedCharIdState(null); // Limpa o estado
+          setOwnerUidState(null); // Limpa o estado
+          window.history.pushState({}, '', window.location.pathname);
           setCharacter(null);
           fetchCharactersList();
-          setModal({ isVisible: true, message: `Character '${charName}' permanently deleted successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } catch (error) {
-          console.error("Error deleting character:", error);
-          setModal({ isVisible: true, message: `Error deleting character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          console.error("Erro ao excluir personagem:", error);
+          setModal({ isVisible: true, message: `Erro ao excluir personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } finally {
           setIsLoading(false);
         }
@@ -1167,26 +1154,26 @@ const App = () => {
     });
   };
 
-  // --- Google Authentication Functions ---
+  // --- Funções de Autenticação com Google ---
   const handleGoogleSignIn = async () => {
     if (!auth) {
-      setModal({ isVisible: true, message: 'Firebase Auth not initialized.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Firebase Auth não inicializado.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
     }
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      setModal({ isVisible: true, message: 'Google login successful!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Login com Google realizado com sucesso!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } catch (error) {
-      console.error("Error in Google login:", error);
-      let errorMessage = "Error logging in with Google.";
+      console.error("Erro no login com Google:", error);
+      let errorMessage = "Erro ao fazer login com Google.";
       if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = "Login canceled by user.";
+        errorMessage = "Login cancelado pelo usuário.";
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = "Login popup request already in progress. Please try again.";
+        errorMessage = "Requisição de popup de login já em andamento. Por favor, tente novamente.";
       } else {
-        errorMessage += ` Details: ${error.message}`;
+        errorMessage += ` Detalhes: ${error.message}`;
       }
       setModal({ isVisible: true, message: errorMessage, type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } finally {
@@ -1201,37 +1188,39 @@ const App = () => {
       await signOut(auth);
       setCharacter(null);
       setCharactersList([]);
-      setSelectedCharacterId(null);
+      setSelectedCharIdState(null); // Limpa o estado
+      setOwnerUidState(null); // Limpa o estado
+      window.history.pushState({}, '', window.location.pathname);
       setViewingAllCharacters(false);
       setIsMaster(false);
-      setModal({ isVisible: true, message: 'You have been successfully disconnected.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } catch (error) {
-      console.error("Error logging out:", error);
-      setModal({ isVisible: true, message: `Error logging out: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      console.error("Erro ao fazer logout:", error);
+      setModal({ isVisible: true, message: `Erro ao fazer logout: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper function to toggle section collapse state
+  // Função auxiliar para alternar o estado de colapso de uma seção
   const toggleSection = (setter) => setter(prev => !prev);
 
-  // Handles clicking on the photo or the '+' button to change/add photo URL
+  // Lida com o clique na foto ou no botão '+' para alterar/adicionar URL da foto
   const handlePhotoUrlClick = () => {
     if (user.uid !== character.ownerUid && !isMaster) {
-      // If not owner or master, do nothing when clicking the image/button
+      // Se não for o proprietário ou mestre, não faz nada ao clicar na imagem/botão
       return;
     }
     setModal({
       isVisible: true,
-      message: 'Adicione a URL da imagem, ou deixe em branco para remover.',
+      message: 'Insira a nova URL da imagem ou deixe em branco para remover:',
       type: 'prompt',
       onConfirm: (newUrl) => {
         setCharacter(prevChar => ({
           ...prevChar,
           photoUrl: newUrl,
         }));
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Close modal after update
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Fecha o modal após a atualização
       },
       onCancel: () => {
         setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -1248,14 +1237,14 @@ const App = () => {
             font-family: 'Inter', sans-serif;
           }
 
-          /* Hides spin buttons for WebKit browsers (Chrome, Safari) */
+          /* Esconde as setinhas para navegadores WebKit (Chrome, Safari) */
           input[type="number"]::-webkit-outer-spin-button,
           input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
           }
 
-          /* Hides spin buttons for Firefox */
+          /* Esconde as setinhas para Firefox */
           input[type="number"] {
             -moz-appearance: textfield;
           }
@@ -1266,7 +1255,7 @@ const App = () => {
           Ficha StoryCraft
         </h1>
 
-        {/* User Status Information (Firebase Authentication) */}
+        {/* Informações do Usuário (Firebase Authentication) */}
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
           <h2 
             className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
@@ -1316,8 +1305,8 @@ const App = () => {
           )}
         </section>
 
-        {/* If user is logged in and no character is selected, show character list */}
-        {user && !selectedCharacterId && (
+        {/* Se o usuário está logado e não há personagem selecionado, mostra a lista de personagens */}
+        {user && !selectedCharIdState && (
           <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
               {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
@@ -1366,7 +1355,7 @@ const App = () => {
                     </div>
                     <div className="flex justify-end gap-2 mt-4">
                       <button
-                        onClick={() => handleSelectCharacter(char.id)}
+                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
                       >
                         Ver/Editar
@@ -1387,8 +1376,8 @@ const App = () => {
           </section>
         )}
 
-        {/* If a character is selected, show the sheet */}
-        {user && selectedCharacterId && character && (
+        {/* Se um personagem estiver selecionado, mostra a ficha */}
+        {user && selectedCharIdState && character && (
           <>
             <div className="mb-4">
               <button
@@ -1399,7 +1388,7 @@ const App = () => {
               </button>
             </div>
 
-            {/* Character Information */}
+            {/* Informações do Personagem */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1470,7 +1459,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Main Attributes */}
+            {/* Atributos Principais */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1531,7 +1520,7 @@ const App = () => {
                       />
                     </div>
                   </div>
-                  {/* Initiative, FA, FM, FD */}
+                  {/* Iniciativa, FA, FM, FD */}
                   {['initiative', 'fa', 'fm', 'fd'].map(attr => (
                     <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                       <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">
@@ -1555,7 +1544,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Basic Attributes */}
+            {/* Atributos Básicos */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1566,7 +1555,7 @@ const App = () => {
               </h2>
               {!isBasicAttributesCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Physical Attributes */}
+                  {/* Atributos Físicos */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
                     <div className="grid grid-cols-1 gap-2">
@@ -1600,7 +1589,7 @@ const App = () => {
                     </div>
                   </div>
 
-                  {/* Magic Attributes */}
+                  {/* Atributos Mágicos */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
                     <div className="grid grid-cols-1 gap-2">
@@ -1637,7 +1626,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Inventory */}
+            {/* Inventário */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1667,6 +1656,7 @@ const App = () => {
                               value={item.name}
                               onChange={(e) => handleInventoryItemChange(index, 'name', e.target.value)}
                               className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              placeholder="Nome do Item"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -1678,14 +1668,13 @@ const App = () => {
                               </button>
                             )}
                           </div>
-                          <textarea
+                          <AutoResizingTextarea
                             value={item.description}
                             onChange={(e) => handleInventoryItemChange(index, 'description', e.target.value)}
-                            rows="2"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                             placeholder="Descrição do item"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                             disabled={user.uid !== character.ownerUid && !isMaster}
-                          ></textarea>
+                          />
                         </li>
                       ))
                     )}
@@ -1694,13 +1683,13 @@ const App = () => {
               )}
             </section>
 
-            {/* Wallet */}
+            {/* Carteira */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsWalletCollapsed)}
               >
-                Zeni: {character.wallet.zeni} {/* Changed to always show 0 if value is 0 */}
+                Zeni: {character.wallet.zeni}
                 <span>{isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isWalletCollapsed && (
@@ -1710,6 +1699,7 @@ const App = () => {
                     value={zeniAmount === 0 ? '' : zeniAmount}
                     onChange={handleZeniChange}
                     className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
+                    placeholder="Valor"
                     disabled={user.uid !== character.ownerUid && !isMaster}
                   />
                   <button
@@ -1730,7 +1720,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Advantages and Disadvantages */}
+            {/* Vantagens e Desvantagens */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1741,7 +1731,7 @@ const App = () => {
               </h2>
               {!isPerksCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Advantages */}
+                  {/* Vantagens */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Vantagens</h3>
                     <button
@@ -1763,6 +1753,7 @@ const App = () => {
                                 value={perk.name}
                                 onChange={(e) => handlePerkChange('advantages', index, 'name', e.target.value)}
                                 className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="Nome da Vantagem"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               <input
@@ -1770,6 +1761,7 @@ const App = () => {
                                 value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                placeholder="Valor"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1781,14 +1773,13 @@ const App = () => {
                                 </button>
                               )}
                             </div>
-                            <textarea
+                            <AutoResizingTextarea
                               value={perk.description}
                               onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
-                              rows="2"
-                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                               placeholder="Descrição da vantagem"
+                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                               disabled={user.uid !== character.ownerUid && !isMaster}
-                            ></textarea>
+                            />
                             <div className="flex gap-3 text-sm text-gray-400 mt-2">
                               <span>Origem:</span>
                               <label className="flex items-center gap-1">
@@ -1807,7 +1798,7 @@ const App = () => {
                     </ul>
                   </div>
 
-                  {/* Disadvantages */}
+                  {/* Desvantagens */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Desvantagens</h3>
                     <button
@@ -1829,6 +1820,7 @@ const App = () => {
                                 value={perk.name}
                                 onChange={(e) => handlePerkChange('disadvantages', index, 'name', e.target.value)}
                                 className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="Nome da Desvantagem"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               <input
@@ -1836,6 +1828,7 @@ const App = () => {
                                 value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                placeholder="Valor"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1847,14 +1840,13 @@ const App = () => {
                                 </button>
                               )}
                             </div>
-                            <textarea
+                            <AutoResizingTextarea
                               value={perk.description}
                               onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
-                              rows="2"
-                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                               placeholder="Descrição da desvantagem"
+                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                               disabled={user.uid !== character.ownerUid && !isMaster}
-                            ></textarea>
+                            />
                             <div className="flex gap-3 text-sm text-gray-400 mt-2">
                               <span>Origem:</span>
                               <label className="flex items-center gap-1">
@@ -1876,7 +1868,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Class/Race and Custom Abilities */}
+            {/* Habilidades de Classe/Raça e Customizadas */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1906,6 +1898,7 @@ const App = () => {
                               value={ability.title}
                               onChange={(e) => handleAbilityChange(index, 'title', e.target.value)}
                               className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              placeholder="Título da Habilidade"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -1917,14 +1910,13 @@ const App = () => {
                               </button>
                             )}
                           </div>
-                          <textarea
+                          <AutoResizingTextarea
                             value={ability.description}
                             onChange={(e) => handleAbilityChange(index, 'description', e.target.value)}
-                            rows="2"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                             placeholder="Descrição da habilidade"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                             disabled={user.uid !== character.ownerUid && !isMaster}
-                          ></textarea>
+                          />
                         </li>
                       ))
                     )}
@@ -1933,7 +1925,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Specializations (Skills) */}
+            {/* Especializações (Perícias) */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -1963,6 +1955,7 @@ const App = () => {
                               value={spec.name}
                               onChange={(e) => handleSpecializationChange(index, 'name', e.target.value)}
                               className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              placeholder="Nome da Especialização"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -1982,6 +1975,7 @@ const App = () => {
                                 value={spec.modifier === 0 ? '' : spec.modifier}
                                 onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -1992,6 +1986,7 @@ const App = () => {
                                 value={spec.bonus === 0 ? '' : spec.bonus}
                                 onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -2004,7 +1999,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Equipped Items */}
+            {/* Itens Equipados */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2034,6 +2029,7 @@ const App = () => {
                               value={item.name}
                               onChange={(e) => handleEquippedItemChange(index, 'name', e.target.value)}
                               className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              placeholder="Nome do Item Equipado"
                               disabled={user.uid !== character.ownerUid && !isMaster}
                             />
                             {(user.uid === character.ownerUid || isMaster) && (
@@ -2045,23 +2041,21 @@ const App = () => {
                               </button>
                             )}
                           </div>
-                          <textarea
+                          <AutoResizingTextarea
                             value={item.description}
                             onChange={(e) => handleEquippedItemChange(index, 'description', e.target.value)}
-                            rows="2"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y mb-2"
                             placeholder="Descrição do item"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2"
                             disabled={user.uid !== character.ownerUid && !isMaster}
-                          ></textarea>
+                          />
                           <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
-                          <textarea
+                          <AutoResizingTextarea
                             value={item.attributes}
                             onChange={(e) => handleEquippedItemChange(index, 'attributes', e.target.value)}
-                            rows="2"
-                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm resize-y"
                             placeholder="Ex: +5 Força, Dano Fogo, etc."
+                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
                             disabled={user.uid !== character.ownerUid && !isMaster}
-                          ></textarea>
+                          />
                         </li>
                       ))
                     )}
@@ -2070,7 +2064,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Character History */}
+            {/* História do Personagem */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2103,14 +2097,13 @@ const App = () => {
                             </button>
                           )}
                           {block.type === 'text' ? (
-                            <textarea
+                            <AutoResizingTextarea
                               value={block.value}
                               onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
-                              rows="4"
-                              className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
                               placeholder="Digite seu texto aqui..."
+                              className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
                               disabled={user.uid !== character.ownerUid && !isMaster}
-                            ></textarea>
+                            />
                           ) : (
                             <div className="flex flex-col items-center">
                               <img
@@ -2185,7 +2178,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Notes */}
+            {/* Anotações */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2195,19 +2188,18 @@ const App = () => {
                 <span>{isNotesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isNotesCollapsed && (
-                <textarea
+                <AutoResizingTextarea
                   name="notes"
                   value={character.notes}
                   onChange={handleNotesChange}
-                  rows="6"
-                  className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white resize-y"
                   placeholder="Anotações diversas sobre o personagem, campanhas, NPCs, etc."
+                  className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
                   disabled={user.uid !== character.ownerUid && !isMaster}
-                ></textarea>
+                />
               )}
             </section>
 
-            {/* Action Buttons */}
+            {/* Botões de Ação */}
             <div className="flex flex-wrap justify-center gap-4 mt-8">
               <button
                 onClick={handleExportJson}
@@ -2241,7 +2233,7 @@ const App = () => {
           </>
         )}
 
-        {/* Message if not logged in */}
+        {/* Mensagem se não estiver logado */}
         {!user && (
           <p className="text-center text-gray-400 text-lg mt-8">
             Faça login para começar a criar e gerenciar suas fichas de personagem!
@@ -2249,7 +2241,7 @@ const App = () => {
         )}
       </div>
 
-      {/* Custom Modal */}
+      {/* Modal Personalizado */}
       {modal.isVisible && (
         <CustomModal
           message={modal.message}
