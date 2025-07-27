@@ -139,7 +139,7 @@ const App = () => {
     constituicao: '❤️‍',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '🦴',
+    armadura: '�',
     poderDeFogo: '🎯',
   };
 
@@ -584,7 +584,7 @@ const App = () => {
                 type: 'prompt',
                 onConfirm: (value) => {
                   setCharacter(prevChar => {
-                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
+                    const updatedPerks = [...(prevChar[type] || []), { name: name, description: description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
                     return { ...prevChar, [type]: updatedPerks };
                   });
                   setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -656,7 +656,7 @@ const App = () => {
             type: 'prompt',
             onConfirm: (description) => {
               setCharacter(prevChar => {
-                const updatedAbilities = [...(prevChar.abilities || []), { title, description }];
+                const updatedAbilities = [...(prevChar.abilities || []), { title: title, description: description }];
                 return { ...prevChar, abilities: updatedAbilities };
               });
               setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -703,7 +703,7 @@ const App = () => {
       onConfirm: (name) => {
         if (name) {
           setCharacter(prevChar => {
-            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
+            const updatedSpecializations = [...(prevChar.specializations || []), { name: name, modifier: 0, bonus: 0 }];
             return { ...prevChar, specializations: updatedSpecializations };
           });
           setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -759,7 +759,7 @@ const App = () => {
                 type: 'prompt',
                 onConfirm: (attributes) => {
                   setCharacter(prevChar => {
-                    const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description, attributes }];
+                    const updatedEquippedItems = [...(prevChar.equippedItems || []), { name: name, description: description, attributes: attributes }];
                     return { ...prevChar, equippedItems: updatedEquippedItems };
                   });
                   setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -1411,7 +1411,7 @@ const App = () => {
                     </div>
                     <div>
                       <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-1">Idade:</label>
-                      <input type="number" id="age" name="age" value={character.age === 0 ? '' : character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="age" name="age" value={character.age === 0 ? '' : character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                     <div>
                       <label htmlFor="height" className="block text-sm font-medium text-gray-300 mb-1">Altura:</label>
@@ -1435,11 +1435,11 @@ const App = () => {
                     </div>
                     <div>
                       <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Nível:</label>
-                      <input type="number" id="level" name="level" value={character.level === 0 ? '' : character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="level" name="level" value={character.level === 0 ? '' : character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                     <div>
                       <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
-                      <input type="number" id="xp" name="xp" value={character.xp === 0 ? '' : character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                      <input type="number" id="xp" name="xp" value={character.xp === 0 ? '' : character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                   </div>
                 </div>
@@ -1468,7 +1468,6 @@ const App = () => {
                         value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        placeholder="0"
                         disabled={user.uid !== character.ownerUid}
                       />
                       <span className="text-gray-300">/</span>
@@ -1479,7 +1478,6 @@ const App = () => {
                         value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        placeholder="0"
                         disabled={!isMaster}
                       />
                     </div>
@@ -1495,7 +1493,6 @@ const App = () => {
                         value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        placeholder="0"
                         disabled={user.uid !== character.ownerUid}
                       />
                       <span className="text-gray-300">/</span>
@@ -1506,7 +1503,6 @@ const App = () => {
                         value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max}
                         onChange={handleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        placeholder="0"
                         disabled={!isMaster}
                       />
                     </div>
@@ -1524,7 +1520,6 @@ const App = () => {
                         value={character.mainAttributes[attr] === 0 ? '' : character.mainAttributes[attr]}
                         onChange={handleSingleMainAttributeChange}
                         className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        placeholder="0"
                         disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                     </div>
@@ -1560,19 +1555,19 @@ const App = () => {
                             <div className="flex items-center gap-2 text-xs flex-grow justify-end">
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" placeholder="0" />
+                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
                               </div>
                             </div>
                           </div>
@@ -1594,19 +1589,19 @@ const App = () => {
                             <div className="flex items-center gap-2 text-xs flex-grow justify-end">
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" placeholder="0" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" placeholder="0" />
+                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
                               </div>
                             </div>
                           </div>
@@ -1691,7 +1686,6 @@ const App = () => {
                     value={zeniAmount === 0 ? '' : zeniAmount}
                     onChange={handleZeniChange}
                     className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
-                    placeholder="Valor"
                     disabled={user.uid !== character.ownerUid && !isMaster}
                   />
                   <button
@@ -1752,7 +1746,6 @@ const App = () => {
                                 value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1819,7 +1812,6 @@ const App = () => {
                                 value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
@@ -1966,7 +1958,6 @@ const App = () => {
                                 value={spec.modifier === 0 ? '' : spec.modifier}
                                 onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -1977,7 +1968,6 @@ const App = () => {
                                 value={spec.bonus === 0 ? '' : spec.bonus}
                                 onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="0"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                             </label>
@@ -2130,7 +2120,6 @@ const App = () => {
                                           value={block.width === 0 ? '' : block.width}
                                           onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                          placeholder="0"
                                         />
                                       </label>
                                       <label className="flex items-center gap-1">
@@ -2140,7 +2129,6 @@ const App = () => {
                                           value={block.height === 0 ? '' : block.height}
                                           onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                          placeholder="0"
                                         />
                                       </label>
                                     </>
