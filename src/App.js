@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, deleteDoc } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -10,15 +10,17 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const handleConfirm = () => {
     if (type === 'prompt') {
       onConfirm(inputValue);
+      // IMPORTANTE: NÃO chame onClose() aqui para prompts. O componente pai (App)
+      // gerenciará o fechamento/transição para prompts multi-passos.
     } else {
       onConfirm();
-      onClose();
+      onClose(); // Para tipos 'confirm' ou 'info', feche imediatamente.
     }
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose();
+    onClose(); // Sempre feche ao cancelar.
   };
 
   // Determina o texto do botão de confirmação baseado no tipo de modal
@@ -27,10 +29,10 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
       case 'confirm':
         return 'Confirmar';
       case 'prompt':
-        return 'Adicionar';
+        return 'Adicionar'; // Usado para adicionar itens/perks após prompt
       case 'info':
       default:
-        return 'OK';
+        return 'OK'; // Para mensagens informativas
     }
   }, [type]);
 
@@ -54,9 +56,9 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
               type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
-            {confirmButtonText}
+            {confirmButtonText} {/* Usando o texto dinâmico */}
           </button>
-          {type !== 'info' && (
+          {type !== 'info' && ( // "Info" modals geralmente só precisam de um botão "OK"
             <button
               onClick={handleCancel}
               className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
@@ -70,19 +72,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   );
 };
 
-// Função auxiliar para exibir 0 como vazio
-const displayValue = (value) => {
-  return value === 0 ? '' : value;
-};
-
-// Função para ajustar a altura da textarea
-const adjustTextareaHeight = (element) => {
-  if (element) {
-    element.style.height = 'auto'; // Reseta a altura para calcular o scrollHeight corretamente
-    element.style.height = (element.scrollHeight) + 'px';
-  }
-};
-
 // Componente principal da aplicação
 const App = () => {
   // Configuração do Firebase
@@ -90,7 +79,7 @@ const App = () => {
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
     projectId: "storycraft-a5f7e",
-    storageBucket: "storycraft-a5f7e.firebaseapp.com",
+    storageBucket: "storycraft-a5f7e.firebasestorage.app",
     messagingSenderId: "727724875985",
     appId: "1:727724875985:web:97411448885c68c289e5f0",
     measurementId: "G-JH03Y2NZDK"
@@ -102,15 +91,13 @@ const App = () => {
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isMaster, setIsMaster] = useState(false);
+  const [isMaster, setIsMaster] = useState(false); // Estado para o papel de mestre
 
   // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
-  
-  // Novos estados para o ID do personagem selecionado e UID do proprietário
-  const [selectedCharIdState, setSelectedCharIdState] = useState(null);
-  const [ownerUidState, setOwnerUidState] = useState(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
   // Estado para visibilidade e conteúdo do modal
   const [modal, setModal] = useState({
@@ -127,18 +114,30 @@ const App = () => {
   // Estado para o valor de Zeni a ser adicionado/removido
   const [zeniAmount, setZeniAmount] = useState(0);
 
-  // Refs para textareas para autoajuste
-  const notesTextareaRef = useRef(null);
-  const historyTextareaRefs = useRef({}); // Objeto para armazenar refs de textareas de história
+  // Ref para o input de arquivo para acioná-lo programaticamente
+  const fileInputRef = useRef(null);
+
+  // Estados para controlar o colapso das seções
+  const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+  const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
+  const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
+  const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
+  const [isWalletCollapsed, setIsWalletCollapsed] = useState(false);
+  const [isPerksCollapsed, setIsPerksCollapsed] = useState(false);
+  const [isAbilitiesCollapsed, setIsAbilitiesCollapsed] = useState(false);
+  const [isSpecializationsCollapsed, setIsSpecializationsCollapsed] = useState(false);
+  const [isEquippedItemsCollapsed, setIsEquippedItemsCollapsed] = useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
 
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍🩹',
+    constituicao: '❤️‍',
     sabedoria: '🧘‍♂️',
-    carisma: '🎭',
+    carisma: '�',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
@@ -170,10 +169,8 @@ const App = () => {
         if (!currentUser) {
           setCharacter(null);
           setCharactersList([]);
-          // Limpar selectedCharIdState e ownerUidState ao deslogar
-          setSelectedCharIdState(null);
-          setOwnerUidState(null);
-          window.history.pushState({}, '', window.location.pathname);
+          setSelectedCharacterId(null);
+          setViewingAllCharacters(false);
           setIsMaster(false);
         }
       });
@@ -190,20 +187,11 @@ const App = () => {
     }
   }, [firebaseConfig]);
 
-  // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialCharId = params.get('charId');
-    const initialOwnerUid = params.get('ownerUid');
-    setSelectedCharIdState(initialCharId);
-    setOwnerUidState(initialOwnerUid);
-  }, []); // Executa apenas uma vez no carregamento inicial
-
   // Efeito para carregar o papel do usuário (mestre/jogador) do Firestore
   useEffect(() => {
     let unsubscribeRole = () => {};
     if (db && user && isAuthReady) {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
+      const userRoleDocRef = doc(db, `artifacts/${appId}/userRoles/${user.uid}`);
       unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
         if (docSnap.exists() && docSnap.data().isMaster === true) {
           setIsMaster(true);
@@ -222,16 +210,12 @@ const App = () => {
 
   // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
-    if (!db || !user || !isAuthReady) {
-      console.log("fetchCharactersList: DB, user, or auth not ready.");
-      return;
-    }
+    if (!db || !user || !isAuthReady) return;
 
     setIsLoading(true);
     try {
       let allChars = [];
       if (isMaster) {
-        console.log("fetchCharactersList: Master mode, fetching all characters.");
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
         const usersSnapshot = await getDocs(usersCollectionRef);
         
@@ -246,9 +230,8 @@ const App = () => {
           });
         }
         setCharactersList(allChars);
-        console.log("fetchCharactersList: All characters loaded for master.", allChars);
+        setViewingAllCharacters(true);
       } else {
-        console.log("fetchCharactersList: Player mode, fetching own characters.");
         const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(charactersCollectionRef);
         const querySnapshot = await getDocs(q);
@@ -259,8 +242,9 @@ const App = () => {
             return null;
         }).filter(Boolean);
         setCharactersList(chars);
-        console.log("fetchCharactersList: Player characters loaded.", chars);
+        setViewingAllCharacters(false);
       }
+      console.log("Lista de personagens carregada.");
     } catch (error) {
       console.error("Erro ao carregar lista de personagens:", error);
       setModal({
@@ -278,7 +262,6 @@ const App = () => {
   // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
   useEffect(() => {
     if (user && db && isAuthReady) {
-      console.log("useEffect (fetchCharactersList trigger): User, DB, Auth ready.");
       fetchCharactersList();
     }
   }, [user, db, isAuthReady, fetchCharactersList]);
@@ -286,267 +269,131 @@ const App = () => {
   // Listener em tempo real para o personagem selecionado
   useEffect(() => {
     let unsubscribeCharacter = () => {};
-    const currentSelectedCharacterId = selectedCharIdState; // Usando o estado
-    const currentOwnerUidFromUrl = ownerUidState; // Usando o estado
-    console.log('useEffect (character loading) triggered. selectedCharacterId:', currentSelectedCharacterId, 'ownerUidFromUrl:', currentOwnerUidFromUrl, 'isMaster:', isMaster, 'user:', user?.uid);
+    if (db && user && isAuthReady && selectedCharacterId) {
+      const charToLoad = charactersList.find(c => c.id === selectedCharacterId);
+      const targetUid = charToLoad ? charToLoad.ownerUid : user.uid;
 
-    if (db && user && isAuthReady && currentSelectedCharacterId) {
-      const loadCharacter = async () => {
-        setIsLoading(true);
-        let targetUid = currentOwnerUidFromUrl; // Prioriza ownerUid do estado
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${selectedCharacterId}`);
 
-        if (!targetUid) { // Se ownerUid não está no estado (ex: acesso direto ou link antigo)
-          if (isMaster) {
-            console.log('Master mode, ownerUid not in state. Searching for ownerUid for character:', currentSelectedCharacterId);
-            const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-            let foundOwnerUid = null;
-            try {
-              const usersSnapshot = await getDocs(usersCollectionRef);
-              for (const userDoc of usersSnapshot.docs) {
-                const userUid = userDoc.id;
-                const charDocRef = doc(db, `artifacts/${appId}/users/${userUid}/characterSheets/${currentSelectedCharacterId}`);
-                const charSnap = await getDoc(charDocRef);
-                if (charSnap.exists()) {
-                  foundOwnerUid = userUid;
-                  break;
-                }
-              }
-            } catch (error) {
-              console.error("Error fetching ownerUid for master:", error);
-            }
-            
-            if (foundOwnerUid) {
-              targetUid = foundOwnerUid;
-              setOwnerUidState(foundOwnerUid); // Atualiza o estado do ownerUid
-            } else {
-              console.warn(`Character with ID ${currentSelectedCharacterId} not found in any user collection for master. It might have been deleted or still synchronizing.`);
-              setCharacter(null);
-              setSelectedCharIdState(null); // Limpa o estado
-              setOwnerUidState(null); // Limpa o estado
-              window.history.pushState({}, '', window.location.pathname);
-              fetchCharactersList();
-              setIsLoading(false);
-              return;
-            }
-          } else {
-            // Para jogadores, se ownerUid não está no estado, deve ser o próprio UID
-            targetUid = user.uid;
-            setOwnerUidState(user.uid); // Atualiza o estado do ownerUid
-            console.log('Player mode, ownerUid not in state. Defaulting to user.uid:', targetUid);
-          }
-        } else {
-          console.log('OwnerUid found in state:', targetUid);
-        }
-
-        // Se targetUid ainda é null/undefined após todas as verificações, algo está errado.
-        if (!targetUid) {
-          console.error('Could not determine targetUid for character loading.');
-          setIsLoading(false);
-          setCharacter(null);
-          setSelectedCharIdState(null); // Limpa o estado
-          setOwnerUidState(null); // Limpa o estado
-          window.history.pushState({}, '', window.location.pathname);
-          return;
-        }
-
-        const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
-        console.log('Setting up onSnapshot for characterDocRef:', characterDocRef.path);
-
-        unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.deleted) {
-              console.log('Character found but marked as deleted.');
-              setCharacter(null);
-              setSelectedCharIdState(null); // Limpa o estado
-              setOwnerUidState(null); // Limpa o estado
-              window.history.pushState({}, '', window.location.pathname);
-              fetchCharactersList();
-              setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
-              return;
-            }
-            const deserializedData = { ...data };
-            try {
-              deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
-              deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
-              deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
-              deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
-              deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
-              deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
-              deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
-              deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
-              deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
-              deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
-              
-              let historyData = deserializedData.history;
-              if (typeof historyData === 'string') {
-                try {
-                  historyData = JSON.parse(historyData);
-                } catch (parseError) {
-                  historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
-                }
-              }
-              deserializedData.history = Array.isArray(historyData) ? historyData : [];
-
-              deserializedData.history = deserializedData.history.map(block => {
-                if (block.type === 'image') {
-                  return {
-                    ...block,
-                    width: block.width !== undefined ? block.width : '',
-                    height: block.height !== undefined ? block.height : '',
-                    fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
-                  };
-                }
-                return block;
-              });
-
-            } catch (e) {
-              console.error("Erro ao deserializar dados do Firestore:", e);
-              setModal({
-                isVisible: true,
-                message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
-                type: 'info',
-                onConfirm: () => {},
-                onCancel: () => {},
-              });
-            }
-
-            // Ajusta valores padrão para campos que podem ser vazios ou nulos
-            deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: '', max: '' }, mp: { current: '', max: '' }, initiative: '', fa: '', fm: '', fd: '' };
-            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: '', permBonus: '', condBonus: '', total: '' }, destreza: { base: '', permBonus: '', condBonus: '', total: '' }, inteligencia: { base: '', permBonus: '', condBonus: '', total: '' }, constituicao: { base: '', permBonus: '', condBonus: '', total: '' }, sabedoria: { base: '', permBonus: '', condBonus: '', total: '' }, carisma: { base: '', permBonus: '', condBonus: '', total: '' }, armadura: { base: '', permBonus: '', condBonus: '', total: '' }, poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '' } };
-            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: '', permBonus: '', condBonus: '', total: '' }, agua: { base: '', permBonus: '', condBonus: '', total: '' }, ar: { base: '', permBonus: '', condBonus: '', total: '' }, terra: { base: '', permBonus: '', condBonus: '', total: '' }, luz: { base: '', permBonus: '', condBonus: '', total: '' }, trevas: { base: '', permBonus: '', condBonus: '', total: '' }, espirito: { base: '', permBonus: '', condBonus: '', total: '' }, outro: '🪄' };
-            deserializedData.inventory = deserializedData.inventory || [];
-            deserializedData.wallet = deserializedData.wallet || { zeni: '' }; // Zeni pode ser vazio
-            deserializedData.advantages = deserializedData.advantages || [];
-            deserializedData.disadvantages = deserializedData.disadvantages || [];
-            deserializedData.abilities = deserializedData.abilities || [];
-            deserializedData.specializations = deserializedData.specializations || [];
-            deserializedData.equippedItems = deserializedData.equippedItems || [];
-            deserializedData.history = deserializedData.history || [];
-            deserializedData.notes = deserializedData.notes || '';
-            deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : ''; // Nível pode ser vazio
-            deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : ''; // XP pode ser vazio
-            deserializedData.age = deserializedData.age !== undefined ? deserializedData.age : ''; // Idade pode ser vazio
-            deserializedData.photoUrl = deserializedData.photoUrl || 'https://placehold.co/150x150/000000/FFFFFF?text=Foto';
-
-            // Carrega os estados de colapso salvos
-            deserializedData.uiState = deserializedData.uiState || {};
-            deserializedData.uiState.isUserInfoCollapsed = deserializedData.uiState.isUserInfoCollapsed !== undefined ? deserializedData.uiState.isUserInfoCollapsed : false;
-            deserializedData.uiState.isCharacterInfoCollapsed = deserializedData.uiState.isCharacterInfoCollapsed !== undefined ? deserializedData.uiState.isCharacterInfoCollapsed : false;
-            deserializedData.uiState.isMainAttributesCollapsed = deserializedData.uiState.isMainAttributesCollapsed !== undefined ? deserializedData.uiState.isMainAttributesCollapsed : false;
-            deserializedData.uiState.isBasicAttributesCollapsed = deserializedData.uiState.isBasicAttributesCollapsed !== undefined ? deserializedData.uiState.isBasicAttributesCollapsed : false;
-            deserializedData.uiState.isInventoryCollapsed = deserializedData.uiState.isInventoryCollapsed !== undefined ? deserializedData.uiState.isInventoryCollapsed : false;
-            deserializedData.uiState.isWalletCollapsed = deserializedData.uiState.isWalletCollapsed !== undefined ? deserializedData.uiState.isWalletCollapsed : false;
-            deserializedData.uiState.isPerksCollapsed = deserializedData.uiState.isPerksCollapsed !== undefined ? deserializedData.uiState.isPerksCollapsed : false;
-            deserializedData.uiState.isAbilitiesCollapsed = deserializedData.uiState.isAbilitiesCollapsed !== undefined ? deserializedData.uiState.isAbilitiesCollapsed : false;
-            deserializedData.uiState.isSpecializationsCollapsed = deserializedData.uiState.isSpecializationsCollapsed !== undefined ? deserializedData.uiState.isSpecializationsCollapsed : false;
-            deserializedData.uiState.isEquippedItemsCollapsed = deserializedData.uiState.isEquippedItemsCollapsed !== undefined ? deserializedData.uiState.isEquippedItemsCollapsed : false;
-            deserializedData.uiState.isHistoryCollapsed = deserializedData.uiState.isHistoryCollapsed !== undefined ? deserializedData.uiState.isHistoryCollapsed : false;
-            deserializedData.uiState.isNotesCollapsed = deserializedData.uiState.isNotesCollapsed !== undefined ? deserializedData.uiState.isNotesCollapsed : false;
-
-
-            setCharacter(deserializedData);
-            console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
-          } else {
-            console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
+      unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.deleted) {
             setCharacter(null);
-            setSelectedCharIdState(null); // Limpa o estado
-            setOwnerUidState(null); // Limpa o estado
-            window.history.pushState({}, '', window.location.pathname);
+            setSelectedCharacterId(null);
             fetchCharactersList();
+            setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+            return;
           }
-          setIsLoading(false);
-        }, (error) => {
-          console.error("Erro ao ouvir a ficha no Firestore:", error);
-          setModal({
-            isVisible: true,
-            message: `Erro ao carregar ficha do Firestore: ${error.message}`,
-            type: 'info',
-            onConfirm: () => {},
-            onCancel: () => {},
-          });
-          setIsLoading(false);
+          const deserializedData = { ...data };
+          try {
+            deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
+            deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
+            deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
+            deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
+            deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
+            deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
+            deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
+            deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
+            deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
+            deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
+            
+            // Deserializa o campo 'history' para a nova estrutura de array
+            let historyData = deserializedData.history;
+            if (typeof historyData === 'string') {
+              try {
+                // Tenta fazer o parse se for uma string JSON
+                historyData = JSON.parse(historyData);
+              } catch (parseError) {
+                // Se for uma string mas não um JSON válido (formato antigo), converte para um bloco de texto
+                historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
+              }
+            }
+            deserializedData.history = Array.isArray(historyData) ? historyData : []; // Garante que seja um array
+
+            // Garante que os campos de imagem existam e tenham valores padrão
+            deserializedData.history = deserializedData.history.map(block => {
+              if (block.type === 'image') {
+                return {
+                  ...block,
+                  width: block.width !== undefined ? block.width : '',
+                  height: block.height !== undefined ? block.height : '',
+                  fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                };
+              }
+              return block;
+            });
+
+          } catch (e) {
+            console.error("Erro ao deserializar dados do Firestore:", e);
+            setModal({
+              isVisible: true,
+              message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`,
+              type: 'info',
+              onConfirm: () => {},
+              onCancel: () => {},
+            });
+          }
+
+          // Garante que todos os campos de array/objeto existam e sejam do tipo correto
+          deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
+          deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+          deserializedData.inventory = deserializedData.inventory || [];
+          deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
+          deserializedData.advantages = deserializedData.advantages || [];
+          deserializedData.disadvantages = deserializedData.disadvantages || [];
+          deserializedData.abilities = deserializedData.abilities || [];
+          deserializedData.specializations = deserializedData.specializations || [];
+          deserializedData.equippedItems = deserializedData.equippedItems || [];
+          deserializedData.history = deserializedData.history || [];
+          deserializedData.notes = deserializedData.notes || '';
+          deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
+          deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+
+          setCharacter(deserializedData);
+          console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
+        } else {
+          console.log("Nenhuma ficha encontrada para o ID selecionado ou foi excluída.");
+          setCharacter(null);
+          setSelectedCharacterId(null);
+          fetchCharactersList();
+        }
+      }, (error) => {
+        console.error("Erro ao ouvir a ficha no Firestore:", error);
+        setModal({
+          isVisible: true,
+          message: `Erro ao carregar ficha do Firestore: ${error.message}`,
+          type: 'info',
+          onConfirm: () => {},
+          onCancel: () => {},
         });
-      };
-      loadCharacter();
-    } else if (!currentSelectedCharacterId) {
-      console.log('No character ID selected, clearing character state.');
+      });
+    } else if (!selectedCharacterId) {
       setCharacter(null);
     }
-    return () => {
-      console.log('Cleaning up character onSnapshot listener.');
-      unsubscribeCharacter();
-    };
-  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]); // Dependências atualizadas
-
-  // Efeito para ajustar a altura das textareas quando o character muda (ao carregar)
-  useEffect(() => {
-    if (character) {
-      adjustTextareaHeight(notesTextareaRef.current);
-      character.history.forEach(block => {
-        if (block.type === 'text' && historyTextareaRefs.current[block.id]) {
-          adjustTextareaHeight(historyTextareaRefs.current[block.id]);
-        }
-      });
-    }
-  }, [character]);
+    return () => unsubscribeCharacter();
+  }, [db, user, isAuthReady, selectedCharacterId, charactersList, appId, fetchCharactersList]);
 
   // Salva a ficha no Firestore
   useEffect(() => {
-    if (db && user && isAuthReady && character && selectedCharIdState) { // Usando o estado
-      const targetUidForSave = character.ownerUid || user.uid; 
+    if (db && user && isAuthReady && character && selectedCharacterId) {
+      const charToSaveOwnerUid = charactersList.find(c => c.id === selectedCharacterId)?.ownerUid;
+      const targetUidForSave = charToSaveOwnerUid || user.uid; 
 
       if (user.uid !== targetUidForSave && !isMaster) {
         console.warn("Tentativa de salvar ficha de outro usuário sem permissão de escrita.");
         return;
       }
 
-      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharIdState}`); // Usando o estado
+      const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharacterId}`);
       const saveCharacter = async () => {
         try {
           const dataToSave = { ...character };
-          dataToSave.id = selectedCharIdState; // Usando o estado
+          dataToSave.id = selectedCharacterId;
           dataToSave.ownerUid = targetUidForSave;
 
-          // Converter valores vazios de números para null antes de stringify
-          const convertToSavableValue = (value) => {
-            if (value === '') return null;
-            const num = parseInt(value, 10);
-            return isNaN(num) ? null : num;
-          };
-
-          // Certifique-se de que uiState está presente e é um objeto
-          dataToSave.uiState = dataToSave.uiState || {};
-
-          dataToSave.mainAttributes.hp.current = convertToSavableValue(dataToSave.mainAttributes.hp.current);
-          dataToSave.mainAttributes.hp.max = convertToSavableValue(dataToSave.mainAttributes.hp.max);
-          dataToSave.mainAttributes.mp.current = convertToSavableValue(dataToSave.mainAttributes.mp.current);
-          dataToSave.mainAttributes.mp.max = convertToSavableValue(dataToSave.mainAttributes.mp.max);
-          dataToSave.mainAttributes.initiative = convertToSavableValue(dataToSave.mainAttributes.initiative);
-          dataToSave.mainAttributes.fa = convertToSavableValue(dataToSave.mainAttributes.fa);
-          dataToSave.mainAttributes.fm = convertToSavableValue(dataToSave.mainAttributes.fm);
-          dataToSave.mainAttributes.fd = convertToSavableValue(dataToSave.mainAttributes.fd);
-
-          Object.keys(dataToSave.basicAttributes).forEach(key => {
-            dataToSave.basicAttributes[key].base = convertToSavableValue(dataToSave.basicAttributes[key].base);
-            dataToSave.basicAttributes[key].permBonus = convertToSavableValue(dataToSave.basicAttributes[key].permBonus);
-            dataToSave.basicAttributes[key].condBonus = convertToSavableValue(dataToSave.basicAttributes[key].condBonus);
-            dataToSave.basicAttributes[key].total = convertToSavableValue(dataToSave.basicAttributes[key].total);
-          });
-
-          Object.keys(dataToSave.magicAttributes).forEach(key => {
-            dataToSave.magicAttributes[key].base = convertToSavableValue(dataToSave.magicAttributes[key].base);
-            dataToSave.magicAttributes[key].permBonus = convertToSavableValue(dataToSave.magicAttributes[key].permBonus);
-            dataToSave.magicAttributes[key].condBonus = convertToSavableValue(dataToSave.magicAttributes[key].condBonus);
-            dataToSave.magicAttributes[key].total = convertToSavableValue(dataToSave.magicAttributes[key].total);
-          });
-          
-          dataToSave.wallet.zeni = convertToSavableValue(dataToSave.wallet.zeni);
-          dataToSave.level = convertToSavableValue(dataToSave.level);
-          dataToSave.xp = convertToSavableValue(dataToSave.xp);
-          dataToSave.age = convertToSavableValue(dataToSave.age);
-
-
+          // Stringify os objetos aninhados para Firestore
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -557,9 +404,8 @@ const App = () => {
           dataToSave.abilities = JSON.stringify(dataToSave.abilities);
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
-          dataToSave.history = JSON.stringify(dataToSave.history);
-          dataToSave.uiState = JSON.stringify(dataToSave.uiState); // Salva o estado da UI
-
+          dataToSave.history = JSON.stringify(dataToSave.history); // Serializa o campo 'history'
+          
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
@@ -576,16 +422,15 @@ const App = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]); // Dependências atualizadas
+  }, [character, db, user, isAuthReady, selectedCharacterId, charactersList, appId, isMaster]);
 
   // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Para campos que devem ser números, mas podem ser vazios
     if (name === 'age' || name === 'level' || name === 'xp') {
       setCharacter(prevChar => ({
         ...prevChar,
-        [name]: value === '' ? '' : parseInt(value, 10),
+        [name]: parseInt(value, 10) || 0,
       }));
     } else {
       setCharacter(prevChar => ({
@@ -593,17 +438,13 @@ const App = () => {
         [name]: value,
       }));
     }
-    // Ajusta a altura da textarea de anotações
-    if (name === 'notes') {
-      adjustTextareaHeight(e.target);
-    }
   };
 
   // Lida com mudanças nos atributos principais (HP, MP, Iniciativa, FA, FM, FD)
   const handleMainAttributeChange = (e) => {
     const { name, value, dataset } = e.target;
     const attributeName = dataset.attribute;
-    const parsedValue = value === '' ? '' : parseInt(value, 10);
+    const parsedValue = parseInt(value, 10) || 0;
 
     setCharacter(prevChar => ({
       ...prevChar,
@@ -624,7 +465,7 @@ const App = () => {
       ...prevChar,
       mainAttributes: {
         ...prevChar.mainAttributes,
-        [name]: value === '' ? '' : parseInt(value, 10),
+        [name]: parseInt(value, 10) || 0,
       },
     }));
   };
@@ -632,16 +473,11 @@ const App = () => {
   // Lida com mudanças nos atributos básicos e mágicos (Valor Base, Bônus Permanente, Bônus Condicional)
   const handleBasicAttributeChange = (category, attributeName, field, value) => {
     setCharacter(prevChar => {
-      const parsedValue = value === '' ? '' : parseInt(value, 10);
       const updatedAttribute = {
         ...prevChar[category][attributeName],
-        [field]: parsedValue,
+        [field]: parseInt(value, 10) || 0,
       };
-      // Recalcula total apenas se base, permBonus e condBonus forem números válidos
-      const base = parseInt(updatedAttribute.base, 10) || 0;
-      const permBonus = parseInt(updatedAttribute.permBonus, 10) || 0;
-      const condBonus = parseInt(updatedAttribute.condBonus, 10) || 0;
-      updatedAttribute.total = base + permBonus + condBonus;
+      updatedAttribute.total = updatedAttribute.base + updatedAttribute.permBonus + updatedAttribute.condBonus;
 
       return {
         ...prevChar,
@@ -714,7 +550,7 @@ const App = () => {
   const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...(prevChar.wallet || { zeni: '' }), zeni: (parseInt(prevChar.wallet.zeni, 10) || 0) + zeniAmount },
+      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: (prevChar.wallet.zeni || 0) + zeniAmount },
     }));
     setZeniAmount(0);
   };
@@ -723,7 +559,7 @@ const App = () => {
   const handleRemoveZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...(prevChar.wallet || { zeni: '' }), zeni: Math.max(0, (parseInt(prevChar.wallet.zeni, 10) || 0) - zeniAmount) },
+      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: Math.max(0, (prevChar.wallet.zeni || 0) - zeniAmount) },
     }));
     setZeniAmount(0);
   };
@@ -738,7 +574,7 @@ const App = () => {
         if (name) {
           setModal({
             isVisible: true,
-            message: 'Digite a descrição do item:',
+            message: `Digite a descrição da ${name}:`,
             type: 'prompt',
             onConfirm: (description) => {
               setModal({
@@ -747,7 +583,7 @@ const App = () => {
                 type: 'prompt',
                 onConfirm: (value) => {
                   setCharacter(prevChar => {
-                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: value === '' ? '' : parseInt(value, 10) }];
+                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
                     return { ...prevChar, [type]: updatedPerks };
                   });
                   setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -777,7 +613,7 @@ const App = () => {
       const updatedPerks = [...(prevChar[type] || [])];
       if (updatedPerks[index]) {
         if (field === 'value') {
-          updatedPerks[index][field] = value === '' ? '' : parseInt(value, 10);
+          updatedPerks[index][field] = parseInt(value, 10) || 0;
         } else {
           updatedPerks[index][field] = value;
         }
@@ -866,7 +702,7 @@ const App = () => {
       onConfirm: (name) => {
         if (name) {
           setCharacter(prevChar => {
-            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: '', bonus: '' }];
+            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
             return { ...prevChar, specializations: updatedSpecializations };
           });
           setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -880,26 +716,26 @@ const App = () => {
     });
   };
 
-  // Lida com a edição de Especialização
-  const handleSpecializationChange = (index, field, value) => {
-    setCharacter(prevChar => {
-      const updatedSpecializations = [...(prevChar.specializations || [])];
-      if (updatedSpecializations[index]) {
-        if (field === 'bonus') {
-          updatedSpecializations[index][field] = value === '' ? '' : parseInt(value, 10);
-        } else {
-          updatedSpecializations[index][field] = value;
-        }
-      }
-      return { ...prevChar, specializations: updatedSpecializations };
-    });
-  };
-
   // Lida com a remoção de Especialização
   const handleRemoveSpecialization = (indexToRemove) => {
     setCharacter(prevChar => {
       const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
       return { ...prevChar, specializations: updatedSpecializations };
+    });
+  };
+
+  // Lida com a mudança de nome, modificador ou bônus da Especialização
+  const handleSpecializationChange = (index, field, value) => {
+    setCharacter(prevChar => {
+      const updatedSpecs = [...(prevChar.specializations || [])];
+      if (updatedSpecs[index]) {
+        if (field === 'name') {
+          updatedSpecs[index][field] = value;
+        } else {
+          updatedSpecs[index][field] = parseInt(value, 10) || 0;
+        }
+      }
+      return { ...prevChar, specializations: updatedSpecs };
     });
   };
 
@@ -913,14 +749,24 @@ const App = () => {
         if (name) {
           setModal({
             isVisible: true,
-            message: 'Digite a descrição do item:',
+            message: `Digite a descrição do item "${name}":`,
             type: 'prompt',
             onConfirm: (description) => {
-              setCharacter(prevChar => {
-                const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description }];
-                return { ...prevChar, equippedItems: updatedEquippedItems };
+              setModal({
+                isVisible: true,
+                message: `Digite os atributos/efeitos do item "${name}" (ex: +5 Força, Dano Fogo):`,
+                type: 'prompt',
+                onConfirm: (attributes) => {
+                  setCharacter(prevChar => {
+                    const updatedEquippedItems = [...(prevChar.equippedItems || []), { name, description, attributes }];
+                    return { ...prevChar, equippedItems: updatedEquippedItems };
+                  });
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+                },
+                onCancel: () => {
+                  setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+                },
               });
-              setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
             },
             onCancel: () => {
               setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -955,1361 +801,1445 @@ const App = () => {
     });
   };
 
-  // Lida com a adição de bloco na história
-  const handleAddHistoryBlock = (type) => {
-    setCharacter(prevChar => {
-      const newBlock = { id: crypto.randomUUID(), type, value: '' };
-      if (type === 'image') {
-        newBlock.width = '';
-        newBlock.height = '';
-        newBlock.fitWidth = true;
-      }
-      return {
-        ...prevChar,
-        history: [...(prevChar.history || []), newBlock],
-      };
-    });
+  // Lida com a mudança de texto para Anotações
+  const handleNotesChange = (e) => {
+    const { name, value } = e.target;
+    setCharacter(prevChar => ({
+      ...prevChar,
+      [name]: value,
+    }));
   };
 
-  // Lida com a mudança de valor em um bloco da história
-  const handleHistoryBlockChange = (id, field, value) => {
-    setCharacter(prevChar => {
-      const updatedHistory = (prevChar.history || []).map(block => {
-        if (block.id === id) {
-          const updatedBlock = { ...block, [field]: value };
-          // Ajusta a altura da textarea se for um bloco de texto
-          if (block.type === 'text' && historyTextareaRefs.current[id]) {
-            adjustTextareaHeight(historyTextareaRefs.current[id]);
+  // Funções para a nova seção de História Modular
+  const addHistoryBlock = (type) => {
+    if (type === 'text') {
+      setCharacter(prevChar => ({
+        ...prevChar,
+        history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'text', value: '' }],
+      }));
+    } else if (type === 'image') {
+      setModal({
+        isVisible: true,
+        message: 'Cole a URL da imagem:',
+        type: 'prompt',
+        onConfirm: (url) => {
+          if (url) {
+            setCharacter(prevChar => ({
+              ...prevChar,
+              history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true }],
+            }));
           }
-          return updatedBlock;
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        },
+        onCancel: () => {
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        },
+      });
+    }
+  };
+
+  // Atualiza um campo específico de um bloco de história
+  const updateHistoryBlock = (id, field, value) => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      history: (prevChar.history || []).map(block => {
+        if (block.id === id) {
+          if (block.type === 'image' && (field === 'width' || field === 'height')) {
+            // Garante que width/height sejam números ou string vazia
+            return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
+          }
+          return { ...block, [field]: value };
         }
         return block;
-      });
-      return { ...prevChar, history: updatedHistory };
-    });
+      }),
+    }));
   };
 
-  // Lida com a remoção de um bloco da história
-  const handleRemoveHistoryBlock = (idToRemove) => {
+  const removeHistoryBlock = (idToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
       history: (prevChar.history || []).filter(block => block.id !== idToRemove),
     }));
   };
 
-  // Lida com o upload de imagem para a história
-  const handleImageUpload = (e, blockId) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleHistoryBlockChange(blockId, 'value', reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  // Funções para Drag-and-Drop na História
+  const draggedItemRef = useRef(null);
+
+  const handleDragStart = (e, index) => {
+    draggedItemRef.current = index;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", e.target); // Necessário para Firefox
   };
 
-  // Lida com a mudança da URL da foto do personagem
-  const handlePhotoUrlChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCharacter(prevChar => ({
-          ...prevChar,
-          photoUrl: reader.result,
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleDragOver = (e) => {
+    e.preventDefault(); // Permite o drop
   };
 
-  // Função para fazer login com o Google
-  const signInWithGoogle = async () => {
-    if (!auth) {
-      console.error("Auth não inicializado.");
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    const draggedItemIndex = draggedItemRef.current;
+    
+    if (draggedItemIndex === null || draggedItemIndex === dropIndex) {
+        draggedItemRef.current = null; // Reset
+        return;
+    }
+
+    const newHistory = [...character.history];
+    const [reorderedItem] = newHistory.splice(draggedItemIndex, 1);
+    newHistory.splice(dropIndex, 0, reorderedItem);
+
+    setCharacter(prevChar => ({
+        ...prevChar,
+        history: newHistory
+    }));
+    draggedItemRef.current = null; // Reset após o drop
+  };
+
+  // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
+  const handleReset = () => {
+    setModal({
+      isVisible: true,
+      message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos. (Esta ação NÃO exclui a ficha do banco de dados)',
+      type: 'confirm',
+      onConfirm: () => {
+        setCharacter({
+          name: '', photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto', age: '', height: '', gender: '', race: '', class: '', alignment: '',
+          level: 0, xp: 100,
+          mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+          basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+          magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+          inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+        });
+      },
+      onCancel: () => {},
+    });
+  };
+
+  // Função para exportar os dados do personagem como JSON
+  const handleExportJson = () => {
+    if (!character) {
+      setModal({ isVisible: true, message: 'Nenhum personagem selecionado para exportar.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
     }
-    const provider = new GoogleAuthProvider();
-    try {
-      setIsLoading(true);
-      await signInWithPopup(auth, provider);
-      setModal({ isVisible: true, message: "Login realizado com sucesso!", type: "info", onConfirm: () => {}, onCancel: () => {} });
-    } catch (error) {
-      console.error("Erro ao fazer login com o Google:", error);
-      setModal({ isVisible: true, message: `Erro ao fazer login: ${error.message}`, type: "info", onConfirm: () => {}, onCancel: () => {} });
-    } finally {
-      setIsLoading(false);
+    const jsonString = JSON.stringify(character, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${character.name || 'ficha_rpg'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Função para acionar o input de arquivo para importação de JSON
+  const handleImportJsonClick = () => {
+    fileInputRef.current.click();
+  };
+
+  // Função para lidar com a importação de arquivo JSON
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
+            setModal({
+              isVisible: true,
+              message: 'Tem certeza que deseja importar esta ficha? Os dados atuais serão substituídos e um novo personagem será criado.',
+              type: 'confirm',
+              onConfirm: async () => {
+                const newCharId = crypto.randomUUID();
+                const importedCharacterData = {
+                  ...importedData,
+                  id: newCharId,
+                  ownerUid: user.uid,
+                  xp: importedData.xp !== undefined ? importedData.xp : 100,
+                  level: importedData.level !== undefined ? importedData.level : 0,
+                  mainAttributes: {
+                    hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
+                    mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
+                    initiative: importedData.mainAttributes?.initiative || 0,
+                    fa: importedData.mainAttributes?.fa || 0,
+                    fm: importedData.mainAttributes?.fm || 0,
+                    fd: importedData.mainAttributes?.fd || 0,
+                  },
+                  basicAttributes: {
+                    forca: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.forca },
+                    destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.destreza },
+                    inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.inteligencia },
+                    constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constituicao },
+                    sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.sabedoria },
+                    carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.carisma },
+                    armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armadura },
+                    poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.poderDeFogo },
+                  },
+                  magicAttributes: {
+                    fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fogo },
+                    agua: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.agua },
+                    ar: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.ar },
+                    terra: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.terra },
+                    luz: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.luz },
+                    trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.trevas },
+                    espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.espirito },
+                    outro: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.outro },
+                  },
+                  inventory: importedData.inventory || [],
+                  wallet: importedData.wallet || { zeni: 0 },
+                  advantages: importedData.advantages || [],
+                  disadvantages: importedData.disadvantages || [],
+                  abilities: importedData.abilities || [],
+                  specializations: importedData.specializations || [],
+                  equippedItems: importedData.equippedItems || [],
+                  history: importedData.history || [],
+                  notes: importedData.notes || '',
+                };
+
+                importedCharacterData.history = importedCharacterData.history.map(block => {
+                  if (block.type === 'image') {
+                    return {
+                      ...block,
+                      width: block.width !== undefined ? block.width : '',
+                      height: block.height !== undefined ? block.height : '',
+                      fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                    };
+                  }
+                  return block;
+                });
+
+                try {
+                    const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
+                    const dataToSave = { ...importedCharacterData };
+                    dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
+                    dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
+                    dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
+                    dataToSave.inventory = JSON.stringify(dataToSave.inventory);
+                    dataToSave.wallet = JSON.stringify(dataToSave.wallet);
+                    dataToSave.advantages = JSON.stringify(dataToSave.advantages);
+                    dataToSave.disadvantages = JSON.stringify(dataToSave.disadvantages);
+                    dataToSave.abilities = JSON.stringify(dataToSave.abilities);
+                    dataToSave.specializations = JSON.stringify(dataToSave.specializations);
+                    dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
+                    dataToSave.history = JSON.stringify(dataToSave.history);
+
+                    await setDoc(characterDocRef, dataToSave);
+                    setSelectedCharacterId(newCharId);
+                    fetchCharactersList();
+                    setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                } catch (error) {
+                    console.error("Erro ao salvar ficha importada:", error);
+                    setModal({ isVisible: true, message: `Erro ao salvar ficha importada: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                }
+              },
+              onCancel: () => {},
+            });
+          } else {
+            setModal({
+              isVisible: true,
+              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida.',
+              type: 'info',
+              onConfirm: () => {},
+              onCancel: () => {},
+            });
+          }
+        } catch (error) {
+          setModal({
+            isVisible: true,
+            message: 'Erro ao ler o arquivo JSON. Certifique-se de que é um JSON válido.',
+            type: 'info',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+          console.error('Erro ao analisar arquivo JSON:', error);
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
-  // Função para fazer logout
-  const handleSignOut = async () => {
-    if (!auth) {
-      console.error("Auth não inicializado.");
-      return;
-    }
-    try {
-      setIsLoading(true);
-      await signOut(auth);
-      setModal({ isVisible: true, message: "Logout realizado com sucesso!", type: "info", onConfirm: () => {}, onCancel: () => {} });
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-      setModal({ isVisible: true, message: `Erro ao fazer logout: ${error.message}`, type: "info", onConfirm: () => {}, onCancel: () => {} });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Função para criar uma nova ficha de personagem
-  const createNewCharacter = async () => {
-    if (!db || !user) return;
-
+  // Função para criar um novo personagem
+  const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
       message: 'Digite o nome do novo personagem:',
       type: 'prompt',
-      onConfirm: async (charName) => {
-        if (!charName) {
-          setModal({ isVisible: true, message: "Nome do personagem não pode ser vazio.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+      onConfirm: async (name) => {
+        if (name) {
+          setIsLoading(true);
+          try {
+            const newCharId = crypto.randomUUID();
+            const newCharacterData = {
+              id: newCharId,
+              ownerUid: user.uid,
+              name: name,
+              photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
+              age: '', height: '', gender: '', race: '', class: '', alignment: '',
+              level: 0, xp: 100,
+              mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+              basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+            };
+
+            setCharacter(newCharacterData);
+            setSelectedCharacterId(newCharId);
+
+            const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
+            const dataToSave = { ...newCharacterData };
+            dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
+            dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
+            dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
+            dataToSave.inventory = JSON.stringify(dataToSave.inventory);
+            dataToSave.wallet = JSON.stringify(dataToSave.wallet);
+            dataToSave.advantages = JSON.stringify(dataToSave.advantages);
+            dataToSave.disadvantages = JSON.stringify(dataToSave.disadvantages);
+            dataToSave.abilities = JSON.stringify(dataToSave.abilities);
+            dataToSave.specializations = JSON.stringify(dataToSave.specializations);
+            dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
+            dataToSave.history = JSON.stringify(dataToSave.history);
+
+            await setDoc(characterDocRef, dataToSave);
+            fetchCharactersList();
+            setModal({ isVisible: true, message: `Personagem '${name}' criado com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          } catch (error) {
+            console.error("Erro ao criar novo personagem:", error);
+            setModal({ isVisible: true, message: `Erro ao criar personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          } finally {
+            setIsLoading(false);
+          }
+        } else {
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        }
+      },
+      onCancel: () => {
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+      },
+    });
+  };
+
+  // Função para selecionar um personagem da lista
+  const handleSelectCharacter = (charId) => {
+    setSelectedCharacterId(charId);
+    setViewingAllCharacters(false);
+  };
+
+  // Função para voltar para a lista de personagens
+  const handleBackToList = () => {
+    setSelectedCharacterId(null);
+    setCharacter(null);
+    fetchCharactersList();
+  };
+
+  // Função para excluir um personagem (mudado para deleteDoc)
+  const handleDeleteCharacter = (charId, charName, ownerUid) => {
+    setModal({
+      isVisible: true,
+      message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'? Esta ação é irreversível.`,
+      type: 'confirm',
+      onConfirm: async () => {
+        if (!db || !user) return;
+        if (user.uid !== ownerUid && !isMaster) {
+          setModal({ isVisible: true, message: 'Você não tem permissão para excluir este personagem.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
           return;
         }
         setIsLoading(true);
         try {
-          const newCharRef = doc(collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`));
-          const newCharData = {
-            id: newCharRef.id,
-            ownerUid: user.uid,
-            name: charName,
-            race: '',
-            class: '',
-            alignment: '',
-            level: '',
-            xp: '',
-            age: '',
-            gender: '',
-            height: '',
-            weight: '',
-            photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
-            mainAttributes: JSON.stringify({ hp: { current: '', max: '' }, mp: { current: '', max: '' }, initiative: '', fa: '', fm: '', fd: '' }),
-            basicAttributes: JSON.stringify({ forca: { base: '', permBonus: '', condBonus: '', total: '' }, destreza: { base: '', permBonus: '', condBonus: '', total: '' }, inteligencia: { base: '', permBonus: '', condBonus: '', total: '' }, constituicao: { base: '', permBonus: '', condBonus: '', total: '' }, sabedoria: { base: '', permBonus: '', condBonus: '', total: '' }, carisma: { base: '', permBonus: '', condBonus: '', total: '' }, armadura: { base: '', permBonus: '', condBonus: '', total: '' }, poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '' } }),
-            magicAttributes: JSON.stringify({ fogo: { base: '', permBonus: '', condBonus: '', total: '' }, agua: { base: '', permBonus: '', condBonus: '', total: '' }, ar: { base: '', permBonus: '', condBonus: '', total: '' }, terra: { base: '', permBonus: '', condBonus: '', total: '' }, luz: { base: '', permBonus: '', condBonus: '', total: '' }, trevas: { base: '', permBonus: '', condBonus: '', total: '' }, espirito: { base: '', permBonus: '', condBonus: '', total: '' }, outro: { base: '', permBonus: '', condBonus: '', total: '' } }),
-            inventory: JSON.stringify([]),
-            wallet: JSON.stringify({ zeni: '' }),
-            advantages: JSON.stringify([]),
-            disadvantages: JSON.stringify([]),
-            abilities: JSON.stringify([]),
-            specializations: JSON.stringify([]),
-            equippedItems: JSON.stringify([]),
-            history: JSON.stringify([]),
-            notes: '',
-            uiState: JSON.stringify({ // Estado inicial da UI
-              isUserInfoCollapsed: false,
-              isCharacterInfoCollapsed: false,
-              isMainAttributesCollapsed: false,
-              isBasicAttributesCollapsed: false,
-              isInventoryCollapsed: false,
-              isWalletCollapsed: false,
-              isPerksCollapsed: false,
-              isAbilitiesCollapsed: false,
-              isSpecializationsCollapsed: false,
-              isEquippedItemsCollapsed: false,
-              isHistoryCollapsed: false,
-              isNotesCollapsed: false,
-            }),
-            deleted: false, // Flag para exclusão lógica
-          };
-          await setDoc(newCharRef, newCharData);
-          setSelectedCharIdState(newCharRef.id);
-          setOwnerUidState(user.uid);
-          // Atualiza a URL com o novo charId e ownerUid
-          window.history.pushState({}, '', `?charId=${newCharRef.id}&ownerUid=${user.uid}`);
-          setModal({ isVisible: true, message: `Ficha de "${charName}" criada com sucesso!`, type: "info", onConfirm: () => {}, onCancel: () => {} });
-          fetchCharactersList(); // Recarrega a lista para incluir o novo personagem
+          const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
+          await deleteDoc(characterDocRef);
+          setSelectedCharacterId(null);
+          setCharacter(null);
+          fetchCharactersList();
+          setModal({ isVisible: true, message: `Personagem '${charName}' excluído permanentemente com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } catch (error) {
-          console.error("Erro ao criar nova ficha:", error);
-          setModal({ isVisible: true, message: `Erro ao criar ficha: ${error.message}`, type: "info", onConfirm: () => {}, onCancel: () => {} });
+          console.error("Erro ao excluir personagem:", error);
+          setModal({ isVisible: true, message: `Erro ao excluir personagem: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
         } finally {
           setIsLoading(false);
         }
       },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
+      onCancel: () => {},
     });
   };
 
-  // Função para carregar uma ficha existente
-  const loadCharacter = (charId, ownerUid) => {
-    setSelectedCharIdState(charId);
-    setOwnerUidState(ownerUid);
-    // Atualiza a URL
-    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
-  };
-
-  // Função para deletar um personagem (exclusão lógica)
-  const deleteCharacter = async (charId, ownerUid) => {
-    if (!db || !user) return;
-
-    setModal({
-      isVisible: true,
-      message: "Tem certeza que deseja excluir esta ficha? Esta ação não pode ser desfeita.",
-      type: "confirm",
-      onConfirm: async () => {
-        setIsLoading(true);
-        try {
-          const charRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
-          await setDoc(charRef, { deleted: true }, { merge: true }); // Exclusão lógica
-          if (selectedCharIdState === charId) {
-            setCharacter(null);
-            setSelectedCharIdState(null);
-            setOwnerUidState(null);
-            window.history.pushState({}, '', window.location.pathname);
-          }
-          setModal({ isVisible: true, message: "Ficha excluída com sucesso!", type: "info", onConfirm: () => {}, onCancel: () => {} });
-          fetchCharactersList(); // Recarrega a lista
-        } catch (error) {
-          console.error("Erro ao excluir ficha:", error);
-          setModal({ isVisible: true, message: `Erro ao excluir ficha: ${error.message}`, type: "info", onConfirm: () => {}, onCancel: () => {} });
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-      },
-    });
-  };
-
-  // Função para alternar o estado de colapso de uma seção
-  const toggleSection = (sectionName) => {
-    setCharacter(prevChar => ({
-      ...prevChar,
-      uiState: {
-        ...(prevChar.uiState || {}),
-        [sectionName]: !prevChar.uiState[sectionName],
-      },
-    }));
-  };
-
-  // Função para alternar o papel de Mestre/Jogador
-  const toggleMasterRole = async () => {
-    if (!db || !user) return;
+  // --- Funções de Autenticação com Google ---
+  const handleGoogleSignIn = async () => {
+    if (!auth) {
+      setModal({ isVisible: true, message: 'Firebase Auth não inicializado.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      return;
+    }
     setIsLoading(true);
     try {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
-      await setDoc(userRoleDocRef, { isMaster: !isMaster }, { merge: true });
-      setModal({ isVisible: true, message: `Seu papel foi alterado para ${!isMaster ? 'Mestre' : 'Jogador'}.`, type: "info", onConfirm: () => {}, onCancel: () => {} });
-      // Força recarregar a lista de personagens para refletir a mudança de papel
-      fetchCharactersList();
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      setModal({ isVisible: true, message: 'Login com Google realizado com sucesso!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } catch (error) {
-      console.error("Erro ao alternar papel:", error);
-      setModal({ isVisible: true, message: `Erro ao alternar papel: ${error.message}`, type: "info", onConfirm: () => {}, onCancel: () => {} });
+      console.error("Erro no login com Google:", error);
+      let errorMessage = "Erro ao fazer login com Google.";
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "Login cancelado pelo usuário.";
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = "Requisição de popup de login já em andamento. Por favor, tente novamente.";
+      } else {
+        errorMessage += ` Detalhes: ${error.message}`;
+      }
+      setModal({ isVisible: true, message: errorMessage, type: 'info', onConfirm: () => {}, onCancel: () => {} });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Renderização condicional para exibir a UI após autenticação e carregamento
-  if (!isAuthReady) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-        <div className="text-xl">Carregando autenticação...</div>
-      </div>
-    );
-  }
+  const handleSignOut = async () => {
+    if (!auth) return;
+    setIsLoading(true);
+    try {
+      await signOut(auth);
+      setCharacter(null);
+      setCharactersList([]);
+      setSelectedCharacterId(null);
+      setViewingAllCharacters(false);
+      setIsMaster(false);
+      setModal({ isVisible: true, message: 'Você foi desconectado com sucesso.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      setModal({ isVisible: true, message: `Erro ao fazer logout: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função auxiliar para alternar o estado de colapso de uma seção
+  const toggleSection = (setter) => setter(prev => !prev);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-inter">
+    <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
       <style>
         {`
-          /* Custom scrollbar for better aesthetics */
-          ::-webkit-scrollbar {
-            width: 8px;
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
           }
-          ::-webkit-scrollbar-track {
-            background: #333;
-            border-radius: 10px;
+
+          /* Esconde as setinhas para navegadores WebKit (Chrome, Safari) */
+          input[type="number"]::-webkit-outer-spin-button,
+          input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
           }
-          ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-          }
-          ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+
+          /* Esconde as setinhas para Firefox */
+          input[type="number"] {
+            -moz-appearance: textfield;
           }
         `}
       </style>
-      {modal.isVisible && (
-        <CustomModal
-          message={modal.message}
-          type={modal.type}
-          onConfirm={modal.onConfirm}
-          onCancel={modal.onCancel}
-          onClose={() => setModal({ ...modal, isVisible: false })}
-        />
-      )}
+      <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
+        <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">
+          Ficha StoryCraft
+        </h1>
 
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="text-white text-2xl animate-pulse">Carregando...</div>
-        </div>
-      )}
-
-      <header className="bg-gray-800 p-4 shadow-lg flex flex-col sm:flex-row justify-between items-center rounded-b-lg">
-        <h1 className="text-3xl font-bold text-purple-400 mb-3 sm:mb-0">StoryCraft RPG</h1>
-        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
-          {user ? (
-            <>
-              <span className="text-gray-300 text-sm">Bem-vindo, {user.displayName || user.email}!</span>
-              <button
-                onClick={toggleMasterRole}
-                className={`px-4 py-2 rounded-lg font-bold shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-75 ${
-                  isMaster ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                } text-white`}
-              >
-                {isMaster ? 'Modo Mestre' : 'Modo Jogador'}
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-              >
-                Sair
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={signInWithGoogle}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
-            >
-              Entrar com Google
-            </button>
+        {/* Informações do Usuário (Firebase Authentication) */}
+        <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+          <h2 
+            className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
+            onClick={() => toggleSection(setIsInfoCollapsed)}
+          >
+            Status do Usuário
+            <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+          </h2>
+          {!isInfoCollapsed && (
+            <div className="text-center">
+              {isAuthReady ? (
+                user ? (
+                  <>
+                    <p className="text-lg text-gray-200">
+                      Logado como: <span className="font-semibold text-purple-300">{user.displayName || 'Usuário Google'}</span>
+                      {isMaster && <span className="text-yellow-400 ml-2">(Mestre)</span>}
+                    </p>
+                    <p className="text-sm text-gray-400 mb-2">{user.email}</p>
+                    <p className="text-sm text-gray-400 break-all">ID: {user.uid}</p>
+                    <button
+                      onClick={handleSignOut}
+                      className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                      disabled={isLoading}
+                    >
+                      Sair
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg text-gray-400 mb-4">Você não está logado.</p>
+                    <button
+                      onClick={handleGoogleSignIn}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      disabled={isLoading}
+                    >
+                      Login com Google
+                    </button>
+                  </>
+                )
+              ) : (
+                <p className="text-lg text-gray-400">Inicializando autenticação...</p>
+              )}
+              <p className="text-sm text-gray-400 mt-2">
+                Sua ficha será salva e carregada automaticamente para o seu ID de usuário logado.
+              </p>
+            </div>
           )}
-        </div>
-      </header>
+        </section>
 
-      <main className="p-4 max-w-7xl mx-auto">
-        {user && (
-          <div className="mb-6 bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-xl font-semibold text-purple-300 mb-3">Minhas Fichas</h2>
-            <div className="flex flex-wrap gap-3 mb-4">
+        {/* Se o usuário está logado e não há personagem selecionado, mostra a lista de personagens */}
+        {user && !selectedCharacterId && (
+          <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
+              {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
+            </h2>
+            <div className="flex flex-wrap gap-4 mb-4">
               <button
-                onClick={createNewCharacter}
-                className="flex-grow sm:flex-grow-0 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                onClick={handleCreateNewCharacter}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                disabled={isLoading}
               >
-                Criar Nova Ficha
+                Criar Novo Personagem
               </button>
-              {charactersList.length > 0 && (
-                <div className="relative flex-grow sm:flex-grow-0">
-                  <select
-                    onChange={(e) => {
-                      const [charId, ownerUid] = e.target.value.split('|');
-                      loadCharacter(charId, ownerUid);
-                    }}
-                    value={selectedCharIdState ? `${selectedCharIdState}|${ownerUidState}` : ''}
-                    className="w-full bg-gray-700 border border-gray-600 text-white py-2 px-3 rounded-lg focus:ring-purple-500 focus:border-purple-500 appearance-none pr-8"
-                  >
-                    <option value="" disabled>Carregar Ficha Existente</option>
-                    {charactersList.map((char) => (
-                      <option key={char.id} value={`${char.id}|${char.ownerUid}`}>
-                        {char.name} ({char.ownerUid === user.uid ? 'Minha' : `ID: ${char.ownerUid.substring(0, 6)}...`})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                  </div>
-                </div>
+              {isMaster && !viewingAllCharacters && (
+                <button
+                  onClick={() => fetchCharactersList()}
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                  disabled={isLoading}
+                >
+                  Ver Todas as Fichas
+                </button>
+              )}
+              {isMaster && viewingAllCharacters && (
+                <button
+                  onClick={() => { setViewingAllCharacters(false); fetchCharactersList(); }}
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                  disabled={isLoading}
+                >
+                  Ver Minhas Fichas
+                </button>
               )}
             </div>
-          </div>
+
+            {charactersList.length === 0 && !isLoading ? (
+              <p className="text-gray-400 italic">Nenhum personagem encontrado. Crie um novo!</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {charactersList.map((char) => (
+                  <div key={char.id} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-1">{char.name || 'Personagem Sem Nome'}</h3>
+                      <p className="text-sm text-gray-300">Raça: {char.race || 'N/A'}</p>
+                      <p className="text-sm text-gray-300">Classe: {char.class || 'N/A'}</p>
+                      {isMaster && char.ownerUid && (
+                        <p className="text-xs text-gray-400 mt-2 break-all">Proprietário: {char.ownerUid}</p>
+                      )}
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <button
+                        onClick={() => handleSelectCharacter(char.id)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      >
+                        Ver/Editar
+                      </button>
+                      {(user.uid === char.ownerUid || isMaster) && (
+                          <button
+                            onClick={() => handleDeleteCharacter(char.id, char.name, char.ownerUid)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                          >
+                            Excluir
+                          </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
-        {character ? (
-          <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-            {/* Seção de Informações do Usuário/Mestre */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isUserInfoCollapsed')}
+        {/* Se um personagem estiver selecionado, mostra a ficha */}
+        {user && selectedCharacterId && character && (
+          <>
+            <div className="mb-4">
+              <button
+                onClick={handleBackToList}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
               >
-                <h2 className="text-2xl font-bold text-purple-300">
-                  Informações do Usuário ({character.ownerUid === user.uid ? 'Você' : character.ownerUid})
-                </h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isUserInfoCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isUserInfoCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg">
-                  <p className="text-lg text-gray-200">
-                    <span className="font-semibold">ID da Ficha:</span> {character.id}
-                  </p>
-                  <p className="text-lg text-gray-200">
-                    <span className="font-semibold">ID do Proprietário:</span> {character.ownerUid}
-                  </p>
-                  <p className="text-lg text-gray-200">
-                    <span className="font-semibold">Nome do Proprietário:</span> {user.displayName || user.email}
-                  </p>
-                  {user.uid === character.ownerUid && (
-                    <button
-                      onClick={() => deleteCharacter(character.id, character.ownerUid)}
-                      className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                    >
-                      Excluir Ficha
-                    </button>
-                  )}
-                </div>
-              )}
+                ← Voltar para a Lista de Personagens
+              </button>
             </div>
 
-            {/* Seção de Informações do Personagem */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isCharacterInfoCollapsed')}
+            {/* Informações do Personagem */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsInfoCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Informações do Personagem</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isCharacterInfoCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isCharacterInfoCollapsed && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-1 flex flex-col items-center p-4 bg-gray-700 rounded-lg shadow-inner">
+                Informações do Personagem
+                <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isInfoCollapsed && (
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
+                  <div className="flex-shrink-0">
+                    <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-300 mb-1">Foto (URL):</label>
                     <img
                       src={character.photoUrl}
                       alt="Foto do Personagem"
-                      className="w-40 h-40 object-cover rounded-full border-4 border-purple-500 shadow-lg mb-4"
+                      className="w-32 h-32 object-cover rounded-full border-2 border-purple-500 mb-2"
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Foto'; }}
                     />
-                    <label className="cursor-pointer bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105">
-                      Alterar Foto
-                      <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUrlChange} />
-                    </label>
+                    <input
+                      type="text"
+                      id="photoUrl"
+                      name="photoUrl"
+                      value={character.photoUrl}
+                      onChange={handleChange}
+                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-sm"
+                      placeholder="URL da imagem"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
+                    />
                   </div>
-
-                  <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-700 rounded-lg shadow-inner">
-                    <label className="block">
-                      <span className="text-gray-300">Nome:</span>
-                      <input
-                        type="text"
-                        name="name"
-                        value={character.name}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Raça:</span>
-                      <input
-                        type="text"
-                        name="race"
-                        value={character.race}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Classe:</span>
-                      <input
-                        type="text"
-                        name="class"
-                        value={character.class}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Alinhamento:</span>
-                      <input
-                        type="text"
-                        name="alignment"
-                        value={character.alignment}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Nível:</span>
-                      <input
-                        type="number"
-                        name="level"
-                        value={displayValue(character.level)}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">XP:</span>
-                      <input
-                        type="number"
-                        name="xp"
-                        value={displayValue(character.xp)}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Idade:</span>
-                      <input
-                        type="number"
-                        name="age"
-                        value={displayValue(character.age)}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Gênero:</span>
-                      <input
-                        type="text"
-                        name="gender"
-                        value={character.gender}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Altura:</span>
-                      <input
-                        type="text"
-                        name="height"
-                        value={character.height}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-gray-300">Peso:</span>
-                      <input
-                        type="text"
-                        name="weight"
-                        value={character.weight}
-                        onChange={handleChange}
-                        className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow w-full">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">Nome:</label>
+                      <input type="text" id="name" name="name" value={character.name} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-1">Idade:</label>
+                      <input type="number" id="age" name="age" value={character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="height" className="block text-sm font-medium text-gray-300 mb-1">Altura:</label>
+                      <input type="text" id="height" name="height" value={character.height} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="gender" className="block text-sm font-medium text-gray-300 mb-1">Gênero:</label>
+                      <input type="text" id="gender" name="gender" value={character.gender} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="race" className="block text-sm font-medium text-gray-300 mb-1">Raça:</label>
+                      <input type="text" id="race" name="race" value={character.race} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="class" className="block text-sm font-medium text-gray-300 mb-1">Classe:</label>
+                      <input type="text" id="class" name="class" value={character.class} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="alignment" className="block text-sm font-medium text-gray-300 mb-1">Alinhamento:</label>
+                      <input type="text" id="alignment" name="alignment" value={character.alignment} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Nível:</label>
+                      <input type="number" id="level" name="level" value={character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
+                    <div>
+                      <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
+                      <input type="number" id="xp" name="xp" value={character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Atributos Principais */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isMainAttributesCollapsed')}
+            {/* Atributos Principais */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsMainAttributesCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Atributos Principais</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isMainAttributesCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isMainAttributesCollapsed && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Atributos Principais
+                <span>{isMainAttributesCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isMainAttributesCollapsed && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* HP */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">HP (Vida) ❤️</h3>
-                    <div className="flex items-center space-x-2">
-                      <label className="block flex-1">
-                        <span className="text-gray-400 text-sm">Atual:</span>
-                        <input
-                          type="number"
-                          name="current"
-                          data-attribute="hp"
-                          value={displayValue(character.mainAttributes.hp.current)}
-                          onChange={handleMainAttributeChange}
-                          className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                        />
-                      </label>
-                      <span className="text-gray-300 text-2xl">/</span>
-                      <label className="block flex-1">
-                        <span className="text-gray-400 text-sm">Máx:</span>
-                        <input
-                          type="number"
-                          name="max"
-                          data-attribute="hp"
-                          value={displayValue(character.mainAttributes.hp.max)}
-                          onChange={handleMainAttributeChange}
-                          className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                        />
-                      </label>
+                  <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                    <label className="text-lg font-medium text-gray-300 mb-1">HP:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="current"
+                        data-attribute="hp"
+                        value={character.mainAttributes.hp.current}
+                        onChange={handleMainAttributeChange}
+                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        disabled={user.uid !== character.ownerUid}
+                      />
+                      <span className="text-gray-300">/</span>
+                      <input
+                        type="number"
+                        name="max"
+                        data-attribute="hp"
+                        value={character.mainAttributes.hp.max}
+                        onChange={handleMainAttributeChange}
+                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        disabled={!isMaster}
+                      />
                     </div>
                   </div>
-
                   {/* MP */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">MP (Magia) ✨</h3>
-                    <div className="flex items-center space-x-2">
-                      <label className="block flex-1">
-                        <span className="text-gray-400 text-sm">Atual:</span>
-                        <input
-                          type="number"
-                          name="current"
-                          data-attribute="mp"
-                          value={displayValue(character.mainAttributes.mp.current)}
-                          onChange={handleMainAttributeChange}
-                          className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                        />
-                      </label>
-                      <span className="text-gray-300 text-2xl">/</span>
-                      <label className="block flex-1">
-                        <span className="text-gray-400 text-sm">Máx:</span>
-                        <input
-                          type="number"
-                          name="max"
-                          data-attribute="mp"
-                          value={displayValue(character.mainAttributes.mp.max)}
-                          onChange={handleMainAttributeChange}
-                          className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                        />
-                      </label>
+                  <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                    <label className="text-lg font-medium text-gray-300 mb-1">MP:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="current"
+                        data-attribute="mp"
+                        value={character.mainAttributes.mp.current}
+                        onChange={handleMainAttributeChange}
+                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        disabled={user.uid !== character.ownerUid}
+                      />
+                      <span className="text-gray-300">/</span>
+                      <input
+                        type="number"
+                        name="max"
+                        data-attribute="mp"
+                        value={character.mainAttributes.mp.max}
+                        onChange={handleMainAttributeChange}
+                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        disabled={!isMaster}
+                      />
                     </div>
                   </div>
-
-                  {/* Iniciativa */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">Iniciativa ⚡</h3>
-                    <label className="block">
+                  {/* Iniciativa, FA, FM, FD */}
+                  {['initiative', 'fa', 'fm', 'fd'].map(attr => (
+                    <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                      <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">
+                        {attr === 'fa' ? 'FA' : attr === 'fm' ? 'FM' : attr === 'fd' ? 'FD' : 'Iniciativa'}:
+                      </label>
                       <input
                         type="number"
-                        name="initiative"
-                        value={displayValue(character.mainAttributes.initiative)}
+                        id={attr}
+                        name={attr}
+                        value={character.mainAttributes[attr]}
                         onChange={handleSingleMainAttributeChange}
-                        className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
+                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
                       />
-                    </label>
-                  </div>
-
-                  {/* FA */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">FA (Força de Ataque) ⚔️</h3>
-                    <label className="block">
-                      <input
-                        type="number"
-                        name="fa"
-                        value={displayValue(character.mainAttributes.fa)}
-                        onChange={handleSingleMainAttributeChange}
-                        className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                  </div>
-
-                  {/* FM */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">FM (Força Mágica) 🪄</h3>
-                    <label className="block">
-                      <input
-                        type="number"
-                        name="fm"
-                        value={displayValue(character.mainAttributes.fm)}
-                        onChange={handleSingleMainAttributeChange}
-                        className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                  </div>
-
-                  {/* FD */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-2">FD (Força de Defesa) 🛡️</h3>
-                    <label className="block">
-                      <input
-                        type="number"
-                        name="fd"
-                        value={displayValue(character.mainAttributes.fd)}
-                        onChange={handleSingleMainAttributeChange}
-                        className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                      />
-                    </label>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Seção de Atributos Básicos */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isBasicAttributesCollapsed')}
-              >
-                <h2 className="text-2xl font-bold text-purple-300">Atributos Básicos</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isBasicAttributesCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isBasicAttributesCollapsed && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 bg-gray-700 rounded-lg shadow-inner">
-                  {Object.entries(character.basicAttributes).map(([key, attr]) => (
-                    <div key={key} className="bg-gray-600 p-4 rounded-lg shadow-md">
-                      <h3 className="text-xl font-semibold text-gray-200 mb-2 capitalize flex items-center">
-                        {basicAttributeEmojis[key]} {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </h3>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <label className="block">
-                          <span className="text-gray-400">Base:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.base)}
-                            onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-gray-400">P.B.:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.permBonus)}
-                            onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-gray-400">C.B.:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.condBonus)}
-                            onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-3 text-right">
-                        <span className="text-gray-300 font-bold text-lg">Total: {displayValue(attr.total)}</span>
-                      </div>
                     </div>
                   ))}
+                  <p className="col-span-full text-sm text-gray-400 mt-2 text-center">
+                    *A Iniciativa é baseada na Destreza ou Sabedoria (com custo de Mana para Sabedoria).
+                  </p>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Atributos Mágicos */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isMagicAttributesCollapsed')}
+            {/* Atributos Básicos */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsBasicAttributesCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Atributos Mágicos</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isMagicAttributesCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isMagicAttributesCollapsed && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 bg-gray-700 rounded-lg shadow-inner">
-                  {Object.entries(character.magicAttributes).map(([key, attr]) => (
-                    <div key={key} className="bg-gray-600 p-4 rounded-lg shadow-md">
-                      <h3 className="text-xl font-semibold text-gray-200 mb-2 capitalize flex items-center">
-                        {magicAttributeEmojis[key]} {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </h3>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <label className="block">
-                          <span className="text-gray-400">Base:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.base)}
-                            onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-gray-400">P.B.:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.permBonus)}
-                            onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-gray-400">C.B.:</span>
-                          <input
-                            type="number"
-                            value={displayValue(attr.condBonus)}
-                            onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-3 text-right">
-                        <span className="text-gray-300 font-bold text-lg">Total: {displayValue(attr.total)}</span>
-                      </div>
+                Atributos Básicos
+                <span>{isBasicAttributesCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isBasicAttributesCollapsed && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Atributos Físicos */}
+                  <div>
+                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {Object.entries(character.basicAttributes).map(([key, attr]) => (
+                        <div key={key} className="p-2 bg-gray-600 rounded-md">
+                          <div className="flex items-center gap-2 text-xs justify-between">
+                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
+                              {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                            </label>
+                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Base</span>
+                                <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Perm.</span>
+                                <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Cond.</span>
+                                <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Total</span>
+                                <input type="number" value={attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Atributos Mágicos */}
+                  <div>
+                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {Object.entries(character.magicAttributes).map(([key, attr]) => (
+                        <div key={key} className="p-2 bg-gray-600 rounded-md">
+                          <div className="flex items-center gap-2 text-xs justify-between">
+                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
+                              {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}:
+                            </label>
+                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Base</span>
+                                <input type="number" value={attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Perm.</span>
+                                <input type="number" value={attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Cond.</span>
+                                <input type="number" value={attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center">Total</span>
+                                <input type="number" value={attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Inventário */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isInventoryCollapsed')}
+            {/* Inventário */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsInventoryCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Inventário 🎒</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isInventoryCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isInventoryCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Inventário
+                <span>{isInventoryCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isInventoryCollapsed && (
+                <>
                   <button
                     onClick={handleAddItem}
-                    className="mb-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                    className="mb-4 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
                   >
                     Adicionar Item
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(character.inventory || []).map((item, index) => (
-                      <div key={index} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col">
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Nome do Item:</span>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => handleInventoryItemChange(index, 'name', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Descrição:</span>
+                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    {character.inventory.length === 0 ? (
+                      <li className="text-gray-400 italic">Nenhum item no inventário.</li>
+                    ) : (
+                      character.inventory.map((item, index) => (
+                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => handleInventoryItemChange(index, 'name', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemoveItem(index)}
+                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
                           <textarea
                             value={item.description}
                             onChange={(e) => handleInventoryItemChange(index, 'description', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
+                            rows="2"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            placeholder="Descrição do item"
+                            disabled={user.uid !== character.ownerUid && !isMaster}
                           ></textarea>
-                        </label>
-                        <button
-                          onClick={() => handleRemoveItem(index)}
-                          className="mt-auto px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 self-end"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
+              )}
+            </section>
+
+            {/* Carteira */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsWalletCollapsed)}
+              >
+                Zeni: {character.wallet.zeni}
+                <span>{isWalletCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isWalletCollapsed && (
+                <div className="flex items-center gap-2 w-full">
+                  <input
+                    type="number"
+                    value={zeniAmount}
+                    onChange={handleZeniChange}
+                    className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
+                    placeholder="Valor"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  />
+                  <button
+                    onClick={handleAddZeni}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  >
+                    Adicionar
+                  </button>
+                  <button
+                    onClick={handleRemoveZeni}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
+                  >
+                    Remover
+                  </button>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Carteira (Zeni) */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isWalletCollapsed')}
+            {/* Vantagens e Desvantagens */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsPerksCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Carteira 💰</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isWalletCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isWalletCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                  <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <span className="text-gray-300 text-xl font-semibold">Zeni:</span>
-                    <input
-                      type="number"
-                      value={displayValue(character.wallet.zeni)}
-                      readOnly
-                      className="flex-1 rounded-md bg-gray-600 border-transparent text-white text-center py-2 px-3 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <input
-                      type="number"
-                      value={displayValue(zeniAmount)}
-                      onChange={handleZeniChange}
-                      placeholder="Valor"
-                      className="flex-1 rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white py-2 px-3"
-                    />
-                    <button
-                      onClick={handleAddZeni}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
-                    >
-                      Adicionar
-                    </button>
-                    <button
-                      onClick={handleRemoveZeni}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Seção de Vantagens e Desvantagens */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isPerksCollapsed')}
-              >
-                <h2 className="text-2xl font-bold text-purple-300">Vantagens e Desvantagens ⭐</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isPerksCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isPerksCollapsed && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Vantagens e Desvantagens
+                <span>{isPerksCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isPerksCollapsed && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Vantagens */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-3">Vantagens</h3>
+                  <div>
+                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Vantagens</h3>
                     <button
                       onClick={() => handleAddPerk('advantages')}
-                      className="mb-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                      className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
                     >
                       Adicionar Vantagem
                     </button>
-                    {(character.advantages || []).map((perk, index) => (
-                      <div key={index} className="bg-gray-500 p-3 rounded-lg shadow-sm mb-3">
-                        <label className="block mb-1">
-                          <span className="text-gray-300">Nome:</span>
-                          <input
-                            type="text"
-                            value={perk.name}
-                            onChange={(e) => handlePerkChange('advantages', index, 'name', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-1">
-                          <span className="text-gray-300">Descrição:</span>
-                          <textarea
-                            value={perk.description}
-                            onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          ></textarea>
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Valor:</span>
-                          <input
-                            type="number"
-                            value={displayValue(perk.value)}
-                            onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <div className="flex items-center space-x-3 text-gray-300 mb-2">
-                          <span className="font-semibold">Origem:</span>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.class}
-                              onChange={() => handlePerkOriginChange('advantages', index, 'class')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Classe</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.race}
-                              onChange={() => handlePerkOriginChange('advantages', index, 'race')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Raça</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.manual}
-                              onChange={() => handlePerkOriginChange('advantages', index, 'manual')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Manual</span>
-                          </label>
-                        </div>
-                        <button
-                          onClick={() => handleRemovePerk('advantages', index)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
+                    <ul className="list-disc list-inside space-y-2 text-gray-200">
+                      {character.advantages.length === 0 ? (
+                        <li className="text-gray-400 italic">Nenhuma vantagem.</li>
+                      ) : (
+                        character.advantages.map((perk, index) => (
+                          <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <input
+                                type="text"
+                                value={perk.name}
+                                onChange={(e) => handlePerkChange('advantages', index, 'name', e.target.value)}
+                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <input
+                                type="number"
+                                value={perk.value}
+                                onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
+                                className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              {(user.uid === character.ownerUid || isMaster) && (
+                                <button
+                                  onClick={() => handleRemovePerk('advantages', index)}
+                                  className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                >
+                                  Remover
+                                </button>
+                              )}
+                            </div>
+                            <textarea
+                              value={perk.description}
+                              onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
+                              rows="2"
+                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                              placeholder="Descrição da vantagem"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            ></textarea>
+                            <div className="flex gap-3 text-sm text-gray-400 mt-2">
+                              <span>Origem:</span>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('advantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('advantages', index, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('advantages', index, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
+                              </label>
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
                   </div>
 
                   {/* Desvantagens */}
-                  <div className="bg-gray-600 p-4 rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-200 mb-3">Desvantagens</h3>
+                  <div>
+                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Desvantagens</h3>
                     <button
                       onClick={() => handleAddPerk('disadvantages')}
-                      className="mb-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                      className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
                     >
                       Adicionar Desvantagem
                     </button>
-                    {(character.disadvantages || []).map((perk, index) => (
-                      <div key={index} className="bg-gray-500 p-3 rounded-lg shadow-sm mb-3">
-                        <label className="block mb-1">
-                          <span className="text-gray-300">Nome:</span>
-                          <input
-                            type="text"
-                            value={perk.name}
-                            onChange={(e) => handlePerkChange('disadvantages', index, 'name', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-1">
-                          <span className="text-gray-300">Descrição:</span>
-                          <textarea
-                            value={perk.description}
-                            onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          ></textarea>
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Valor:</span>
-                          <input
-                            type="number"
-                            value={displayValue(perk.value)}
-                            onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-400 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <div className="flex items-center space-x-3 text-gray-300 mb-2">
-                          <span className="font-semibold">Origem:</span>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.class}
-                              onChange={() => handlePerkOriginChange('disadvantages', index, 'class')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Classe</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.race}
-                              onChange={() => handlePerkOriginChange('disadvantages', index, 'race')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Raça</span>
-                          </label>
-                          <label className="inline-flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={perk.origin.manual}
-                              onChange={() => handlePerkOriginChange('disadvantages', index, 'manual')}
-                              className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                            />
-                            <span className="ml-2">Manual</span>
-                          </label>
-                        </div>
-                        <button
-                          onClick={() => handleRemovePerk('disadvantages', index)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
+                    <ul className="list-disc list-inside space-y-2 text-gray-200">
+                      {character.disadvantages.length === 0 ? (
+                        <li className="text-gray-400 italic">Nenhuma desvantagem.</li>
+                      ) : (
+                        character.disadvantages.map((perk, index) => (
+                          <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <input
+                                type="text"
+                                value={perk.name}
+                                onChange={(e) => handlePerkChange('disadvantages', index, 'name', e.target.value)}
+                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <input
+                                type="number"
+                                value={perk.value}
+                                onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
+                                className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              {(user.uid === character.ownerUid || isMaster) && (
+                                <button
+                                  onClick={() => handleRemovePerk('disadvantages', index)}
+                                  className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                >
+                                  Remover
+                                </button>
+                              )}
+                            </div>
+                            <textarea
+                              value={perk.description}
+                              onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
+                              rows="2"
+                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                              placeholder="Descrição da desvantagem"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            ></textarea>
+                            <div className="flex gap-3 text-sm text-gray-400 mt-2">
+                              <span>Origem:</span>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('disadvantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('disadvantages', index, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('disadvantages', index, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
+                              </label>
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
                   </div>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Habilidades */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isAbilitiesCollapsed')}
+            {/* Habilidades de Classe/Raça e Customizadas */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsAbilitiesCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Habilidades 💡</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isAbilitiesCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isAbilitiesCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Habilidades (Classe, Raça, Customizadas)
+                <span>{isAbilitiesCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isAbilitiesCollapsed && (
+                <>
                   <button
                     onClick={handleAddAbility}
-                    className="mb-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                    className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
                   >
                     Adicionar Habilidade
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(character.abilities || []).map((ability, index) => (
-                      <div key={index} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col">
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Título:</span>
-                          <input
-                            type="text"
-                            value={ability.title}
-                            onChange={(e) => handleAbilityChange(index, 'title', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Descrição:</span>
+                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    {character.abilities.length === 0 ? (
+                      <li className="text-gray-400 italic">Nenhuma habilidade adicionada.</li>
+                    ) : (
+                      character.abilities.map((ability, index) => (
+                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <input
+                              type="text"
+                              value={ability.title}
+                              onChange={(e) => handleAbilityChange(index, 'title', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemoveAbility(index)}
+                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
                           <textarea
                             value={ability.description}
                             onChange={(e) => handleAbilityChange(index, 'description', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
+                            rows="2"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                            placeholder="Descrição da habilidade"
+                            disabled={user.uid !== character.ownerUid && !isMaster}
                           ></textarea>
-                        </label>
-                        <button
-                          onClick={() => handleRemoveAbility(index)}
-                          className="mt-auto px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 self-end"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Especializações */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isSpecializationsCollapsed')}
+            {/* Especializações (Perícias) */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsSpecializationsCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Especializações 🌟</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isSpecializationsCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isSpecializationsCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Especializações (Perícias)
+                <span>{isSpecializationsCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isSpecializationsCollapsed && (
+                <>
                   <button
                     onClick={handleAddSpecialization}
-                    className="mb-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                    className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
                   >
                     Adicionar Especialização
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(character.specializations || []).map((spec, index) => (
-                      <div key={index} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col">
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Nome:</span>
-                          <input
-                            type="text"
-                            value={spec.name}
-                            onChange={(e) => handleSpecializationChange(index, 'name', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Modificador:</span>
-                          <input
-                            type="text"
-                            value={spec.modifier}
-                            onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Bônus:</span>
-                          <input
-                            type="number"
-                            value={displayValue(spec.bonus)}
-                            onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <button
-                          onClick={() => handleRemoveSpecialization(index)}
-                          className="mt-auto px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 self-end"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    {character.specializations.length === 0 ? (
+                      <li className="text-gray-400 italic">Nenhuma especialização adicionada.</li>
+                    ) : (
+                      character.specializations.map((spec, index) => (
+                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <input
+                              type="text"
+                              value={spec.name}
+                              onChange={(e) => handleSpecializationChange(index, 'name', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemoveSpecialization(index)}
+                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex gap-4 mt-2 text-sm">
+                            <label className="flex items-center gap-1">
+                              Modificador:
+                              <input
+                                type="number"
+                                value={spec.modifier}
+                                onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
+                                className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                            </label>
+                            <label className="flex items-center gap-1">
+                              Bônus:
+                              <input
+                                type="number"
+                                value={spec.bonus}
+                                onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
+                                className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                            </label>
+                          </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Itens Equipados */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isEquippedItemsCollapsed')}
+            {/* Itens Equipados */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsEquippedItemsCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Itens Equipados 🛡️</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isEquippedItemsCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isEquippedItemsCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
+                Itens Equipados
+                <span>{isEquippedItemsCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isEquippedItemsCollapsed && (
+                <>
                   <button
                     onClick={handleAddEquippedItem}
-                    className="mb-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                    className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                    disabled={user.uid !== character.ownerUid && !isMaster}
                   >
                     Adicionar Item Equipado
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(character.equippedItems || []).map((item, index) => (
-                      <div key={index} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col">
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Nome:</span>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => handleEquippedItemChange(index, 'name', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                          />
-                        </label>
-                        <label className="block mb-2">
-                          <span className="text-gray-300">Descrição:</span>
+                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    {character.equippedItems.length === 0 ? (
+                      <li className="text-gray-400 italic">Nenhum item equipado.</li>
+                    ) : (
+                      character.equippedItems.map((item, index) => (
+                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => handleEquippedItemChange(index, 'name', e.target.value)}
+                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            />
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemoveEquippedItem(index)}
+                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
                           <textarea
                             value={item.description}
                             onChange={(e) => handleEquippedItemChange(index, 'description', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
+                            rows="2"
+                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white resize-y mb-2"
+                            placeholder="Descrição do item"
+                            disabled={user.uid !== character.ownerUid && !isMaster}
                           ></textarea>
-                        </label>
-                        <button
-                          onClick={() => handleRemoveEquippedItem(index)}
-                          className="mt-auto px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 self-end"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
+                          <textarea
+                            value={item.attributes}
+                            onChange={(e) => handleEquippedItemChange(index, 'attributes', e.target.value)}
+                            rows="2"
+                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm resize-y"
+                            placeholder="Ex: +5 Força, Dano Fogo, etc."
+                            disabled={user.uid !== character.ownerUid && !isMaster}
+                          ></textarea>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
               )}
-            </div>
+            </section>
 
-            {/* Seção de História do Personagem */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isHistoryCollapsed')}
+            {/* História do Personagem */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsHistoryCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">História do Personagem 📜</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isHistoryCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isHistoryCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
-                  <div className="flex flex-wrap gap-2 mb-4">
+                História do Personagem
+                <span>{isHistoryCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isHistoryCollapsed && (
+                <>
+                  <div className="space-y-4 mb-4">
+                    {character.history.length === 0 ? (
+                      <p className="text-gray-400 italic">Nenhum bloco de história adicionado. Adicione texto ou imagens para começar!</p>
+                    ) : (
+                      character.history.map((block, index) => (
+                        <div
+                          key={block.id}
+                          className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={(e) => handleDragOver(e)}
+                          onDrop={(e) => handleDrop(e, index)}
+                        >
+                          {(user.uid === character.ownerUid || isMaster) && (
+                            <button
+                              onClick={() => removeHistoryBlock(block.id)}
+                              className="absolute top-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition duration-200 ease-in-out"
+                            >
+                              X
+                            </button>
+                          )}
+                          {block.type === 'text' ? (
+                            <textarea
+                              value={block.value}
+                              onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
+                              rows="4"
+                              className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white resize-y"
+                              placeholder="Digite seu texto aqui..."
+                              disabled={user.uid !== character.ownerUid && !isMaster}
+                            ></textarea>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <img
+                                src={block.value}
+                                alt="Imagem da história"
+                                className="max-w-full h-auto rounded-md shadow-md"
+                                style={{
+                                  width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
+                                  height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
+                                  objectFit: 'contain'
+                                }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
+                              />
+                              {(user.uid === character.ownerUid || isMaster) && (
+                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
+                                  <label className="flex items-center gap-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={block.fitWidth}
+                                      onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
+                                      className="form-checkbox text-purple-500 rounded"
+                                    />
+                                    Ajustar à Largura
+                                  </label>
+                                  {!block.fitWidth && (
+                                    <>
+                                      <label className="flex items-center gap-1">
+                                        Largura (px):
+                                        <input
+                                          type="number"
+                                          value={block.width}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                        />
+                                      </label>
+                                      <label className="flex items-center gap-1">
+                                        Altura (px):
+                                        <input
+                                          type="number"
+                                          value={block.height}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                        />
+                                      </label>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-4 justify-center">
                     <button
-                      onClick={() => handleAddHistoryBlock('text')}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                      onClick={() => addHistoryBlock('text')}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
                     >
                       Adicionar Bloco de Texto
                     </button>
                     <button
-                      onClick={() => handleAddHistoryBlock('image')}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                      onClick={() => addHistoryBlock('image')}
+                      className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
                     >
                       Adicionar Bloco de Imagem
                     </button>
                   </div>
-                  <div className="space-y-4">
-                    {(character.history || []).map((block) => (
-                      <div key={block.id} className="bg-gray-600 p-4 rounded-lg shadow-md">
-                        {block.type === 'text' && (
-                          <textarea
-                            ref={el => historyTextareaRefs.current[block.id] = el}
-                            value={block.value}
-                            onChange={(e) => handleHistoryBlockChange(block.id, 'value', e.target.value)}
-                            className="mt-1 block w-full rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                            placeholder="Digite sua história aqui..."
-                          ></textarea>
-                        )}
-                        {block.type === 'image' && (
-                          <div className="flex flex-col items-center">
-                            <img
-                              src={block.value || 'https://placehold.co/200x150/000000/FFFFFF?text=Imagem'}
-                              alt="Imagem da História"
-                              className={`mb-2 rounded-md border-2 border-gray-400 ${block.fitWidth ? 'w-full' : ''}`}
-                              style={{
-                                maxWidth: block.fitWidth ? '100%' : 'none',
-                                width: block.width ? `${block.width}px` : 'auto',
-                                height: block.height ? `${block.height}px` : 'auto',
-                                objectFit: 'contain',
-                              }}
-                              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/200x150/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
-                            />
-                            <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 mb-2">
-                              Carregar Imagem
-                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, block.id)} />
-                            </label>
-                            <div className="flex items-center space-x-2 mb-2">
-                              <label className="inline-flex items-center text-gray-300">
-                                <input
-                                  type="checkbox"
-                                  checked={block.fitWidth}
-                                  onChange={(e) => handleHistoryBlockChange(block.id, 'fitWidth', e.target.checked)}
-                                  className="form-checkbox h-5 w-5 text-purple-600 rounded-md"
-                                />
-                                <span className="ml-2">Ajustar à Largura</span>
-                              </label>
-                              {!block.fitWidth && (
-                                <>
-                                  <label className="text-gray-300">Largura (px):</label>
-                                  <input
-                                    type="number"
-                                    value={displayValue(block.width)}
-                                    onChange={(e) => handleHistoryBlockChange(block.id, 'width', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                                    className="w-24 rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                                  />
-                                  <label className="text-gray-300">Altura (px):</label>
-                                  <input
-                                    type="number"
-                                    value={displayValue(block.height)}
-                                    onChange={(e) => handleHistoryBlockChange(block.id, 'height', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                                    className="w-24 rounded-md bg-gray-500 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                                  />
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleRemoveHistoryBlock(block.id)}
-                          className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                        >
-                          Remover Bloco
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                </>
               )}
-            </div>
+            </section>
 
-            {/* Seção de Anotações */}
-            <div className="mb-6">
-              <div
-                className="flex justify-between items-center cursor-pointer p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200"
-                onClick={() => toggleSection('isNotesCollapsed')}
+            {/* Anotações */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 
+                className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleSection(setIsNotesCollapsed)}
               >
-                <h2 className="text-2xl font-bold text-purple-300">Anotações 📝</h2>
-                <span className="text-purple-300 text-2xl">
-                  {character.uiState.isNotesCollapsed ? '▼' : '▲'}
-                </span>
-              </div>
-              {!character.uiState.isNotesCollapsed && (
-                <div className="mt-4 p-4 bg-gray-700 rounded-lg shadow-inner">
-                  <textarea
-                    ref={notesTextareaRef}
-                    name="notes"
-                    value={character.notes}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-md bg-gray-600 border-transparent focus:border-purple-500 focus:ring-purple-500 text-white"
-                    placeholder="Faça suas anotações aqui..."
-                  ></textarea>
-                </div>
+                Anotações
+                <span>{isNotesCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isNotesCollapsed && (
+                <textarea
+                  name="notes"
+                  value={character.notes}
+                  onChange={handleNotesChange}
+                  rows="6"
+                  className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white resize-y"
+                  placeholder="Anotações diversas sobre o personagem, campanhas, NPCs, etc."
+                  disabled={user.uid !== character.ownerUid && !isMaster}
+                ></textarea>
               )}
+            </section>
+
+            {/* Botões de Ação */}
+            <div className="flex flex-wrap justify-center gap-4 mt-8">
+              <button
+                onClick={handleExportJson}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
+                disabled={isLoading || !user || !character}
+              >
+                Exportar Ficha (JSON)
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                onClick={handleImportJsonClick}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                disabled={isLoading || !user}
+              >
+                Importar Ficha (JSON)
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                disabled={isLoading || !user || (user.uid !== character.ownerUid && !isMaster)}
+              >
+                Resetar Ficha
+              </button>
             </div>
-          </div>
-        ) : (
-          user && (
-            <div className="bg-gray-800 p-6 rounded-lg shadow-xl text-center border border-gray-700">
-              <p className="text-xl text-gray-300 mb-4">
-                Selecione uma ficha para carregar ou crie uma nova para começar.
-              </p>
-            </div>
-          )
+          </>
         )}
-      </main>
+
+        {/* Mensagem se não estiver logado */}
+        {!user && (
+          <p className="text-center text-gray-400 text-lg mt-8">
+            Faça login para começar a criar e gerenciar suas fichas de personagem!
+          </p>
+        )}
+      </div>
+
+      {/* Modal Personalizado */}
+      {modal.isVisible && (
+        <CustomModal
+          message={modal.message}
+          onConfirm={modal.onConfirm}
+          onCancel={modal.onCancel}
+          type={modal.type}
+          onClose={() => setModal({ ...modal, isVisible: false })}
+        />
+      )}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="text-white text-xl font-bold">Carregando...</div>
+        </div>
+      )}
     </div>
   );
 };
