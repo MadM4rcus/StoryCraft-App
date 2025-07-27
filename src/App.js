@@ -139,7 +139,7 @@ const App = () => {
     constituicao: '❤️‍',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '�',
+    armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
@@ -351,6 +351,7 @@ const App = () => {
           deserializedData.notes = deserializedData.notes || '';
           deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
           deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+          deserializedData.photoUrl = deserializedData.photoUrl || ''; // Ensure photoUrl is an empty string if not present
 
           setCharacter(deserializedData);
           console.log(`Sheet for '${deserializedData.name}' loaded from Firestore in real-time.`);
@@ -904,7 +905,7 @@ const App = () => {
       type: 'confirm',
       onConfirm: () => {
         setCharacter({
-          name: '', photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto', age: '', height: '', gender: '', race: '', class: '', alignment: '',
+          name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '',
           level: 0, xp: 100,
           mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
           basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
@@ -960,6 +961,7 @@ const App = () => {
                   ownerUid: user.uid,
                   xp: importedData.xp !== undefined ? importedData.xp : 100,
                   level: importedData.level !== undefined ? importedData.level : 0,
+                  photoUrl: importedData.photoUrl || '', // Ensure photoUrl is empty string if not present
                   mainAttributes: {
                     hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
                     mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
@@ -1076,7 +1078,7 @@ const App = () => {
               id: newCharId,
               ownerUid: user.uid,
               name: name,
-              photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
+              photoUrl: '', // Default to empty string for new characters
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100,
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
@@ -1213,6 +1215,29 @@ const App = () => {
 
   // Helper function to toggle section collapse state
   const toggleSection = (setter) => setter(prev => !prev);
+
+  // Handles clicking on the photo or the '+' button to change/add photo URL
+  const handlePhotoUrlClick = () => {
+    if (user.uid !== character.ownerUid && !isMaster) {
+      // If not owner or master, do nothing when clicking the image/button
+      return;
+    }
+    setModal({
+      isVisible: true,
+      message: 'Enter new image URL or leave blank to remove:',
+      type: 'prompt',
+      onConfirm: (newUrl) => {
+        setCharacter(prevChar => ({
+          ...prevChar,
+          photoUrl: newUrl,
+        }));
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Close modal after update
+      },
+      onCancel: () => {
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
@@ -1385,24 +1410,23 @@ const App = () => {
               </h2>
               {!isCharacterInfoCollapsed && (
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
-                  <div className="flex-shrink-0">
-                    <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-300 mb-1">Foto (URL):</label>
-                    <img
-                      src={character.photoUrl}
-                      alt="Foto do Personagem"
-                      className="w-32 h-32 object-cover rounded-full border-2 border-purple-500 mb-2"
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Foto'; }}
-                    />
-                    <input
-                      type="text"
-                      id="photoUrl"
-                      name="photoUrl"
-                      value={character.photoUrl}
-                      onChange={handleChange}
-                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-sm"
-                      placeholder="URL da imagem"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                    />
+                  <div className="flex-shrink-0 relative">
+                    {character.photoUrl ? (
+                      <img
+                        src={character.photoUrl}
+                        alt="Foto do Personagem"
+                        className="w-[224px] h-[224px] object-cover rounded-full border-2 border-purple-500 cursor-pointer"
+                        onClick={handlePhotoUrlClick}
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/224x224/000000/FFFFFF?text=Foto'; }}
+                      />
+                    ) : (
+                      <div
+                        className="w-[224px] h-[224px] bg-gray-600 rounded-full border-2 border-purple-500 flex items-center justify-center text-6xl text-gray-400 cursor-pointer"
+                        onClick={handlePhotoUrlClick}
+                      >
+                        +
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow w-full">
                     <div>
@@ -1676,7 +1700,7 @@ const App = () => {
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsWalletCollapsed)}
               >
-                Zeni: {character.wallet.zeni === 0 ? '' : character.wallet.zeni}
+                Zeni: {character.wallet.zeni} {/* Changed to always show 0 if value is 0 */}
                 <span>{isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isWalletCollapsed && (
