@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth'; // Import signInAnonymously and signInWithCustomToken
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
@@ -99,14 +99,15 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 // Main application component
 const App = () => {
   // Environment variables for Firebase configuration
+  // Safely access global variables, providing fallbacks for build environment
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
   const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
   const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
   // Firebase states
-  const [app, setApp] = useState(null);
-  const [db, setDb] = useState(null);
-  const [auth, setAuth] = useState(null);
+  const [app, setApp] = useState(null); // Firebase app instance
+  const [db, setDb] = useState(null); // Firestore instance
+  const [auth, setAuth] = useState(null); // Auth instance
   const [user, setUser] = useState(null); // Logged in user information
   const [userId, setUserId] = useState(null); // User ID for Firestore
   const [isAuthReady, setIsAuthReady] = useState(false); // Indicates if authentication has been initialized
@@ -159,7 +160,7 @@ const App = () => {
     forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
-    constituicao: '❤️‍�',
+    constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
     armadura: '🦴',
@@ -171,7 +172,7 @@ const App = () => {
     fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
-    terra: '🪨',
+    terra: '�',
     luz: '🌟',
     trevas: '🌑',
     espirito: '🌀',
@@ -184,6 +185,7 @@ const App = () => {
       const firebaseApp = initializeApp(firebaseConfig);
       const authInstance = getAuth(firebaseApp);
       const firestoreInstance = getFirestore(firebaseApp);
+      setApp(firebaseApp); // Set app instance
       setAuth(authInstance);
       setDb(firestoreInstance);
 
@@ -208,7 +210,7 @@ const App = () => {
             await signInAnonymously(authInstance);
             console.log("Anonymous login.");
           }
-          setUser(null);
+          setUser(authInstance.currentUser); // Set user after anonymous sign-in if successful
           setUserId(authInstance.currentUser?.uid || crypto.randomUUID()); // Use anonymous UID or random for unauthenticated users
           setIsMaster(false);
         }
