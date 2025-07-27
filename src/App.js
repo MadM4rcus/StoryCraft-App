@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore'; // Added deleteDoc
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -125,8 +125,6 @@ const App = () => {
   const [selectedCharIdState, setSelectedCharIdState] = useState(null);
   const [ownerUidState, setOwnerUidState] = useState(null);
 
-  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
-
   // Modal visibility and content state
   const [modal, setModal] = useState({
     isVisible: false,
@@ -168,7 +166,7 @@ const App = () => {
   const basicAttributeEmojis = {
     forca: '💪',
     destreza: '🏃‍♂️',
-    inteligencia: '�',
+    inteligencia: '🧠',
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
@@ -207,7 +205,6 @@ const App = () => {
           setSelectedCharIdState(null);
           setOwnerUidState(null);
           window.history.pushState({}, '', window.location.pathname);
-          setViewingAllCharacters(false);
           setIsMaster(false);
         }
       });
@@ -265,7 +262,7 @@ const App = () => {
     try {
       let allChars = [];
       if (isMaster) {
-        console.log("fetchCharactersList: Master mode, fetching all characters.");
+        console.log("fetchCharactersList: Master mode, fetching all characters (including soft-deleted).");
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
         const usersSnapshot = await getDocs(usersCollectionRef);
         
@@ -274,27 +271,23 @@ const App = () => {
           const userCharacterSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
           const charSnapshot = await getDocs(userCharacterSheetsRef);
           charSnapshot.docs.forEach(doc => {
-            if (!doc.data().deleted) {
-              allChars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
-            }
+            allChars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
           });
         }
         setCharactersList(allChars);
-        setViewingAllCharacters(true);
         console.log("fetchCharactersList: All characters loaded for master.", allChars);
       } else {
-        console.log("fetchCharactersList: Player mode, fetching own characters.");
+        console.log("fetchCharactersList: Player mode, fetching own characters (excluding soft-deleted).");
         const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(charactersCollectionRef);
         const querySnapshot = await getDocs(q);
         const chars = querySnapshot.docs.map(doc => {
-            if (!doc.data().deleted) {
+            if (!doc.data().deleted) { // Only show non-deleted for players
                 return { id: doc.id, ownerUid: user.uid, ...doc.data() };
             }
             return null;
         }).filter(Boolean);
         setCharactersList(chars);
-        setViewingAllCharacters(false);
         console.log("fetchCharactersList: Player's characters loaded.", chars);
       }
     } catch (error) {
@@ -391,8 +384,9 @@ const App = () => {
         unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data.deleted) {
-              console.log('Character found, but marked as deleted.');
+            // Players should not see soft-deleted sheets
+            if (data.deleted && !isMaster) {
+              console.log('Character found, but marked as deleted and user is not master.');
               setCharacter(null);
               setSelectedCharIdState(null); // Clear state
               setOwnerUidState(null); // Clear state
@@ -516,9 +510,10 @@ const App = () => {
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
           dataToSave.history = JSON.stringify(dataToSave.history);
           
-          if ('deleted' in dataToSave) {
-            delete dataToSave.deleted;
-          }
+          // Do NOT remove the 'deleted' flag here. It should persist if it was set.
+          // if ('deleted' in dataToSave) {
+          //   delete dataToSave.deleted;
+          // }
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
           console.log(`Sheet for '${character.name}' automatically saved to Firestore.`);
@@ -871,7 +866,6 @@ const App = () => {
       setSelectedCharIdState(null);
       setOwnerUidState(null);
       window.history.pushState({}, '', window.location.pathname);
-      setViewingAllCharacters(false);
       setIsMaster(false);
     } catch (error) {
       console.error("Error during sign-out:", error);
@@ -992,25 +986,87 @@ const App = () => {
     fetchCharactersList(); // Refresh list to ensure it's up-to-date
   };
 
-  const handleDeleteCharacter = (charId, ownerUid) => {
+  // Soft delete function (marks as deleted)
+  const handleSoftDeleteCharacter = (charId, ownerUid) => {
     setModal({
       isVisible: true,
-      message: "Tem certeza que deseja deletar esta ficha de personagem? Esta ação não pode ser desfeita.",
+      message: "Tem certeza que deseja marcar esta ficha como deletada? Ela não aparecerá mais na sua lista, mas poderá ser vista por mestres e restaurada.",
       type: "confirm",
       onConfirm: async () => {
         if (!db || !user) return;
         setIsLoading(true);
         try {
-          // Mark as deleted instead of actual deletion
           const charRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
           await setDoc(charRef, { deleted: true }, { merge: true });
-          setModal({ isVisible: true, message: "Ficha de personagem deletada (marcada como deletada).", type: "info", onConfirm: () => {}, onCancel: () => {} });
+          setModal({ isVisible: true, message: "Ficha de personagem marcada como deletada.", type: "info", onConfirm: () => {}, onCancel: () => {} });
           handleBackToList(); // Go back to list after deletion
         } catch (error) {
-          console.error("Error deleting character:", error);
+          console.error("Error soft deleting character:", error);
           setModal({
             isVisible: true,
-            message: `Erro ao deletar personagem: ${error.message}`,
+            message: `Erro ao marcar personagem como deletado: ${error.message}`,
+            type: 'info',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      onCancel: () => {},
+    });
+  };
+
+  // Permanent delete function (only for masters)
+  const handlePermanentDeleteCharacter = (charId, ownerUid) => {
+    setModal({
+      isVisible: true,
+      message: "ATENÇÃO: Você tem certeza que deseja EXCLUIR PERMANENTEMENTE esta ficha? Esta ação é IRREVERSÍVEL e a ficha não poderá ser recuperada.",
+      type: "confirm",
+      onConfirm: async () => {
+        if (!db || !user || !isMaster) return; // Only masters can perform this
+        setIsLoading(true);
+        try {
+          const charRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
+          await deleteDoc(charRef);
+          setModal({ isVisible: true, message: "Ficha de personagem excluída permanentemente.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+          handleBackToList(); // Go back to list after deletion
+        } catch (error) {
+          console.error("Error permanently deleting character:", error);
+          setModal({
+            isVisible: true,
+            message: `Erro ao excluir personagem permanentemente: ${error.message}`,
+            type: 'info',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      onCancel: () => {},
+    });
+  };
+
+  // Function to restore a soft-deleted character (only for masters)
+  const handleRestoreCharacter = async (charId, ownerUid) => {
+    setModal({
+      isVisible: true,
+      message: "Tem certeza que deseja restaurar esta ficha de personagem?",
+      type: "confirm",
+      onConfirm: async () => {
+        if (!db || !user || !isMaster) return;
+        setIsLoading(true);
+        try {
+          const charRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
+          await setDoc(charRef, { deleted: false }, { merge: true });
+          setModal({ isVisible: true, message: "Ficha de personagem restaurada com sucesso!", type: "info", onConfirm: () => {}, onCancel: () => {} });
+          fetchCharactersList(); // Refresh the list
+        } catch (error) {
+          console.error("Error restoring character:", error);
+          setModal({
+            isVisible: true,
+            message: `Erro ao restaurar personagem: ${error.message}`,
             type: 'info',
             onConfirm: () => {},
             onCancel: () => {},
@@ -1178,10 +1234,10 @@ const App = () => {
               {charactersList.map((char) => (
                 <div
                   key={char.id}
-                  className="bg-gray-700 rounded-lg p-5 shadow-md border border-gray-600 flex flex-col justify-between transition duration-200 ease-in-out transform hover:scale-[1.02]"
+                  className={`bg-gray-700 rounded-lg p-5 shadow-md border border-gray-600 flex flex-col justify-between transition duration-200 ease-in-out transform hover:scale-[1.02] ${char.deleted ? 'opacity-50 border-red-500' : ''}`}
                 >
                   <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-2">{char.name}</h3>
+                    <h3 className="text-xl font-semibold text-purple-300 mb-2">{char.name} {char.deleted && <span className="text-red-400 text-sm">(Deletada)</span>}</h3>
                     <p className="text-gray-300 text-sm mb-1">Raça: {char.race || 'N/A'}</p>
                     <p className="text-gray-300 text-sm mb-1">Nível: {char.level}</p>
                     <p className="text-gray-400 text-xs break-all">ID da Ficha: {char.id}</p>
@@ -1196,12 +1252,31 @@ const App = () => {
                     >
                       Abrir Ficha
                     </button>
-                    <button
-                      onClick={() => handleDeleteCharacter(char.id, char.ownerUid)}
-                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 w-full sm:w-auto"
-                    >
-                      Deletar
-                    </button>
+                    {char.deleted ? (
+                      isMaster && ( // Only master can restore
+                        <button
+                          onClick={() => handleRestoreCharacter(char.id, char.ownerUid)}
+                          className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-75 w-full sm:w-auto"
+                        >
+                          Restaurar
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => handleSoftDeleteCharacter(char.id, char.ownerUid)}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 w-full sm:w-auto"
+                      >
+                        Deletar (Soft)
+                      </button>
+                    )}
+                    {isMaster && (
+                      <button
+                        onClick={() => handlePermanentDeleteCharacter(char.id, char.ownerUid)}
+                        className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 w-full sm:w-auto"
+                      >
+                        Deletar (Perm.)
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1227,12 +1302,33 @@ const App = () => {
             >
               Voltar para a Lista
             </button>
-            <button
-              onClick={() => handleDeleteCharacter(character.id, character.ownerUid)}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 w-full sm:w-auto"
-            >
-              Deletar Ficha
-            </button>
+            {/* Soft delete button for players and masters */}
+            {(user.uid === character.ownerUid || isMaster) && !character.deleted && (
+              <button
+                onClick={() => handleSoftDeleteCharacter(character.id, character.ownerUid)}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 w-full sm:w-auto"
+              >
+                Deletar Ficha (Soft)
+              </button>
+            )}
+            {/* Restore button for masters if soft-deleted */}
+            {isMaster && character.deleted && (
+              <button
+                onClick={() => handleRestoreCharacter(character.id, character.ownerUid)}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-75 w-full sm:w-auto"
+              >
+                Restaurar Ficha
+              </button>
+            )}
+            {/* Permanent delete button only for masters */}
+            {isMaster && (
+              <button
+                onClick={() => handlePermanentDeleteCharacter(character.id, character.ownerUid)}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 w-full sm:w-auto"
+              >
+                Deletar Ficha (Perm.)
+              </button>
+            )}
           </div>
         </div>
 
