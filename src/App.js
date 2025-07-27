@@ -135,7 +135,7 @@ const App = () => {
   const basicAttributeEmojis = {
     forca: '💪',
     destreza: '🏃‍♂️',
-    inteligencia: '�',
+    inteligencia: '🧠',
     constituicao: '❤️‍',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
@@ -1245,12 +1245,12 @@ const App = () => {
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
           <h2 
             className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
-            onClick={() => toggleSection(setIsUserStatusCollapsed)} {/* Independent collapse state */}
+            onClick={() => toggleSection(setIsUserStatusCollapsed)}
           >
             Status do Usuário
             <span>{isUserStatusCollapsed ? '▼' : '▲'}</span>
           </h2>
-          {!isUserStatusCollapsed && ( {/* Use new state */}
+          {!isUserStatusCollapsed && (
             <div className="text-center">
               {isAuthReady ? (
                 user ? (
@@ -1378,12 +1378,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsCharacterInfoCollapsed)} {/* Independent collapse state */}
+                onClick={() => toggleSection(setIsCharacterInfoCollapsed)}
               >
                 Informações do Personagem
                 <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isCharacterInfoCollapsed && ( {/* Use new state */}
+              {!isCharacterInfoCollapsed && (
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
                   <div className="flex-shrink-0">
                     <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-300 mb-1">Foto (URL):</label>
@@ -1681,14 +1681,14 @@ const App = () => {
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsWalletCollapsed)}
               >
-                Zeni: {character.wallet.zeni === 0 ? '' : character.wallet.zeni} {/* Display empty if 0 */}
+                Zeni: {character.wallet.zeni === 0 ? '' : character.wallet.zeni}
                 <span>{isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isWalletCollapsed && (
                 <div className="flex items-center gap-2 w-full">
                   <input
                     type="number"
-                    value={zeniAmount === 0 ? '' : zeniAmount} {/* Display empty if 0 */}
+                    value={zeniAmount === 0 ? '' : zeniAmount}
                     onChange={handleZeniChange}
                     className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
                     placeholder="Valor"
@@ -1749,7 +1749,7 @@ const App = () => {
                               />
                               <input
                                 type="number"
-                                value={perk.value === 0 ? '' : perk.value} {/* Display empty if 0 */}
+                                value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                 placeholder="0"
@@ -1816,7 +1816,7 @@ const App = () => {
                               />
                               <input
                                 type="number"
-                                value={perk.value === 0 ? '' : perk.value} {/* Display empty if 0 */}
+                                value={perk.value === 0 ? '' : perk.value}
                                 onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                 placeholder="0"
@@ -1963,7 +1963,7 @@ const App = () => {
                               Modificador:
                               <input
                                 type="number"
-                                value={spec.modifier === 0 ? '' : spec.modifier} {/* Display empty if 0 */}
+                                value={spec.modifier === 0 ? '' : spec.modifier}
                                 onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                                 placeholder="0"
@@ -1974,7 +1974,7 @@ const App = () => {
                               Bônus:
                               <input
                                 type="number"
-                                value={spec.bonus === 0 ? '' : spec.bonus} {/* Display empty if 0 */}
+                                value={spec.bonus === 0 ? '' : spec.bonus}
                                 onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
                                 className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
                                 placeholder="0"
@@ -2127,7 +2127,7 @@ const App = () => {
                                         Largura (px):
                                         <input
                                           type="number"
-                                          value={block.width === 0 ? '' : block.width} {/* Display empty if 0 */}
+                                          value={block.width === 0 ? '' : block.width}
                                           onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                           placeholder="0"
@@ -2137,7 +2137,7 @@ const App = () => {
                                         Altura (px):
                                         <input
                                           type="number"
-                                          value={block.height === 0 ? '' : block.height} {/* Display empty if 0 */}
+                                          value={block.height === 0 ? '' : block.height}
                                           onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
                                           className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                           placeholder="0"
