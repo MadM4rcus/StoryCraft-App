@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
@@ -112,8 +112,6 @@ const App = () => {
   const [selectedCharIdState, setSelectedCharIdState] = useState(null);
   const [ownerUidState, setOwnerUidState] = useState(null);
 
-  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
-
   // Estado para visibilidade e conteúdo do modal
   const [modal, setModal] = useState({
     isVisible: false,
@@ -129,8 +127,6 @@ const App = () => {
   // Estado para o valor de Zeni a ser adicionado/removido
   const [zeniAmount, setZeniAmount] = useState(0);
 
-  // Ref para o input de arquivo para acioná-lo programaticamente
-  const fileInputRef = useRef(null);
   // Refs para textareas para autoajuste
   const notesTextareaRef = useRef(null);
   const historyTextareaRefs = useRef({}); // Objeto para armazenar refs de textareas de história
@@ -178,7 +174,6 @@ const App = () => {
           setSelectedCharIdState(null);
           setOwnerUidState(null);
           window.history.pushState({}, '', window.location.pathname);
-          setViewingAllCharacters(false);
           setIsMaster(false);
         }
       });
@@ -251,7 +246,6 @@ const App = () => {
           });
         }
         setCharactersList(allChars);
-        setViewingAllCharacters(true);
         console.log("fetchCharactersList: All characters loaded for master.", allChars);
       } else {
         console.log("fetchCharactersList: Player mode, fetching own characters.");
@@ -265,7 +259,6 @@ const App = () => {
             return null;
         }).filter(Boolean);
         setCharactersList(chars);
-        setViewingAllCharacters(false);
         console.log("fetchCharactersList: Player characters loaded.", chars);
       }
     } catch (error) {
