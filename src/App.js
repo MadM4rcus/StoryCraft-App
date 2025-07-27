@@ -37,51 +37,38 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
-        <p className="text-white text-lg mb-4 text-center">{message}</p>
+        <p className="text-lg text-gray-100 mb-4 text-center">{message}</p>
         {type === 'prompt' && (
           <input
             type="text"
-            className="w-full p-2 mb-4 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-purple-500"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            autoFocus
+            className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+            placeholder="Digite aqui..."
           />
         )}
-        <div className="flex justify-center space-x-4">
+        <div className="flex justify-around gap-4">
+          <button
+            onClick={handleConfirm}
+            className={`px-5 py-2 rounded-lg font-bold shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-75 ${
+              type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+            } text-white`}
+          >
+            {confirmButtonText}
+          </button>
           {type !== 'info' && (
             <button
               onClick={handleCancel}
-              className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+              className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
             >
               Cancelar
             </button>
           )}
-          <button
-            onClick={handleConfirm}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
-          >
-            {confirmButtonText}
-          </button>
         </div>
       </div>
     </div>
   );
 };
-
-// Componente para campos de input de texto
-const InputField = React.memo(({ label, value, onChange, placeholder = '', type = 'text', readOnly = false }) => (
-  <div className="mb-4">
-    <label className="block text-gray-300 text-sm font-bold mb-2">{label}</label>
-    <input
-      type={type}
-      className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white border-gray-600 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      readOnly={readOnly}
-    />
-  </div>
-));
 
 // Componente auxiliar para textarea com redimensionamento automático
 // Ele ajusta a altura do textarea com base no seu scrollHeight (conteúdo)
@@ -109,37 +96,68 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 };
 
 
-// Componente principal do aplicativo
-export default function App() {
-  // Variáveis de ambiente para configuração do Firebase
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// Componente principal da aplicação
+const App = () => {
+  // Configuração do Firebase
+  const firebaseConfig = useMemo(() => ({
+    apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
+    authDomain: "storycraft-a5f7e.firebaseapp.com",
+    projectId: "storycraft-a5f7e",
+    storageBucket: "storycraft-a5f7e.firebaseapp.com",
+    messagingSenderId: "727724875985",
+    appId: "1:727724875985:web:97411448885c68c289e5f0",
+    measurementId: "G-JH03Y2NZDK"
+  }), []);
+  const appId = firebaseConfig.appId;
 
-  // Estados do aplicativo
-  const [app, setApp] = useState(null);
+  // Estados para Firebase
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  const [user, setUser] = useState(null); // Informações do usuário logado
-  const [userId, setUserId] = useState(null); // ID do usuário para Firestore
-  const [isAuthReady, setIsAuthReady] = useState(false); // Indica se a autenticação foi inicializada
+  const [user, setUser] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isMaster, setIsMaster] = useState(false);
 
-  const [character, setCharacter] = useState(null); // Carrega o personagem selecionado
-  const [charactersList, setCharactersList] = useState([]); // Lista de personagens do usuário ou todos para o mestre
+  // Estados para gerenciamento de personagens
+  const [character, setCharacter] = useState(null);
+  const [charactersList, setCharactersList] = useState([]);
+  
+  // Novos estados para o ID do personagem selecionado e UID do proprietário
+  const [selectedCharIdState, setSelectedCharIdState] = useState(null);
+  const [ownerUidState, setOwnerUidState] = useState(null);
 
-  const [isMaster, setIsMaster] = useState(false); // Indica se o usuário é o mestre
-  const [modal, setModal] = useState({ isVisible: false, message: '', onConfirm: () => {}, onCancel: () => {}, type: 'info' });
-  const [isLoading, setIsLoading] = useState(true); // Estado de carregamento
+  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
-  const [selectedCharIdState, setSelectedCharIdState] = useState(null); // ID do personagem atualmente selecionado
-  const [ownerUidState, setOwnerUidState] = useState(null); // UID do proprietário do personagem selecionado
-  const [viewingAllCharacters, setViewingAllCharacters] = useState(false); // Se o mestre está vendo todas as fichas
+  // Estado para visibilidade e conteúdo do modal
+  const [modal, setModal] = useState({
+    isVisible: false,
+    message: '',
+    type: '',
+    onConfirm: () => {},
+    onCancel: () => {},
+  });
+
+  // Estado para indicador de carregamento
+  const [isLoading, setIsLoading] = useState(false);
 
   // Estado para o valor de Zeni a ser adicionado/removido
   const [zeniAmount, setZeniAmount] = useState(0);
 
-  // Ref para o input de arquivo para acioná-lo programaticamente (importação JSON)
+  // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
+
+  // Estados para controlar o colapso das seções
+  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false); // Mantido o nome original para evitar conflito
+  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); // Mantido o nome original para evitar conflito
+  const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
+  const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
+  const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
+  const [isWalletCollapsed, setIsWalletCollapsed] = useState(false);
+  const [isPerksCollapsed, setIsPerksCollapsed] = useState(false);
+  const [isAbilitiesCollapsed, setIsAbilitiesCollapsed] = useState(false);
+  const [isSpecializationsCollapsed, setIsSpecializationsCollapsed] = useState(false);
+  const [isEquippedItemsCollapsed, setIsEquippedItemsCollapsed] = useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
 
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
@@ -165,73 +183,41 @@ export default function App() {
     outro: '🪄',
   };
 
-  // Estados para controlar o colapso das seções
-  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false);
-  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false);
-  const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
-  const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
-  const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
-  const [isWalletCollapsed, setIsWalletCollapsed] = useState(false);
-  const [isPerksCollapsed, setIsPerksCollapsed] = useState(false);
-  const [isAbilitiesCollapsed, setIsAbilitiesCollapsed] = useState(false);
-  const [isSpecializationsCollapsed, setIsSpecializationsCollapsed] = useState(false);
-  const [isEquippedItemsCollapsed, setIsEquippedItemsCollapsed] = useState(false);
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
-  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
-
-  // Inicialização do Firebase e autenticação
+  // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
-      const firebaseApp = initializeApp(firebaseConfig);
-      const firestoreDb = getFirestore(firebaseApp);
-      const firebaseAuth = getAuth(firebaseApp);
+      const app = initializeApp(firebaseConfig);
+      const authInstance = getAuth(app);
+      const firestoreInstance = getFirestore(app);
+      setAuth(authInstance);
+      setDb(firestoreInstance);
 
-      setApp(firebaseApp);
-      setDb(firestoreDb);
-      setAuth(firebaseAuth);
-
-      const unsubscribe = onAuthStateChanged(firebaseAuth, async (currentUser) => {
-        if (currentUser) {
-          setUser(currentUser);
-          setUserId(currentUser.uid);
-          console.log("Usuário autenticado:", currentUser.uid);
-
-          // Verifica se o usuário é mestre
-          const masterDocRef = doc(firestoreDb, `artifacts/${appId}/users/${currentUser.uid}`);
-          const masterSnap = await getDoc(masterDocRef);
-          setIsMaster(masterSnap.exists() && masterSnap.data()?.isMaster === true);
-          console.log("É mestre?", masterSnap.exists() && masterSnap.data()?.isMaster === true);
-
-        } else {
-          // Se não houver usuário logado, tenta login anônimo ou usa o token inicial
-          if (initialAuthToken) {
-            await signInWithCustomToken(firebaseAuth, initialAuthToken);
-            console.log("Login com token inicial.");
-          } else {
-            await signInAnonymously(firebaseAuth);
-            console.log("Login anônimo.");
-          }
-          setUser(null);
-          setUserId(firebaseAuth.currentUser?.uid || crypto.randomUUID()); // Usa UID anônimo ou random para não autenticados
+      const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
+        setUser(currentUser);
+        setIsAuthReady(true);
+        if (!currentUser) {
+          setCharacter(null);
+          setCharactersList([]);
+          // Limpar selectedCharIdState e ownerUidState ao deslogar
+          setSelectedCharIdState(null);
+          setOwnerUidState(null);
+          window.history.pushState({}, '', window.location.pathname);
+          setViewingAllCharacters(false);
           setIsMaster(false);
         }
-        setIsAuthReady(true);
-        setIsLoading(false);
       });
-
-      return () => unsubscribe(); // Limpa o listener ao desmontar
+      return () => unsubscribe();
     } catch (error) {
-      console.error("Erro ao inicializar Firebase ou autenticar:", error);
-      setIsLoading(false);
+      console.error("Erro ao inicializar Firebase:", error);
       setModal({
         isVisible: true,
-        message: `Erro ao iniciar o aplicativo: ${error.message}. Por favor, tente novamente.`,
+        message: `Erro ao inicializar o aplicativo. Verifique a configuração do Firebase. Detalhes: ${error.message}`,
         type: 'info',
-        onConfirm: () => setModal({ ...modal, isVisible: false }),
-        onCancel: () => setModal({ ...modal, isVisible: false }),
+        onConfirm: () => {},
+        onCancel: () => {},
       });
     }
-  }, [appId, firebaseConfig, initialAuthToken]);
+  }, [firebaseConfig]);
 
   // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
   useEffect(() => {
@@ -241,6 +227,27 @@ export default function App() {
     setSelectedCharIdState(initialCharId);
     setOwnerUidState(initialOwnerUid);
   }, []); // Executa apenas uma vez no carregamento inicial
+
+  // Efeito para carregar o papel do usuário (mestre/jogador) do Firestore
+  useEffect(() => {
+    let unsubscribeRole = () => {};
+    if (db && user && isAuthReady) {
+      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
+      unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().isMaster === true) {
+          setIsMaster(true);
+        } else {
+          setIsMaster(false);
+        }
+      }, (error) => {
+        console.error("Erro ao carregar papel do usuário:", error);
+        setIsMaster(false);
+      });
+    } else {
+      setIsMaster(false);
+    }
+    return () => unsubscribeRole();
+  }, [db, user, isAuthReady, appId]);
 
   // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
@@ -492,7 +499,6 @@ export default function App() {
           dataToSave.id = selectedCharIdState; // Usando o estado
           dataToSave.ownerUid = targetUidForSave;
 
-          // Serializa os objetos e arrays para JSON strings antes de salvar
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -589,28 +595,20 @@ export default function App() {
   };
 
   // Função genérica para alternar o estado de colapso de um item em uma lista
-  const toggleItemCollapsed = useCallback((listName, id) => {
-    setCharacter(prevChar => ({
-        ...prevChar,
-        [listName]: (prevChar[listName] || []).map(item => {
-            if (item.id === id) {
-                return { ...item, isCollapsed: !item.isCollapsed };
-            }
-            return item;
-        }),
-    }));
-  }, []);
-
-  // Lida com a adição de itens ao inventário (sem pop-up)
-  const handleAddItem = useCallback(() => {
-    setCharacter(prevChar => {
-      const updatedInventory = [...(prevChar.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false }];
-      return { ...prevChar, inventory: updatedInventory };
-    });
-  }, []);
+  const toggleItemCollapsed = (listName, id) => {
+  setCharacter(prevChar => ({
+    ...prevChar,
+    [listName]: (prevChar[listName] || []).map(item =>
+      item.id === id
+        ? { ...item, isCollapsed: !item.isCollapsed }
+        : item
+    )
+  }));
+};
+  };
 
   // Lida com a edição de itens no inventário
-  const handleInventoryItemChange = useCallback((id, field, value) => {
+  const handleInventoryItemChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedInventory = [...(prevChar.inventory || [])];
       const itemIndex = updatedInventory.findIndex(item => item.id === id);
@@ -619,15 +617,15 @@ export default function App() {
       }
       return { ...prevChar, inventory: updatedInventory };
     });
-  }, []);
+  };
 
   // Lida com a remoção de itens do inventário
-  const handleRemoveItem = useCallback((idToRemove) => {
+  const handleRemoveItem = (idToRemove) => {
     setCharacter(prevChar => {
       const updatedInventory = (prevChar.inventory || []).filter(item => item.id !== idToRemove);
       return { ...prevChar, inventory: updatedInventory };
     });
-  }, []);
+  };
 
   // Lida com a mudança de Zeni
   const handleZeniChange = (e) => {
@@ -635,33 +633,33 @@ export default function App() {
   };
 
   // Lida com a adição de Zeni
-  const handleAddZeni = useCallback(() => {
+  const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
       wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: (prevChar.wallet.zeni || 0) + zeniAmount },
     }));
     setZeniAmount(0);
-  }, [zeniAmount]);
+  };
 
   // Lida com a remoção de Zeni
-  const handleRemoveZeni = useCallback(() => {
+  const handleRemoveZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
       wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: Math.max(0, (prevChar.wallet.zeni || 0) - zeniAmount) },
     }));
     setZeniAmount(0);
-  }, [zeniAmount]);
+  };
 
   // Lida com a adição de Vantagem/Desvantagem (sem pop-up para nome/descrição)
-  const handleAddPerk = useCallback((type) => {
+  const handleAddPerk = (type) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || []), { id: crypto.randomUUID(), name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0, isCollapsed: false }];
       return { ...prevChar, [type]: updatedPerks };
     });
-  }, []);
+  };
 
   // Lida com a edição de Vantagem/Desvantagem
-  const handlePerkChange = useCallback((type, id, field, value) => {
+  const handlePerkChange = (type, id, field, value) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
       const perkIndex = updatedPerks.findIndex(perk => perk.id === id);
@@ -674,18 +672,18 @@ export default function App() {
       }
       return { ...prevChar, [type]: updatedPerks };
     });
-  }, []);
+  };
 
   // Lida com a remoção de Vantagem/Desvantagem
-  const handleRemovePerk = useCallback((type, idToRemove) => {
+  const handleRemovePerk = (type, idToRemove) => {
     setCharacter(prevChar => {
       const updatedPerks = (prevChar[type] || []).filter(perk => perk.id !== idToRemove);
       return { ...prevChar, [type]: updatedPerks };
     });
-  }, []);
+  };
 
   // Lida com a mudança de origem da Vantagem/Desvantagem
-  const handlePerkOriginChange = useCallback((type, id, originType) => {
+  const handlePerkOriginChange = (type, id, originType) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
       const perkIndex = updatedPerks.findIndex(perk => perk.id === id);
@@ -694,18 +692,18 @@ export default function App() {
       }
       return { ...prevChar, [type]: updatedPerks };
     });
-  }, []);
+  };
 
   // Lida com a adição de Habilidade (Classe/Raça/Customizada) (sem pop-up)
-  const handleAddAbility = useCallback(() => {
+  const handleAddAbility = () => {
     setCharacter(prevChar => {
       const updatedAbilities = [...(prevChar.abilities || []), { id: crypto.randomUUID(), title: '', description: '', isCollapsed: false }];
       return { ...prevChar, abilities: updatedAbilities };
     });
-  }, []);
+  };
 
   // Lida com a edição de Habilidade
-  const handleAbilityChange = useCallback((id, field, value) => {
+  const handleAbilityChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedAbilities = [...(prevChar.abilities || [])];
       const abilityIndex = updatedAbilities.findIndex(ability => ability.id === id);
@@ -714,34 +712,34 @@ export default function App() {
       }
       return { ...prevChar, abilities: updatedAbilities };
     });
-  }, []);
+  };
 
   // Lida com a remoção de Habilidade
-  const handleRemoveAbility = useCallback((idToRemove) => {
+  const handleRemoveAbility = (idToRemove) => {
     setCharacter(prevChar => {
       const updatedAbilities = (prevChar.abilities || []).filter(ability => ability.id !== idToRemove);
       return { ...prevChar, abilities: updatedAbilities };
     });
-  }, []);
+  };
 
   // Lida com a adição de Especialização (sem pop-up para nome)
-  const handleAddSpecialization = useCallback(() => {
+  const handleAddSpecialization = () => {
     setCharacter(prevChar => {
       const updatedSpecializations = [...(prevChar.specializations || []), { id: crypto.randomUUID(), name: '', modifier: 0, bonus: 0, isCollapsed: false }];
       return { ...prevChar, specializations: updatedSpecializations };
     });
-  }, []);
+  };
 
   // Lida com a remoção de Especialização
-  const handleRemoveSpecialization = useCallback((idToRemove) => {
+  const handleRemoveSpecialization = (idToRemove) => {
     setCharacter(prevChar => {
       const updatedSpecializations = (prevChar.specializations || []).filter(spec => spec.id !== idToRemove);
       return { ...prevChar, specializations: updatedSpecializations };
     });
-  }, []);
+  };
 
   // Lida com a mudança de nome, modificador ou bônus da Especialização
-  const handleSpecializationChange = useCallback((id, field, value) => {
+  const handleSpecializationChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
       const specIndex = updatedSpecs.findIndex(spec => spec.id === id);
@@ -754,18 +752,18 @@ export default function App() {
       }
       return { ...prevChar, specializations: updatedSpecs };
     });
-  }, []);
+  };
 
   // Lida com a adição de Item Equipado (sem pop-up para nome/descrição/atributos)
-  const handleAddEquippedItem = useCallback(() => {
+  const handleAddEquippedItem = () => {
     setCharacter(prevChar => {
       const updatedEquippedItems = [...(prevChar.equippedItems || []), { id: crypto.randomUUID(), name: '', description: '', attributes: '', isCollapsed: false }];
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
-  }, []);
+  };
 
   // Lida com a edição de Item Equipado
-  const handleEquippedItemChange = useCallback((id, field, value) => {
+  const handleEquippedItemChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = [...(prevChar.equippedItems || [])];
       const itemIndex = updatedEquippedItems.findIndex(item => item.id === id);
@@ -774,15 +772,15 @@ export default function App() {
       }
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
-  }, []);
+  };
 
   // Lida com a remoção de Item Equipado
-  const handleRemoveEquippedItem = useCallback((idToRemove) => {
+  const handleRemoveEquippedItem = (idToRemove) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = (prevChar.equippedItems || []).filter(item => item.id !== idToRemove);
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
-  }, []);
+  };
 
   // Lida com a mudança de texto para Anotações
   const handleNotesChange = (e) => {
@@ -794,7 +792,7 @@ export default function App() {
   };
 
   // Funções para a nova seção de História Modular
-  const addHistoryBlock = useCallback((type) => {
+  const addHistoryBlock = (type) => {
     if (type === 'text') {
       setCharacter(prevChar => ({
         ...prevChar,
@@ -819,10 +817,10 @@ export default function App() {
         },
       });
     }
-  }, []);
+  };
 
   // Atualiza um campo específico de um bloco de história
-  const updateHistoryBlock = useCallback((id, field, value) => {
+  const updateHistoryBlock = (id, field, value) => {
     setCharacter(prevChar => ({
       ...prevChar,
       history: (prevChar.history || []).map(block => {
@@ -838,14 +836,14 @@ export default function App() {
         return block;
       }),
     }));
-  }, []);
+  };
 
-  const removeHistoryBlock = useCallback((idToRemove) => {
+  const removeHistoryBlock = (idToRemove) => {
     setCharacter(prevChar => ({
       ...prevChar,
       history: (prevChar.history || []).filter(block => block.id !== idToRemove),
     }));
-  }, []);
+  };
 
   // Funções para Drag-and-Drop na História
   const draggedItemRef = useRef(null);
@@ -881,7 +879,7 @@ export default function App() {
   };
 
   // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
-  const handleReset = useCallback(() => {
+  const handleReset = () => {
     setModal({
       isVisible: true,
       message: 'Tem certeza que deseja resetar a ficha? Todos os dados serão perdidos. (Esta ação NÃO exclui a ficha do banco de dados)',
@@ -898,10 +896,10 @@ export default function App() {
       },
       onCancel: () => {},
     });
-  }, []);
+  };
 
   // Função para exportar os dados do personagem como JSON
-  const handleExportJson = useCallback(() => {
+  const handleExportJson = () => {
     if (!character) {
       setModal({ isVisible: true, message: 'Nenhum personagem selecionado para exportar.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
@@ -916,15 +914,15 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [character]);
+  };
 
   // Função para acionar o input de arquivo para importação de JSON
-  const handleImportJsonClick = useCallback(() => {
+  const handleImportJsonClick = () => {
     fileInputRef.current.click();
-  }, []);
+  };
 
   // Função para lidar com a importação de arquivo JSON
-  const handleFileChange = useCallback((event) => {
+  const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -984,7 +982,6 @@ export default function App() {
                   notes: importedData.notes || '',
                 };
 
-                // Garante que a propriedade isCollapsed esteja presente e seja false por padrão
                 importedCharacterData.history = importedCharacterData.history.map(block => {
                   if (block.type === 'image') {
                     return {
@@ -992,10 +989,10 @@ export default function App() {
                       width: block.width !== undefined ? block.width : '',
                       height: block.height !== undefined ? block.height : '',
                       fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
-                      isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false,
+                      isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false, // Adicionado para importação
                     };
                   }
-                  return { ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false };
+                  return { ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false }; // Adicionado para importação
                 });
                 importedCharacterData.inventory = importedCharacterData.inventory.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
                 importedCharacterData.advantages = importedCharacterData.advantages.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
@@ -1055,10 +1052,10 @@ export default function App() {
       };
       reader.readAsText(file);
     }
-  }, [db, user, appId, fetchCharactersList]);
+  };
 
   // Função para criar um novo personagem
-  const handleCreateNewCharacter = useCallback(() => {
+  const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
       message: 'Digite o nome do novo personagem:',
@@ -1127,27 +1124,27 @@ export default function App() {
         setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
       },
     });
-  }, [db, user, appId, fetchCharactersList]);
+  };
 
   // Função para selecionar um personagem da lista
-  const handleSelectCharacter = useCallback((charId, ownerUid) => {
+  const handleSelectCharacter = (charId, ownerUid) => {
     setSelectedCharIdState(charId); // Define o estado
     setOwnerUidState(ownerUid); // Define o estado
     window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
     setViewingAllCharacters(false);
-  }, []);
+  };
 
   // Função para voltar para a lista de personagens
-  const handleBackToList = useCallback(() => {
+  const handleBackToList = () => {
     setSelectedCharIdState(null); // Limpa o estado
     setOwnerUidState(null); // Limpa o estado
     window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
-  }, [fetchCharactersList]);
+  };
 
   // Função para excluir um personagem (mudado para deleteDoc)
-  const handleDeleteCharacter = useCallback((charId, charName, ownerUid) => {
+  const handleDeleteCharacter = (charId, charName, ownerUid) => {
     setModal({
       isVisible: true,
       message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'? Esta ação é irreversível.`,
@@ -1177,10 +1174,10 @@ export default function App() {
       },
       onCancel: () => {},
     });
-  }, [db, user, isMaster, appId, fetchCharactersList]);
+  };
 
   // --- Funções de Autenticação com Google ---
-  const handleGoogleSignIn = useCallback(async () => {
+  const handleGoogleSignIn = async () => {
     if (!auth) {
       setModal({ isVisible: true, message: 'Firebase Auth não inicializado.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
       return;
@@ -1204,9 +1201,9 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth]);
+  };
 
-  const handleSignOut = useCallback(async () => {
+  const handleSignOut = async () => {
     if (!auth) return;
     setIsLoading(true);
     try {
@@ -1225,13 +1222,13 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth]);
+  };
 
   // Função auxiliar para alternar o estado de colapso de uma seção
-  const toggleSection = useCallback((setter) => setter(prev => !prev), []);
+  const toggleSection = (setter) => setter(prev => !prev);
 
   // Lida com o clique na foto ou no botão '+' para alterar/adicionar URL da foto
-  const handlePhotoUrlClick = useCallback(() => {
+  const handlePhotoUrlClick = () => {
     if (user.uid !== character.ownerUid && !isMaster) {
       // Se não for o proprietário ou mestre, não faz nada ao clicar na imagem/botão
       return;
@@ -1251,7 +1248,7 @@ export default function App() {
         setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
       },
     });
-  }, [user, character, isMaster]);
+  };
 
   // Função para truncar o texto para as primeiras duas linhas
   const truncateText = (text, maxLines = 2) => {
@@ -1663,7 +1660,7 @@ export default function App() {
             </section>
 
             {/* Inventário */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsInventoryCollapsed)}
@@ -1788,7 +1785,7 @@ export default function App() {
             </section>
 
             {/* Vantagens e Desvantagens */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsPerksCollapsed)}
@@ -1998,7 +1995,7 @@ export default function App() {
             </section>
 
             {/* Habilidades de Classe/Raça e Customizadas */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsAbilitiesCollapsed)}
@@ -2086,7 +2083,7 @@ export default function App() {
             </section>
 
             {/* Especializações (Perícias) */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsSpecializationsCollapsed)}
@@ -2191,7 +2188,7 @@ export default function App() {
             </section>
 
             {/* Itens Equipados */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleSection(setIsEquippedItemsCollapsed)}
@@ -2520,4 +2517,6 @@ export default function App() {
       )}
     </div>
   );
-}
+};
+
+export default App;
