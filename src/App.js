@@ -1224,7 +1224,7 @@ const App = () => {
     }
     setModal({
       isVisible: true,
-      message: 'Enter new image URL or leave blank to remove:',
+      message: 'Adicione a URL da imagem, ou deixe em branco para remover.',
       type: 'prompt',
       onConfirm: (newUrl) => {
         setCharacter(prevChar => ({
