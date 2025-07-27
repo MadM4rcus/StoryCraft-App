@@ -134,7 +134,7 @@ const App = () => {
 
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
-    forca: '�',
+    forca: '💪',
     destreza: '🏃‍♂️',
     inteligencia: '🧠',
     constituicao: '❤️‍🩹',
