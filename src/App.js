@@ -401,13 +401,15 @@ const App = () => {
               deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
               deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
               deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
-              deserializedData.inventory = typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory;
+              
+              // Deserialização e adição de isCollapsed para todas as listas
+              deserializedData.inventory = (typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
               deserializedData.wallet = typeof deserializedData.wallet === 'string' ? JSON.parse(deserializedData.wallet) : deserializedData.wallet;
-              deserializedData.advantages = typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages;
-              deserializedData.disadvantages = typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages;
-              deserializedData.abilities = typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities;
-              deserializedData.specializations = typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations;
-              deserializedData.equippedItems = typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems;
+              deserializedData.advantages = (typeof deserializedData.advantages === 'string' ? JSON.parse(deserializedData.advantages) : deserializedData.advantages || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+              deserializedData.disadvantages = (typeof deserializedData.disadvantages === 'string' ? JSON.parse(deserializedData.disadvantages) : deserializedData.disadvantages || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+              deserializedData.abilities = (typeof deserializedData.abilities === 'string' ? JSON.parse(deserializedData.abilities) : deserializedData.abilities || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+              deserializedData.specializations = (typeof deserializedData.specializations === 'string' ? JSON.parse(deserializedData.specializations) : deserializedData.specializations || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+              deserializedData.equippedItems = (typeof deserializedData.equippedItems === 'string' ? JSON.parse(deserializedData.equippedItems) : deserializedData.equippedItems || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
               
               let historyData = deserializedData.history;
               if (typeof historyData === 'string') {
@@ -417,19 +419,7 @@ const App = () => {
                   historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }];
                 }
               }
-              deserializedData.history = Array.isArray(historyData) ? historyData : [];
-
-              deserializedData.history = deserializedData.history.map(block => {
-                if (block.type === 'image') {
-                  return {
-                    ...block,
-                    width: block.width !== undefined ? block.width : '',
-                    height: block.height !== undefined ? block.height : '',
-                    fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
-                  };
-                }
-                return block;
-              });
+              deserializedData.history = Array.isArray(historyData) ? historyData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
 
             } catch (e) {
               console.error("Erro ao deserializar dados do Firestore:", e);
@@ -604,29 +594,43 @@ const App = () => {
     });
   };
 
+  // Função genérica para alternar o estado de colapso de um item em uma lista
+  const toggleItemCollapsed = (listName, id) => {
+    setCharacter(prevChar => ({
+        ...prevChar,
+        [listName]: (prevChar[listName] || []).map(item => {
+            if (item.id === id) {
+                return { ...item, isCollapsed: !item.isCollapsed };
+            }
+            return item;
+        }),
+    }));
+  };
+
   // Lida com a adição de itens ao inventário (sem pop-up)
   const handleAddItem = () => {
     setCharacter(prevChar => {
-      const updatedInventory = [...(prevChar.inventory || []), { name: '', description: '' }];
+      const updatedInventory = [...(prevChar.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false }];
       return { ...prevChar, inventory: updatedInventory };
     });
   };
 
   // Lida com a edição de itens no inventário
-  const handleInventoryItemChange = (index, field, value) => {
+  const handleInventoryItemChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedInventory = [...(prevChar.inventory || [])];
-      if (updatedInventory[index]) {
-        updatedInventory[index][field] = value;
+      const itemIndex = updatedInventory.findIndex(item => item.id === id);
+      if (itemIndex !== -1) {
+        updatedInventory[itemIndex][field] = value;
       }
       return { ...prevChar, inventory: updatedInventory };
     });
   };
 
   // Lida com a remoção de itens do inventário
-  const handleRemoveItem = (indexToRemove) => {
+  const handleRemoveItem = (idToRemove) => {
     setCharacter(prevChar => {
-      const updatedInventory = (prevChar.inventory || []).filter((_, index) => index !== indexToRemove);
+      const updatedInventory = (prevChar.inventory || []).filter(item => item.id !== idToRemove);
       return { ...prevChar, inventory: updatedInventory };
     });
   };
@@ -657,20 +661,21 @@ const App = () => {
   // Lida com a adição de Vantagem/Desvantagem (sem pop-up para nome/descrição)
   const handleAddPerk = (type) => {
     setCharacter(prevChar => {
-      const updatedPerks = [...(prevChar[type] || []), { name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0 }];
+      const updatedPerks = [...(prevChar[type] || []), { id: crypto.randomUUID(), name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0, isCollapsed: false }];
       return { ...prevChar, [type]: updatedPerks };
     });
   };
 
   // Lida com a edição de Vantagem/Desvantagem
-  const handlePerkChange = (type, index, field, value) => {
+  const handlePerkChange = (type, id, field, value) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
-      if (updatedPerks[index]) {
+      const perkIndex = updatedPerks.findIndex(perk => perk.id === id);
+      if (perkIndex !== -1) {
         if (field === 'value') {
-          updatedPerks[index][field] = parseInt(value, 10) || 0;
+          updatedPerks[perkIndex][field] = parseInt(value, 10) || 0;
         } else {
-          updatedPerks[index][field] = value;
+          updatedPerks[perkIndex][field] = value;
         }
       }
       return { ...prevChar, [type]: updatedPerks };
@@ -678,19 +683,20 @@ const App = () => {
   };
 
   // Lida com a remoção de Vantagem/Desvantagem
-  const handleRemovePerk = (type, indexToRemove) => {
+  const handleRemovePerk = (type, idToRemove) => {
     setCharacter(prevChar => {
-      const updatedPerks = (prevChar[type] || []).filter((_, index) => index !== indexToRemove);
+      const updatedPerks = (prevChar[type] || []).filter(perk => perk.id !== idToRemove);
       return { ...prevChar, [type]: updatedPerks };
     });
   };
 
   // Lida com a mudança de origem da Vantagem/Desvantagem
-  const handlePerkOriginChange = (type, index, originType) => {
+  const handlePerkOriginChange = (type, id, originType) => {
     setCharacter(prevChar => {
       const updatedPerks = [...(prevChar[type] || [])];
-      if (updatedPerks[index]) {
-        updatedPerks[index].origin[originType] = !updatedPerks[index].origin[originType];
+      const perkIndex = updatedPerks.findIndex(perk => perk.id === id);
+      if (perkIndex !== -1) {
+        updatedPerks[perkIndex].origin[originType] = !updatedPerks[perkIndex].origin[originType];
       }
       return { ...prevChar, [type]: updatedPerks };
     });
@@ -699,26 +705,27 @@ const App = () => {
   // Lida com a adição de Habilidade (Classe/Raça/Customizada) (sem pop-up)
   const handleAddAbility = () => {
     setCharacter(prevChar => {
-      const updatedAbilities = [...(prevChar.abilities || []), { title: '', description: '' }];
+      const updatedAbilities = [...(prevChar.abilities || []), { id: crypto.randomUUID(), title: '', description: '', isCollapsed: false }];
       return { ...prevChar, abilities: updatedAbilities };
     });
   };
 
   // Lida com a edição de Habilidade
-  const handleAbilityChange = (index, field, value) => {
+  const handleAbilityChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedAbilities = [...(prevChar.abilities || [])];
-      if (updatedAbilities[index]) {
-        updatedAbilities[index][field] = value;
+      const abilityIndex = updatedAbilities.findIndex(ability => ability.id === id);
+      if (abilityIndex !== -1) {
+        updatedAbilities[abilityIndex][field] = value;
       }
       return { ...prevChar, abilities: updatedAbilities };
     });
   };
 
   // Lida com a remoção de Habilidade
-  const handleRemoveAbility = (indexToRemove) => {
+  const handleRemoveAbility = (idToRemove) => {
     setCharacter(prevChar => {
-      const updatedAbilities = (prevChar.abilities || []).filter((_, index) => index !== indexToRemove);
+      const updatedAbilities = (prevChar.abilities || []).filter(ability => ability.id !== idToRemove);
       return { ...prevChar, abilities: updatedAbilities };
     });
   };
@@ -726,28 +733,29 @@ const App = () => {
   // Lida com a adição de Especialização (sem pop-up para nome)
   const handleAddSpecialization = () => {
     setCharacter(prevChar => {
-      const updatedSpecializations = [...(prevChar.specializations || []), { name: '', modifier: 0, bonus: 0 }];
+      const updatedSpecializations = [...(prevChar.specializations || []), { id: crypto.randomUUID(), name: '', modifier: 0, bonus: 0, isCollapsed: false }];
       return { ...prevChar, specializations: updatedSpecializations };
     });
   };
 
   // Lida com a remoção de Especialização
-  const handleRemoveSpecialization = (indexToRemove) => {
+  const handleRemoveSpecialization = (idToRemove) => {
     setCharacter(prevChar => {
-      const updatedSpecializations = (prevChar.specializations || []).filter((_, index) => index !== indexToRemove);
+      const updatedSpecializations = (prevChar.specializations || []).filter(spec => spec.id !== idToRemove);
       return { ...prevChar, specializations: updatedSpecializations };
     });
   };
 
   // Lida com a mudança de nome, modificador ou bônus da Especialização
-  const handleSpecializationChange = (index, field, value) => {
+  const handleSpecializationChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedSpecs = [...(prevChar.specializations || [])];
-      if (updatedSpecs[index]) {
+      const specIndex = updatedSpecs.findIndex(spec => spec.id === id);
+      if (specIndex !== -1) {
         if (field === 'name') {
-          updatedSpecs[index][field] = value;
+          updatedSpecs[specIndex][field] = value;
         } else {
-          updatedSpecs[index][field] = parseInt(value, 10) || 0;
+          updatedSpecs[specIndex][field] = parseInt(value, 10) || 0;
         }
       }
       return { ...prevChar, specializations: updatedSpecs };
@@ -757,26 +765,27 @@ const App = () => {
   // Lida com a adição de Item Equipado (sem pop-up para nome/descrição/atributos)
   const handleAddEquippedItem = () => {
     setCharacter(prevChar => {
-      const updatedEquippedItems = [...(prevChar.equippedItems || []), { name: '', description: '', attributes: '' }];
+      const updatedEquippedItems = [...(prevChar.equippedItems || []), { id: crypto.randomUUID(), name: '', description: '', attributes: '', isCollapsed: false }];
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
   };
 
   // Lida com a edição de Item Equipado
-  const handleEquippedItemChange = (index, field, value) => {
+  const handleEquippedItemChange = (id, field, value) => {
     setCharacter(prevChar => {
       const updatedEquippedItems = [...(prevChar.equippedItems || [])];
-      if (updatedEquippedItems[index]) {
-        updatedEquippedItems[index][field] = value;
+      const itemIndex = updatedEquippedItems.findIndex(item => item.id === id);
+      if (itemIndex !== -1) {
+        updatedEquippedItems[itemIndex][field] = value;
       }
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
   };
 
   // Lida com a remoção de Item Equipado
-  const handleRemoveEquippedItem = (indexToRemove) => {
+  const handleRemoveEquippedItem = (idToRemove) => {
     setCharacter(prevChar => {
-      const updatedEquippedItems = (prevChar.equippedItems || []).filter((_, index) => index !== indexToRemove);
+      const updatedEquippedItems = (prevChar.equippedItems || []).filter(item => item.id !== idToRemove);
       return { ...prevChar, equippedItems: updatedEquippedItems };
     });
   };
@@ -795,7 +804,7 @@ const App = () => {
     if (type === 'text') {
       setCharacter(prevChar => ({
         ...prevChar,
-        history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'text', value: '' }],
+        history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'text', value: '', isCollapsed: false }],
       }));
     } else if (type === 'image') {
       setModal({
@@ -806,7 +815,7 @@ const App = () => {
           if (url) {
             setCharacter(prevChar => ({
               ...prevChar,
-              history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true }],
+              history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true, isCollapsed: false }],
             }));
           }
           setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -824,6 +833,9 @@ const App = () => {
       ...prevChar,
       history: (prevChar.history || []).map(block => {
         if (block.id === id) {
+          if (field === 'isCollapsed') {
+            return { ...block, isCollapsed: value };
+          }
           if (block.type === 'image' && (field === 'width' || field === 'height')) {
             return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
           }
@@ -985,10 +997,18 @@ const App = () => {
                       width: block.width !== undefined ? block.width : '',
                       height: block.height !== undefined ? block.height : '',
                       fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                      isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false, // Adicionado para importação
                     };
                   }
-                  return block;
+                  return { ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false }; // Adicionado para importação
                 });
+                importedCharacterData.inventory = importedCharacterData.inventory.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                importedCharacterData.advantages = importedCharacterData.advantages.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                importedCharacterData.disadvantages = importedCharacterData.disadvantages.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                importedCharacterData.abilities = importedCharacterData.abilities.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                importedCharacterData.specializations = importedCharacterData.specializations.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                importedCharacterData.equippedItems = importedCharacterData.equippedItems.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+
 
                 try {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
@@ -1065,6 +1085,16 @@ const App = () => {
               magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
             };
+
+            // Define isCollapsed como false para todos os arrays de itens
+            newCharacterData.inventory = newCharacterData.inventory.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.advantages = newCharacterData.advantages.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.disadvantages = newCharacterData.disadvantages.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.abilities = newCharacterData.abilities.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.specializations = newCharacterData.specializations.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.equippedItems = newCharacterData.equippedItems.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.history = newCharacterData.history.map(item => ({ ...item, isCollapsed: false }));
+
 
             setCharacter(newCharacterData);
             setSelectedCharIdState(newCharId); // Define o estado
@@ -1227,6 +1257,17 @@ const App = () => {
       },
     });
   };
+
+  // Função para truncar o texto para as primeiras duas linhas
+  const truncateText = (text, maxLines = 2) => {
+    if (!text) return '';
+    const lines = text.split('\n');
+    if (lines.length <= maxLines) {
+      return text;
+    }
+    return lines.slice(0, maxLines).join('\n') + '...';
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
@@ -1648,33 +1689,60 @@ const App = () => {
                     {character.inventory.length === 0 ? (
                       <li className="text-gray-400 italic">Nenhum item no inventário.</li>
                     ) : (
-                      character.inventory.map((item, index) => (
-                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.inventory.map((item) => (
+                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <input
-                              type="text"
-                              value={item.name}
-                              onChange={(e) => handleInventoryItemChange(index, 'name', e.target.value)}
-                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              placeholder="Nome do Item"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
+                            {item.isCollapsed ? (
+                              <span 
+                                className="font-semibold text-lg w-full cursor-pointer text-white"
+                                onClick={() => toggleItemCollapsed('inventory', item.id)}
+                              >
+                                {item.name || 'Item Sem Nome'}
+                              </span>
+                            ) : (
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)}
+                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                placeholder="Nome do Item"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                            )}
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
-                                onClick={() => handleRemoveItem(index)}
+                                onClick={() => handleRemoveItem(item.id)}
                                 className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                               >
                                 Remover
                               </button>
                             )}
                           </div>
-                          <AutoResizingTextarea
-                            value={item.description}
-                            onChange={(e) => handleInventoryItemChange(index, 'description', e.target.value)}
-                            placeholder="Descrição do item"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                            disabled={user.uid !== character.ownerUid && !isMaster}
-                          />
+                          {!item.isCollapsed && (
+                            <>
+                              <AutoResizingTextarea
+                                value={item.description}
+                                onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)}
+                                placeholder="Descrição do item"
+                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <button
+                                onClick={() => toggleItemCollapsed('inventory', item.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                              >
+                                Ocultar Item
+                              </button>
+                            </>
+                          )}
+                          {item.isCollapsed && (
+                            <button
+                                onClick={() => toggleItemCollapsed('inventory', item.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                            >
+                                Exibir Item
+                            </button>
+                          )}
                         </li>
                       ))
                     )}
@@ -1745,53 +1813,80 @@ const App = () => {
                       {character.advantages.length === 0 ? (
                         <li className="text-gray-400 italic">Nenhuma vantagem.</li>
                       ) : (
-                        character.advantages.map((perk, index) => (
-                          <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                        character.advantages.map((perk) => (
+                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                             <div className="flex justify-between items-center mb-1">
-                              <input
-                                type="text"
-                                value={perk.name}
-                                onChange={(e) => handlePerkChange('advantages', index, 'name', e.target.value)}
-                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="Nome da Vantagem"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
+                              {perk.isCollapsed ? (
+                                <span 
+                                  className="font-semibold text-lg w-full cursor-pointer text-white"
+                                  onClick={() => toggleItemCollapsed('advantages', perk.id)}
+                                >
+                                  {perk.name || 'Vantagem Sem Nome'} (Valor: {perk.value})
+                                </span>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={perk.name}
+                                  onChange={(e) => handlePerkChange('advantages', perk.id, 'name', e.target.value)}
+                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Nome da Vantagem"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              )}
                               <input
                                 type="number"
                                 value={perk.value === 0 ? '' : perk.value}
-                                onChange={(e) => handlePerkChange('advantages', index, 'value', e.target.value)}
+                                onChange={(e) => handlePerkChange('advantages', perk.id, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                 placeholder="Valor"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
                                 <button
-                                  onClick={() => handleRemovePerk('advantages', index)}
+                                  onClick={() => handleRemovePerk('advantages', perk.id)}
                                   className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                                 >
                                   Remover
                                 </button>
                               )}
                             </div>
-                            <AutoResizingTextarea
-                              value={perk.description}
-                              onChange={(e) => handlePerkChange('advantages', index, 'description', e.target.value)}
-                              placeholder="Descrição da vantagem"
-                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
-                            <div className="flex gap-3 text-sm text-gray-400 mt-2">
-                              <span>Origem:</span>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('advantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
-                              </label>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('advantages', index, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
-                              </label>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('advantages', index, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
-                              </label>
-                            </div>
+                            {!perk.isCollapsed && (
+                              <>
+                                <AutoResizingTextarea
+                                  value={perk.description}
+                                  onChange={(e) => handlePerkChange('advantages', perk.id, 'description', e.target.value)}
+                                  placeholder="Descrição da vantagem"
+                                  className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                                <div className="flex gap-3 text-sm text-gray-400 mt-2">
+                                  <span>Origem:</span>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('advantages', perk.id, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
+                                  </label>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('advantages', perk.id, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
+                                  </label>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('advantages', perk.id, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
+                                  </label>
+                                </div>
+                                <button
+                                  onClick={() => toggleItemCollapsed('advantages', perk.id)}
+                                  className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                >
+                                  Ocultar Vantagem
+                                </button>
+                              </>
+                            )}
+                            {perk.isCollapsed && (
+                                <button
+                                    onClick={() => toggleItemCollapsed('advantages', perk.id)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                >
+                                    Exibir Vantagem
+                                </button>
+                            )}
                           </li>
                         ))
                       )}
@@ -1812,53 +1907,80 @@ const App = () => {
                       {character.disadvantages.length === 0 ? (
                         <li className="text-gray-400 italic">Nenhuma desvantagem.</li>
                       ) : (
-                        character.disadvantages.map((perk, index) => (
-                          <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                        character.disadvantages.map((perk) => (
+                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                             <div className="flex justify-between items-center mb-1">
-                              <input
-                                type="text"
-                                value={perk.name}
-                                onChange={(e) => handlePerkChange('disadvantages', index, 'name', e.target.value)}
-                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="Nome da Desvantagem"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
+                              {perk.isCollapsed ? (
+                                <span 
+                                  className="font-semibold text-lg w-full cursor-pointer text-white"
+                                  onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
+                                >
+                                  {perk.name || 'Desvantagem Sem Nome'} (Valor: {perk.value})
+                                </span>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={perk.name}
+                                  onChange={(e) => handlePerkChange('disadvantages', perk.id, 'name', e.target.value)}
+                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Nome da Desvantagem"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              )}
                               <input
                                 type="number"
                                 value={perk.value === 0 ? '' : perk.value}
-                                onChange={(e) => handlePerkChange('disadvantages', index, 'value', e.target.value)}
+                                onChange={(e) => handlePerkChange('disadvantages', perk.id, 'value', e.target.value)}
                                 className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
                                 placeholder="Valor"
                                 disabled={user.uid !== character.ownerUid && !isMaster}
                               />
                               {(user.uid === character.ownerUid || isMaster) && (
                                 <button
-                                  onClick={() => handleRemovePerk('disadvantages', index)}
+                                  onClick={() => handleRemovePerk('disadvantages', perk.id)}
                                   className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                                 >
                                   Remover
                                 </button>
                               )}
                             </div>
-                            <AutoResizingTextarea
-                              value={perk.description}
-                              onChange={(e) => handlePerkChange('disadvantages', index, 'description', e.target.value)}
-                              placeholder="Descrição da desvantagem"
-                              className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
-                            <div className="flex gap-3 text-sm text-gray-400 mt-2">
-                              <span>Origem:</span>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('disadvantages', index, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
-                              </label>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('disadvantages', index, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
-                              </label>
-                              <label className="flex items-center gap-1">
-                                <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('disadvantages', index, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
-                              </label>
-                            </div>
+                            {!perk.isCollapsed && (
+                              <>
+                                <AutoResizingTextarea
+                                  value={perk.description}
+                                  onChange={(e) => handlePerkChange('disadvantages', perk.id, 'description', e.target.value)}
+                                  placeholder="Descrição da desvantagem"
+                                  className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                                <div className="flex gap-3 text-sm text-gray-400 mt-2">
+                                  <span>Origem:</span>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
+                                  </label>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
+                                  </label>
+                                  <label className="flex items-center gap-1">
+                                    <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
+                                  </label>
+                                </div>
+                                <button
+                                  onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
+                                  className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                >
+                                  Ocultar Desvantagem
+                                </button>
+                              </>
+                            )}
+                            {perk.isCollapsed && (
+                                <button
+                                    onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                >
+                                    Exibir Desvantagem
+                                </button>
+                            )}
                           </li>
                         ))
                       )}
@@ -1890,33 +2012,60 @@ const App = () => {
                     {character.abilities.length === 0 ? (
                       <li className="text-gray-400 italic">Nenhuma habilidade adicionada.</li>
                     ) : (
-                      character.abilities.map((ability, index) => (
-                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.abilities.map((ability) => (
+                        <li key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <input
-                              type="text"
-                              value={ability.title}
-                              onChange={(e) => handleAbilityChange(index, 'title', e.target.value)}
-                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              placeholder="Título da Habilidade"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
+                            {ability.isCollapsed ? (
+                                <span 
+                                  className="font-semibold text-lg w-full cursor-pointer text-white"
+                                  onClick={() => toggleItemCollapsed('abilities', ability.id)}
+                                >
+                                  {ability.title || 'Habilidade Sem Título'}
+                                </span>
+                            ) : (
+                                <input
+                                  type="text"
+                                  value={ability.title}
+                                  onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)}
+                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Título da Habilidade"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                            )}
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
-                                onClick={() => handleRemoveAbility(index)}
+                                onClick={() => handleRemoveAbility(ability.id)}
                                 className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                               >
                                 Remover
                               </button>
                             )}
                           </div>
-                          <AutoResizingTextarea
-                            value={ability.description}
-                            onChange={(e) => handleAbilityChange(index, 'description', e.target.value)}
-                            placeholder="Descrição da habilidade"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                            disabled={user.uid !== character.ownerUid && !isMaster}
-                          />
+                          {!ability.isCollapsed && (
+                            <>
+                              <AutoResizingTextarea
+                                value={ability.description}
+                                onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)}
+                                placeholder="Descrição da habilidade"
+                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <button
+                                onClick={() => toggleItemCollapsed('abilities', ability.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                              >
+                                Ocultar Habilidade
+                              </button>
+                            </>
+                          )}
+                          {ability.isCollapsed && (
+                            <button
+                                onClick={() => toggleItemCollapsed('abilities', ability.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                            >
+                                Exibir Habilidade
+                            </button>
+                          )}
                         </li>
                       ))
                     )}
@@ -1947,50 +2096,77 @@ const App = () => {
                     {character.specializations.length === 0 ? (
                       <li className="text-gray-400 italic">Nenhuma especialização adicionada.</li>
                     ) : (
-                      character.specializations.map((spec, index) => (
-                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.specializations.map((spec) => (
+                        <li key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <input
-                              type="text"
-                              value={spec.name}
-                              onChange={(e) => handleSpecializationChange(index, 'name', e.target.value)}
-                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              placeholder="Nome da Especialização"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
+                            {spec.isCollapsed ? (
+                                <span 
+                                  className="font-semibold text-lg w-full cursor-pointer text-white"
+                                  onClick={() => toggleItemCollapsed('specializations', spec.id)}
+                                >
+                                  {spec.name || 'Especialização Sem Nome'} (Mod: {spec.modifier}, Bônus: {spec.bonus})
+                                </span>
+                            ) : (
+                                <input
+                                  type="text"
+                                  value={spec.name}
+                                  onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)}
+                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Nome da Especialização"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                            )}
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
-                                onClick={() => handleRemoveSpecialization(index)}
+                                onClick={() => handleRemoveSpecialization(spec.id)}
                                 className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                               >
                                 Remover
                               </button>
                             )}
                           </div>
-                          <div className="flex gap-4 mt-2 text-sm">
-                            <label className="flex items-center gap-1">
-                              Modificador:
-                              <input
-                                type="number"
-                                value={spec.modifier === 0 ? '' : spec.modifier}
-                                onChange={(e) => handleSpecializationChange(index, 'modifier', e.target.value)}
-                                className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="0"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                            </label>
-                            <label className="flex items-center gap-1">
-                              Bônus:
-                              <input
-                                type="number"
-                                value={spec.bonus === 0 ? '' : spec.bonus}
-                                onChange={(e) => handleSpecializationChange(index, 'bonus', e.target.value)}
-                                className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="0"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                            </label>
-                          </div>
+                          {!spec.isCollapsed && (
+                            <>
+                              <div className="flex gap-4 mt-2 text-sm">
+                                <label className="flex items-center gap-1">
+                                  Modificador:
+                                  <input
+                                    type="number"
+                                    value={spec.modifier === 0 ? '' : spec.modifier}
+                                    onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)}
+                                    className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                    placeholder="0"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                </label>
+                                <label className="flex items-center gap-1">
+                                  Bônus:
+                                  <input
+                                    type="number"
+                                    value={spec.bonus === 0 ? '' : spec.bonus}
+                                    onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)}
+                                    className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                    placeholder="0"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                </label>
+                              </div>
+                              <button
+                                onClick={() => toggleItemCollapsed('specializations', spec.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                              >
+                                Ocultar Especialização
+                              </button>
+                            </>
+                          )}
+                          {spec.isCollapsed && (
+                            <button
+                                onClick={() => toggleItemCollapsed('specializations', spec.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                            >
+                                Exibir Especialização
+                            </button>
+                          )}
                         </li>
                       ))
                     )}
@@ -2021,41 +2197,68 @@ const App = () => {
                     {character.equippedItems.length === 0 ? (
                       <li className="text-gray-400 italic">Nenhum item equipado.</li>
                     ) : (
-                      character.equippedItems.map((item, index) => (
-                        <li key={index} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.equippedItems.map((item) => (
+                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                           <div className="flex justify-between items-center mb-1">
-                            <input
-                              type="text"
-                              value={item.name}
-                              onChange={(e) => handleEquippedItemChange(index, 'name', e.target.value)}
-                              className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              placeholder="Nome do Item Equipado"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
+                            {item.isCollapsed ? (
+                                <span 
+                                  className="font-semibold text-lg w-full cursor-pointer text-white"
+                                  onClick={() => toggleItemCollapsed('equippedItems', item.id)}
+                                >
+                                  {item.name || 'Item Equipado Sem Nome'}
+                                </span>
+                            ) : (
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)}
+                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Nome do Item Equipado"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                            )}
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
-                                onClick={() => handleRemoveEquippedItem(index)}
+                                onClick={() => handleRemoveEquippedItem(item.id)}
                                 className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                               >
                                 Remover
                               </button>
                             )}
                           </div>
-                          <AutoResizingTextarea
-                            value={item.description}
-                            onChange={(e) => handleEquippedItemChange(index, 'description', e.target.value)}
-                            placeholder="Descrição do item"
-                            className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2"
-                            disabled={user.uid !== character.ownerUid && !isMaster}
-                          />
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
-                          <AutoResizingTextarea
-                            value={item.attributes}
-                            onChange={(e) => handleEquippedItemChange(index, 'attributes', e.target.value)}
-                            placeholder="Ex: +5 Força, Dano Fogo, etc."
-                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
-                            disabled={user.uid !== character.ownerUid && !isMaster}
-                          />
+                          {!item.isCollapsed && (
+                            <>
+                              <AutoResizingTextarea
+                                value={item.description}
+                                onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)}
+                                placeholder="Descrição do item"
+                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
+                              <AutoResizingTextarea
+                                value={item.attributes}
+                                onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)}
+                                placeholder="Ex: +5 Força, Dano Fogo, etc."
+                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
+                                disabled={user.uid !== character.ownerUid && !isMaster}
+                              />
+                              <button
+                                onClick={() => toggleItemCollapsed('equippedItems', item.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                              >
+                                Ocultar Item
+                              </button>
+                            </>
+                          )}
+                          {item.isCollapsed && (
+                            <button
+                                onClick={() => toggleItemCollapsed('equippedItems', item.id)}
+                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                            >
+                                Exibir Item
+                            </button>
+                          )}
                         </li>
                       ))
                     )}
@@ -2097,62 +2300,102 @@ const App = () => {
                             </button>
                           )}
                           {block.type === 'text' ? (
-                            <AutoResizingTextarea
-                              value={block.value}
-                              onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
-                              placeholder="Digite seu texto aqui..."
-                              className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                              disabled={user.uid !== character.ownerUid && !isMaster}
-                            />
-                          ) : (
-                            <div className="flex flex-col items-center">
-                              <img
-                                src={block.value}
-                                alt="Imagem da história"
-                                className="max-w-full h-auto rounded-md shadow-md"
-                                style={{
-                                  width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
-                                  height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
-                                  objectFit: 'contain'
-                                }}
-                                onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
-                              />
-                              {(user.uid === character.ownerUid || isMaster) && (
-                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
-                                  <label className="flex items-center gap-1">
-                                    <input
-                                      type="checkbox"
-                                      checked={block.fitWidth}
-                                      onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
-                                      className="form-checkbox text-purple-500 rounded"
-                                    />
-                                    Ajustar à Largura
-                                  </label>
-                                  {!block.fitWidth && (
-                                    <>
+                            <>
+                              {block.isCollapsed ? (
+                                <div 
+                                  className="cursor-pointer text-gray-200"
+                                  onClick={() => updateHistoryBlock(block.id, 'isCollapsed', false)}
+                                >
+                                  <p className="text-lg font-semibold mb-1">Bloco de Texto</p>
+                                  <p className="text-sm italic text-gray-300">{truncateText(block.value)}</p>
+                                  <button className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end">
+                                    Exibir Mais
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <AutoResizingTextarea
+                                    value={block.value}
+                                    onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
+                                    placeholder="Digite seu texto aqui..."
+                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <button
+                                    onClick={() => updateHistoryBlock(block.id, 'isCollapsed', true)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                  >
+                                    Exibir Menos
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          ) : ( // Image Block
+                            <>
+                              {block.isCollapsed ? (
+                                <div 
+                                  className="cursor-pointer text-gray-200 text-center py-2"
+                                  onClick={() => updateHistoryBlock(block.id, 'isCollapsed', false)}
+                                >
+                                  <p className="text-lg font-semibold">Mostrar Imagem</p>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center">
+                                  <img
+                                    src={block.value}
+                                    alt="Imagem da história"
+                                    className="max-w-full h-auto rounded-md shadow-md"
+                                    style={{
+                                      width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
+                                      height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
+                                      objectFit: 'contain'
+                                    }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
+                                  />
+                                  {(user.uid === character.ownerUid || isMaster) && (
+                                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
                                       <label className="flex items-center gap-1">
-                                        Largura (px):
                                         <input
-                                          type="number"
-                                          value={block.width === 0 ? '' : block.width}
-                                          onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
-                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                          type="checkbox"
+                                          checked={block.fitWidth}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
+                                          className="form-checkbox text-purple-500 rounded"
                                         />
+                                        Ajustar à Largura
                                       </label>
-                                      <label className="flex items-center gap-1">
-                                        Altura (px):
-                                        <input
-                                          type="number"
-                                          value={block.height === 0 ? '' : block.height}
-                                          onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
-                                          className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                        />
-                                      </label>
-                                    </>
+                                      {!block.fitWidth && (
+                                        <>
+                                          <label className="flex items-center gap-1">
+                                            Largura (px):
+                                            <input
+                                              type="number"
+                                              value={block.width === 0 ? '' : block.width}
+                                              onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
+                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                            />
+                                          </label>
+                                          <label className="flex items-center gap-1">
+                                            Altura (px):
+                                            <input
+                                              type="number"
+                                              value={block.height === 0 ? '' : block.height}
+                                              onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
+                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                            />
+                                          </label>
+                                        </>
+                                      )}
+                                    </div>
                                   )}
+                                  <button
+                                    onClick={() => updateHistoryBlock(block.id, 'isCollapsed', true)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                  >
+                                    Ocultar Imagem
+                                  </button>
                                 </div>
                               )}
-                            </div>
+                            </>
                           )}
                         </div>
                       ))
