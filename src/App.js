@@ -120,7 +120,8 @@ const App = () => {
   const fileInputRef = useRef(null);
 
   // Estados para controlar o colapso das seções
-  const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+  const [isUserInfoCollapsed, setIsUserInfoCollapsed] = useState(false); // Renomeado para não conflitar
+  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); // Novo estado
   const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
   const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
   const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
@@ -415,11 +416,12 @@ const App = () => {
               });
             }
 
-            deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
-            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            // Ajusta valores padrão para campos que podem ser vazios ou nulos
+            deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: '', max: '' }, mp: { current: '', max: '' }, initiative: '', fa: '', fm: '', fd: '' };
+            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: '', permBonus: '', condBonus: '', total: '' }, destreza: { base: '', permBonus: '', condBonus: '', total: '' }, inteligencia: { base: '', permBonus: '', condBonus: '', total: '' }, constituicao: { base: '', permBonus: '', condBonus: '', total: '' }, sabedoria: { base: '', permBonus: '', condBonus: '', total: '' }, carisma: { base: '', permBonus: '', condBonus: '', total: '' }, armadura: { base: '', permBonus: '', condBonus: '', total: '' }, poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '' } };
+            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: '', permBonus: '', condBonus: '', total: '' }, agua: { base: '', permBonus: '', condBonus: '', total: '' }, ar: { base: '', permBonus: '', condBonus: '', total: '' }, terra: { base: '', permBonus: '', condBonus: '', total: '' }, luz: { base: '', permBonus: '', condBonus: '', total: '' }, trevas: { base: '', permBonus: '', condBonus: '', total: '' }, espirito: { base: '', permBonus: '', condBonus: '', total: '' }, outro: { base: '', permBonus: '', condBonus: '', total: '' } };
             deserializedData.inventory = deserializedData.inventory || [];
-            deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
+            deserializedData.wallet = deserializedData.wallet || { zeni: '' }; // Zeni pode ser vazio
             deserializedData.advantages = deserializedData.advantages || [];
             deserializedData.disadvantages = deserializedData.disadvantages || [];
             deserializedData.abilities = deserializedData.abilities || [];
@@ -427,8 +429,11 @@ const App = () => {
             deserializedData.equippedItems = deserializedData.equippedItems || [];
             deserializedData.history = deserializedData.history || [];
             deserializedData.notes = deserializedData.notes || '';
-            deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
-            deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
+            deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : ''; // Nível pode ser vazio
+            deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : ''; // XP pode ser vazio
+            deserializedData.age = deserializedData.age !== undefined ? deserializedData.age : ''; // Idade pode ser vazio
+            deserializedData.photoUrl = deserializedData.photoUrl || 'https://placehold.co/150x150/000000/FFFFFF?text=Foto';
+
 
             setCharacter(deserializedData);
             console.log(`Ficha de '${deserializedData.name}' carregada do Firestore em tempo real.`);
@@ -481,6 +486,42 @@ const App = () => {
           dataToSave.id = selectedCharIdState; // Usando o estado
           dataToSave.ownerUid = targetUidForSave;
 
+          // Converter valores vazios de números para null antes de stringify
+          const convertToSavableValue = (value) => {
+            if (value === '') return null;
+            const num = parseInt(value, 10);
+            return isNaN(num) ? null : num;
+          };
+
+          dataToSave.mainAttributes.hp.current = convertToSavableValue(dataToSave.mainAttributes.hp.current);
+          dataToSave.mainAttributes.hp.max = convertToSavableValue(dataToSave.mainAttributes.hp.max);
+          dataToSave.mainAttributes.mp.current = convertToSavableValue(dataToSave.mainAttributes.mp.current);
+          dataToSave.mainAttributes.mp.max = convertToSavableValue(dataToSave.mainAttributes.mp.max);
+          dataToSave.mainAttributes.initiative = convertToSavableValue(dataToSave.mainAttributes.initiative);
+          dataToSave.mainAttributes.fa = convertToSavableValue(dataToSave.mainAttributes.fa);
+          dataToSave.mainAttributes.fm = convertToSavableValue(dataToSave.mainAttributes.fm);
+          dataToSave.mainAttributes.fd = convertToSavableValue(dataToSave.mainAttributes.fd);
+
+          Object.keys(dataToSave.basicAttributes).forEach(key => {
+            dataToSave.basicAttributes[key].base = convertToSavableValue(dataToSave.basicAttributes[key].base);
+            dataToSave.basicAttributes[key].permBonus = convertToSavableValue(dataToSave.basicAttributes[key].permBonus);
+            dataToSave.basicAttributes[key].condBonus = convertToSavableValue(dataToSave.basicAttributes[key].condBonus);
+            dataToSave.basicAttributes[key].total = convertToSavableValue(dataToSave.basicAttributes[key].total);
+          });
+
+          Object.keys(dataToSave.magicAttributes).forEach(key => {
+            dataToSave.magicAttributes[key].base = convertToSavableValue(dataToSave.magicAttributes[key].base);
+            dataToSave.magicAttributes[key].permBonus = convertToSavableValue(dataToSave.magicAttributes[key].permBonus);
+            dataToSave.magicAttributes[key].condBonus = convertToSavableValue(dataToSave.magicAttributes[key].condBonus);
+            dataToSave.magicAttributes[key].total = convertToSavableValue(dataToSave.magicAttributes[key].total);
+          });
+          
+          dataToSave.wallet.zeni = convertToSavableValue(dataToSave.wallet.zeni);
+          dataToSave.level = convertToSavableValue(dataToSave.level);
+          dataToSave.xp = convertToSavableValue(dataToSave.xp);
+          dataToSave.age = convertToSavableValue(dataToSave.age);
+
+
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
           dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
           dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -514,10 +555,11 @@ const App = () => {
   // Lida com mudanças nos campos de texto simples
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Para campos que devem ser números, mas podem ser vazios
     if (name === 'age' || name === 'level' || name === 'xp') {
       setCharacter(prevChar => ({
         ...prevChar,
-        [name]: parseInt(value, 10) || 0,
+        [name]: value === '' ? '' : parseInt(value, 10),
       }));
     } else {
       setCharacter(prevChar => ({
@@ -531,7 +573,7 @@ const App = () => {
   const handleMainAttributeChange = (e) => {
     const { name, value, dataset } = e.target;
     const attributeName = dataset.attribute;
-    const parsedValue = parseInt(value, 10) || 0;
+    const parsedValue = value === '' ? '' : parseInt(value, 10);
 
     setCharacter(prevChar => ({
       ...prevChar,
@@ -552,7 +594,7 @@ const App = () => {
       ...prevChar,
       mainAttributes: {
         ...prevChar.mainAttributes,
-        [name]: parseInt(value, 10) || 0,
+        [name]: value === '' ? '' : parseInt(value, 10),
       },
     }));
   };
@@ -560,11 +602,16 @@ const App = () => {
   // Lida com mudanças nos atributos básicos e mágicos (Valor Base, Bônus Permanente, Bônus Condicional)
   const handleBasicAttributeChange = (category, attributeName, field, value) => {
     setCharacter(prevChar => {
+      const parsedValue = value === '' ? '' : parseInt(value, 10);
       const updatedAttribute = {
         ...prevChar[category][attributeName],
-        [field]: parseInt(value, 10) || 0,
+        [field]: parsedValue,
       };
-      updatedAttribute.total = updatedAttribute.base + updatedAttribute.permBonus + updatedAttribute.condBonus;
+      // Recalcula total apenas se base, permBonus e condBonus forem números válidos
+      const base = parseInt(updatedAttribute.base, 10) || 0;
+      const permBonus = parseInt(updatedAttribute.permBonus, 10) || 0;
+      const condBonus = parseInt(updatedAttribute.condBonus, 10) || 0;
+      updatedAttribute.total = base + permBonus + condBonus;
 
       return {
         ...prevChar,
@@ -637,7 +684,7 @@ const App = () => {
   const handleAddZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: (prevChar.wallet.zeni || 0) + zeniAmount },
+      wallet: { ...(prevChar.wallet || { zeni: '' }), zeni: (parseInt(prevChar.wallet.zeni, 10) || 0) + zeniAmount },
     }));
     setZeniAmount(0);
   };
@@ -646,7 +693,7 @@ const App = () => {
   const handleRemoveZeni = () => {
     setCharacter(prevChar => ({
       ...prevChar,
-      wallet: { ...(prevChar.wallet || { zeni: 0 }), zeni: Math.max(0, (prevChar.wallet.zeni || 0) - zeniAmount) },
+      wallet: { ...(prevChar.wallet || { zeni: '' }), zeni: Math.max(0, (parseInt(prevChar.wallet.zeni, 10) || 0) - zeniAmount) },
     }));
     setZeniAmount(0);
   };
@@ -670,7 +717,7 @@ const App = () => {
                 type: 'prompt',
                 onConfirm: (value) => {
                   setCharacter(prevChar => {
-                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: parseInt(value, 10) || 0 }];
+                    const updatedPerks = [...(prevChar[type] || []), { name, description, origin: { class: false, race: false, manual: false }, value: value === '' ? '' : parseInt(value, 10) }];
                     return { ...prevChar, [type]: updatedPerks };
                   });
                   setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -700,7 +747,7 @@ const App = () => {
       const updatedPerks = [...(prevChar[type] || [])];
       if (updatedPerks[index]) {
         if (field === 'value') {
-          updatedPerks[index][field] = parseInt(value, 10) || 0;
+          updatedPerks[index][field] = value === '' ? '' : parseInt(value, 10);
         } else {
           updatedPerks[index][field] = value;
         }
@@ -789,7 +836,7 @@ const App = () => {
       onConfirm: (name) => {
         if (name) {
           setCharacter(prevChar => {
-            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: 0, bonus: 0 }];
+            const updatedSpecializations = [...(prevChar.specializations || []), { name, modifier: '', bonus: '' }];
             return { ...prevChar, specializations: updatedSpecializations };
           });
           setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
@@ -819,7 +866,7 @@ const App = () => {
         if (field === 'name') {
           updatedSpecs[index][field] = value;
         } else {
-          updatedSpecs[index][field] = parseInt(value, 10) || 0;
+          updatedSpecs[index][field] = value === '' ? '' : parseInt(value, 10);
         }
       }
       return { ...prevChar, specializations: updatedSpecs };
@@ -990,11 +1037,11 @@ const App = () => {
       onConfirm: () => {
         setCharacter({
           name: '', photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto', age: '', height: '', gender: '', race: '', class: '', alignment: '',
-          level: 0, xp: 100,
-          mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-          basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-          magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-          inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+          level: '', xp: '',
+          mainAttributes: { hp: { current: '', max: '' }, mp: { current: '', max: '' }, initiative: '', fa: '', fm: '', fd: '' },
+          basicAttributes: { forca: { base: '', permBonus: '', condBonus: '', total: '' }, destreza: { base: '', permBonus: '', condBonus: '', total: '' }, inteligencia: { base: '', permBonus: '', condBonus: '', total: '' }, constituicao: { base: '', permBonus: '', condBonus: '', total: '' }, sabedoria: { base: '', permBonus: '', condBonus: '', total: '' }, carisma: { base: '', permBonus: '', condBonus: '', total: '' }, armadura: { base: '', permBonus: '', condBonus: '', total: '' }, poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '' } },
+          magicAttributes: { fogo: { base: '', permBonus: '', condBonus: '', total: '' }, agua: { base: '', permBonus: '', condBonus: '', total: '' }, ar: { base: '', permBonus: '', condBonus: '', total: '' }, terra: { base: '', permBonus: '', condBonus: '', total: '' }, luz: { base: '', permBonus: '', condBonus: '', total: '' }, trevas: { base: '', permBonus: '', condBonus: '', total: '' }, espirito: { base: '', permBonus: '', condBonus: '', total: '' }, outro: { base: '', permBonus: '', condBonus: '', total: '' } },
+          inventory: [], wallet: { zeni: '' }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
         });
       },
       onCancel: () => {},
@@ -1043,38 +1090,37 @@ const App = () => {
                   ...importedData,
                   id: newCharId,
                   ownerUid: user.uid,
-                  xp: importedData.xp !== undefined ? importedData.xp : 100,
-                  level: importedData.level !== undefined ? importedData.level : 0,
+                  xp: importedData.xp !== undefined ? importedData.xp : '',
+                  level: importedData.level !== undefined ? importedData.level : '',
+                  age: importedData.age !== undefined ? importedData.age : '',
+                  photoUrl: importedData.photoUrl || 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
                   mainAttributes: {
-                    hp: { current: 0, max: 0, ...importedData.mainAttributes?.hp },
-                    mp: { current: 0, max: 0, ...importedData.mainAttributes?.mp },
-                    initiative: importedData.mainAttributes?.initiative || 0,
-                    fa: importedData.mainAttributes?.fa || 0,
-                    fm: importedData.mainAttributes?.fm || 0,
-                    fd: importedData.mainAttributes?.fd || 0,
+                    hp: { current: '', max: '', ...importedData.mainAttributes?.hp },
+                    mp: { current: '', max: '', ...importedData.mainAttributes?.mp },
+                    initiative: '', fa: '', fm: '', fd: '', ...importedData.mainAttributes,
                   },
                   basicAttributes: {
-                    forca: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.forca },
-                    destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.destreza },
-                    inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.inteligencia },
-                    constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constituicao },
-                    sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.sabedoria },
-                    carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.carisma },
-                    armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armadura },
-                    poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.poderDeFogo },
+                    forca: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.forca },
+                    destreza: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.destreza },
+                    inteligencia: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.inteligencia },
+                    constituicao: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.constituicao },
+                    sabedoria: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.sabedoria },
+                    carisma: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.carisma },
+                    armadura: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.armadura },
+                    poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.basicAttributes?.poderDeFogo },
                   },
                   magicAttributes: {
-                    fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fogo },
-                    agua: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.agua },
-                    ar: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.ar },
-                    terra: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.terra },
-                    luz: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.luz },
-                    trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.trevas },
-                    espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.espirito },
-                    outro: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.outro },
+                    fogo: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.fogo },
+                    agua: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.agua },
+                    ar: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.ar },
+                    terra: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.terra },
+                    luz: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.luz },
+                    trevas: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.trevas },
+                    espirito: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.espirito },
+                    outro: { base: '', permBonus: '', condBonus: '', total: '', ...importedData.magicAttributes?.outro },
                   },
                   inventory: importedData.inventory || [],
-                  wallet: importedData.wallet || { zeni: 0 },
+                  wallet: importedData.wallet || { zeni: '' },
                   advantages: importedData.advantages || [],
                   disadvantages: importedData.disadvantages || [],
                   abilities: importedData.abilities || [],
@@ -1099,6 +1145,42 @@ const App = () => {
                 try {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
                     const dataToSave = { ...importedCharacterData };
+                    
+                    // Converter valores vazios de números para null antes de stringify
+                    const convertToSavableValue = (value) => {
+                      if (value === '') return null;
+                      const num = parseInt(value, 10);
+                      return isNaN(num) ? null : num;
+                    };
+
+                    dataToSave.mainAttributes.hp.current = convertToSavableValue(dataToSave.mainAttributes.hp.current);
+                    dataToSave.mainAttributes.hp.max = convertToSavableValue(dataToSave.mainAttributes.hp.max);
+                    dataToSave.mainAttributes.mp.current = convertToSavableValue(dataToSave.mainAttributes.mp.current);
+                    dataToSave.mainAttributes.mp.max = convertToSavableValue(dataToSave.mainAttributes.mp.max);
+                    dataToSave.mainAttributes.initiative = convertToSavableValue(dataToSave.mainAttributes.initiative);
+                    dataToSave.mainAttributes.fa = convertToSavableValue(dataToSave.mainAttributes.fa);
+                    dataToSave.mainAttributes.fm = convertToSavableValue(dataToSave.mainAttributes.fm);
+                    dataToSave.mainAttributes.fd = convertToSavableValue(dataToSave.mainAttributes.fd);
+
+                    Object.keys(dataToSave.basicAttributes).forEach(key => {
+                      dataToSave.basicAttributes[key].base = convertToSavableValue(dataToSave.basicAttributes[key].base);
+                      dataToSave.basicAttributes[key].permBonus = convertToSavableValue(dataToSave.basicAttributes[key].permBonus);
+                      dataToSave.basicAttributes[key].condBonus = convertToSavableValue(dataToSave.basicAttributes[key].condBonus);
+                      dataToSave.basicAttributes[key].total = convertToSavableValue(dataToSave.basicAttributes[key].total);
+                    });
+
+                    Object.keys(dataToSave.magicAttributes).forEach(key => {
+                      dataToSave.magicAttributes[key].base = convertToSavableValue(dataToSave.magicAttributes[key].base);
+                      dataToSave.magicAttributes[key].permBonus = convertToSavableValue(dataToSave.magicAttributes[key].permBonus);
+                      dataToSave.magicAttributes[key].condBonus = convertToSavableValue(dataToSave.magicAttributes[key].condBonus);
+                      dataToSave.magicAttributes[key].total = convertToSavableValue(dataToSave.magicAttributes[key].total);
+                    });
+                    
+                    dataToSave.wallet.zeni = convertToSavableValue(dataToSave.wallet.zeni);
+                    dataToSave.level = convertToSavableValue(dataToSave.level);
+                    dataToSave.xp = convertToSavableValue(dataToSave.xp);
+                    dataToSave.age = convertToSavableValue(dataToSave.age);
+
                     dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
                     dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
                     dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -1165,11 +1247,11 @@ const App = () => {
               name: name,
               photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
-              level: 0, xp: 100,
-              mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-              basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-              magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-              inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+              level: '', xp: '',
+              mainAttributes: { hp: { current: '', max: '' }, mp: { current: '', max: '' }, initiative: '', fa: '', fm: '', fd: '' },
+              basicAttributes: { forca: { base: '', permBonus: '', condBonus: '', total: '' }, destreza: { base: '', permBonus: '', condBonus: '', total: '' }, inteligencia: { base: '', permBonus: '', condBonus: '', total: '' }, constituicao: { base: '', permBonus: '', condBonus: '', total: '' }, sabedoria: { base: '', permBonus: '', condBonus: '', total: '' }, carisma: { base: '', permBonus: '', condBonus: '', total: '' }, armadura: { base: '', permBonus: '', condBonus: '', total: '' }, poderDeFogo: { base: '', permBonus: '', condBonus: '', total: '' } },
+              magicAttributes: { fogo: { base: '', permBonus: '', condBonus: '', total: '' }, agua: { base: '', permBonus: '', condBonus: '', total: '' }, ar: { base: '', permBonus: '', condBonus: '', total: '' }, terra: { base: '', permBonus: '', condBonus: '', total: '' }, luz: { base: '', permBonus: '', condBonus: '', total: '' }, trevas: { base: '', permBonus: '', condBonus: '', total: '' }, espirito: { base: '', permBonus: '', condBonus: '', total: '' }, outro: { base: '', permBonus: '', condBonus: '', total: '' } },
+              inventory: [], wallet: { zeni: '' }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
             };
 
             setCharacter(newCharacterData);
@@ -1179,6 +1261,42 @@ const App = () => {
 
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
+            
+            // Converter valores vazios de números para null antes de stringify
+            const convertToSavableValue = (value) => {
+              if (value === '') return null;
+              const num = parseInt(value, 10);
+              return isNaN(num) ? null : num;
+            };
+
+            dataToSave.mainAttributes.hp.current = convertToSavableValue(dataToSave.mainAttributes.hp.current);
+            dataToSave.mainAttributes.hp.max = convertToSavableValue(dataToSave.mainAttributes.hp.max);
+            dataToSave.mainAttributes.mp.current = convertToSavableValue(dataToSave.mainAttributes.mp.current);
+            dataToSave.mainAttributes.mp.max = convertToSavableValue(dataToSave.mainAttributes.mp.max);
+            dataToSave.mainAttributes.initiative = convertToSavableValue(dataToSave.mainAttributes.initiative);
+            dataToSave.mainAttributes.fa = convertToSavableValue(dataToSave.mainAttributes.fa);
+            dataToSave.mainAttributes.fm = convertToSavableValue(dataToSave.mainAttributes.fm);
+            dataToSave.mainAttributes.fd = convertToSavableValue(dataToSave.mainAttributes.fd);
+
+            Object.keys(dataToSave.basicAttributes).forEach(key => {
+              dataToSave.basicAttributes[key].base = convertToSavableValue(dataToSave.basicAttributes[key].base);
+              dataToSave.basicAttributes[key].permBonus = convertToSavableValue(dataToSave.basicAttributes[key].permBonus);
+              dataToSave.basicAttributes[key].condBonus = convertToSavableValue(dataToSave.basicAttributes[key].condBonus);
+              dataToSave.basicAttributes[key].total = convertToSavableValue(dataToSave.basicAttributes[key].total);
+            });
+
+            Object.keys(dataToSave.magicAttributes).forEach(key => {
+              dataToSave.magicAttributes[key].base = convertToSavableValue(dataToSave.magicAttributes[key].base);
+              dataToSave.magicAttributes[key].permBonus = convertToSavableValue(dataToSave.magicAttributes[key].permBonus);
+              dataToSave.magicAttributes[key].condBonus = convertToSavableValue(dataToSave.magicAttributes[key].condBonus);
+              dataToSave.magicAttributes[key].total = convertToSavableValue(dataToSave.magicAttributes[key].total);
+            });
+            
+            dataToSave.wallet.zeni = convertToSavableValue(dataToSave.wallet.zeni);
+            dataToSave.level = convertToSavableValue(dataToSave.level);
+            dataToSave.xp = convertToSavableValue(dataToSave.xp);
+            dataToSave.age = convertToSavableValue(dataToSave.age);
+
             dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
             dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
             dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
@@ -1311,6 +1429,36 @@ const App = () => {
   // Função auxiliar para alternar o estado de colapso de uma seção
   const toggleSection = (setter) => setter(prev => !prev);
 
+  // Função para adicionar foto (abre modal de prompt)
+  const handleAddPhoto = () => {
+    setModal({
+      isVisible: true,
+      message: 'Cole a URL da imagem para a foto do personagem:',
+      type: 'prompt',
+      onConfirm: (url) => {
+        if (url) {
+          setCharacter(prevChar => ({
+            ...prevChar,
+            photoUrl: url,
+          }));
+        }
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+      },
+      onCancel: () => {
+        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+      },
+    });
+  };
+
+  // Função para remover foto (volta para placeholder)
+  const handleRemovePhoto = (e) => {
+    e.stopPropagation(); // Evita que o clique se propague para o botão de adicionar foto
+    setCharacter(prevChar => ({
+      ...prevChar,
+      photoUrl: 'https://placehold.co/150x150/000000/FFFFFF?text=Foto',
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
       <style>
@@ -1342,12 +1490,12 @@ const App = () => {
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
           <h2 
             className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
-            onClick={() => toggleSection(setIsInfoCollapsed)}
+            onClick={() => toggleSection(setIsUserInfoCollapsed)}
           >
             Status do Usuário
-            <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+            <span>{isUserInfoCollapsed ? '▼' : '▲'}</span>
           </h2>
-          {!isInfoCollapsed && (
+          {!isUserInfoCollapsed && (
             <div className="text-center">
               {isAuthReady ? (
                 user ? (
@@ -1475,31 +1623,42 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsInfoCollapsed)}
+                onClick={() => toggleSection(setIsCharacterInfoCollapsed)} {/* Usando o novo estado */}
               >
                 Informações do Personagem
-                <span>{isInfoCollapsed ? '▼' : '▲'}</span>
+                <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isInfoCollapsed && (
+              {!isCharacterInfoCollapsed && (
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
-                  <div className="flex-shrink-0">
-                    <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-300 mb-1">Foto (URL):</label>
+                  <div className="flex-shrink-0 group relative"> {/* Adicionado group e relative */}
                     <img
                       src={character.photoUrl}
                       alt="Foto do Personagem"
-                      className="w-32 h-32 object-cover rounded-full border-2 border-purple-500 mb-2"
+                      className="w-48 h-48 object-cover rounded-full border-2 border-purple-500 mb-2 transition-all duration-300 ease-in-out" {/* Aumentado para w-48 h-48 */}
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x150/000000/FFFFFF?text=Foto'; }}
                     />
-                    <input
-                      type="text"
-                      id="photoUrl"
-                      name="photoUrl"
-                      value={character.photoUrl}
-                      onChange={handleChange}
-                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-sm"
-                      placeholder="URL da imagem"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                    />
+                    {(user.uid === character.ownerUid || isMaster) && (
+                      <>
+                        {/* Botão de Adicionar Foto */}
+                        <button
+                          onClick={handleAddPhoto}
+                          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-5xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out"
+                          title="Adicionar/Trocar Foto"
+                        >
+                          +
+                        </button>
+                        {/* Botão de Remover Foto (X) */}
+                        {character.photoUrl !== 'https://placehold.co/150x150/000000/FFFFFF?text=Foto' && (
+                          <button
+                            onClick={handleRemovePhoto}
+                            className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out"
+                            title="Remover Foto"
+                          >
+                            X
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow w-full">
                     <div>
