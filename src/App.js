@@ -167,7 +167,7 @@ const App = () => {
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '🦴',
+    armadura: '�',
     poderDeFogo: '🎯',
   };
 
@@ -217,7 +217,7 @@ const App = () => {
         onCancel: () => {},
       });
     }
-  }, [firebaseConfig]);
+  }, [firebaseConfig, setModal]); // Adicionado setModal às dependências
 
   // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
   useEffect(() => {
@@ -933,10 +933,25 @@ const App = () => {
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      console.log("Arquivo selecionado para importação:", file.name);
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const importedData = JSON.parse(e.target.result);
+          let importedData = JSON.parse(e.target.result);
+          console.log("Dados JSON importados (antes da limpeza):", importedData);
+
+          // Special handling for the empty string key if it contains notes data
+          if (importedData[""] && !importedData.notes) {
+              importedData.notes = importedData[""];
+              console.log("Dados de notas movidos da chave vazia para a chave 'notes'.");
+          }
+          // Now remove the problematic empty string key if it still exists
+          if (importedData[""]) {
+              console.warn("Chave vazia problemática encontrada e removida do JSON importado.");
+              delete importedData[""];
+          }
+          console.log("Dados JSON importados (após limpeza):", importedData);
+
           if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
             setModal({
               isVisible: true,
@@ -987,7 +1002,7 @@ const App = () => {
                   specializations: importedData.specializations || [],
                   equippedItems: importedData.equippedItems || [],
                   history: importedData.history || [],
-                  notes: importedData.notes || '',
+                  notes: importedData.notes || '', // Já tratado acima para a chave vazia
                 };
 
                 importedCharacterData.history = importedCharacterData.history.map(block => {
@@ -1009,6 +1024,7 @@ const App = () => {
                 importedCharacterData.specializations = importedCharacterData.specializations.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
                 importedCharacterData.equippedItems = importedCharacterData.equippedItems.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
 
+                console.log("Dados do personagem a serem salvos no Firestore:", importedCharacterData);
 
                 try {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
@@ -1031,6 +1047,7 @@ const App = () => {
                     window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
                     fetchCharactersList();
                     setModal({ isVisible: true, message: `Ficha de '${importedData.name}' importada e salva com sucesso!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    console.log(`Ficha de '${importedData.name}' importada e salva com sucesso no Firestore.`);
                 } catch (error) {
                     console.error("Erro ao salvar ficha importada:", error);
                     setModal({ isVisible: true, message: `Erro ao salvar ficha importada: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
@@ -1041,16 +1058,17 @@ const App = () => {
           } else {
             setModal({
               isVisible: true,
-              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida.',
+              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida (faltam nome, atributos principais ou básicos).',
               type: 'info',
               onConfirm: () => {},
               onCancel: () => {},
             });
+            console.error('JSON inválido: Faltam campos essenciais (nome, mainAttributes ou basicAttributes).', importedData);
           }
         } catch (error) {
           setModal({
             isVisible: true,
-            message: 'Erro ao ler o arquivo JSON. Certifique-se de que é um JSON válido.',
+            message: `Erro ao ler ou analisar o arquivo JSON. Certifique-se de que é um JSON válido. Detalhes: ${error.message}`,
             type: 'info',
             onConfirm: () => {},
             onCancel: () => {},
@@ -1059,6 +1077,8 @@ const App = () => {
         }
       };
       reader.readAsText(file);
+    } else {
+      console.log("Nenhum arquivo selecionado.");
     }
   };
 
@@ -2456,6 +2476,13 @@ const App = () => {
                 <span>{isNotesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isNotesCollapsed && (
+                // Debug log for the disabled prop of notes
+                console.log("Notes disabled check:", {
+                    userUid: user?.uid,
+                    characterOwnerUid: character?.ownerUid,
+                    isMaster: isMaster,
+                    isDisabled: user?.uid !== character?.ownerUid && !isMaster
+                }),
                 <AutoResizingTextarea
                   name="notes"
                   value={character.notes}
