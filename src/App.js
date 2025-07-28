@@ -157,7 +157,7 @@ const App = () => {
   const [isSpecializationsCollapsed, setIsSpecializationsCollapsed] = useState(false);
   const [isEquippedItemsCollapsed, setIsEquippedItemsCollapsed] = useState(false);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
-  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
+  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false); // Mantido para a nova seção de notas
 
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
@@ -174,7 +174,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '💧',
+    agua: '�',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -421,6 +421,18 @@ const App = () => {
               }
               deserializedData.history = Array.isArray(historyData) ? historyData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
 
+              // Deserialização e adição de isCollapsed para 'notes' (agora um array de blocos)
+              let notesData = deserializedData.notes;
+              if (typeof notesData === 'string') { // Handle old string notes
+                try {
+                  notesData = JSON.parse(notesData); // Try parsing if it was already stringified JSON
+                } catch (parseError) {
+                  notesData = [{ id: crypto.randomUUID(), type: 'text', value: notesData }]; // Convert old string to a text block
+                }
+              }
+              deserializedData.notes = Array.isArray(notesData) ? notesData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
+
+
             } catch (e) {
               console.error("Erro ao deserializar dados do Firestore:", e);
               setModal({
@@ -443,7 +455,7 @@ const App = () => {
             deserializedData.specializations = deserializedData.specializations || [];
             deserializedData.equippedItems = deserializedData.equippedItems || [];
             deserializedData.history = deserializedData.history || [];
-            deserializedData.notes = deserializedData.notes || '';
+            deserializedData.notes = deserializedData.notes || []; // Agora é um array
             deserializedData.level = deserializedData.level !== undefined ? deserializedData.level : 0;
             deserializedData.xp = deserializedData.xp !== undefined ? deserializedData.xp : 100;
             deserializedData.photoUrl = deserializedData.photoUrl || ''; // Garante que photoUrl seja string vazia se não presente
@@ -510,6 +522,7 @@ const App = () => {
           dataToSave.specializations = JSON.stringify(dataToSave.specializations);
           dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
           dataToSave.history = JSON.stringify(dataToSave.history);
+          dataToSave.notes = JSON.stringify(dataToSave.notes); // Agora é um array stringificado
           
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
@@ -790,16 +803,7 @@ const App = () => {
     });
   };
 
-  // Lida com a mudança de texto para Anotações
-  const handleNotesChange = (e) => {
-    const { name, value } = e.target;
-    setCharacter(prevChar => ({
-      ...prevChar,
-      [name]: value,
-    }));
-  };
-
-  // Funções para a nova seção de História Modular
+  // Funções para a seção de História Modular
   const addHistoryBlock = (type) => {
     if (type === 'text') {
       setCharacter(prevChar => ({
@@ -856,8 +860,8 @@ const App = () => {
   // Funções para Drag-and-Drop na História
   const draggedItemRef = useRef(null);
 
-  const handleDragStart = (e, index) => {
-    draggedItemRef.current = index;
+  const handleDragStart = (e, index, listName) => {
+    draggedItemRef.current = { index, listName };
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/html", e.target);
   };
@@ -866,25 +870,80 @@ const App = () => {
     e.preventDefault();
   };
 
-  const handleDrop = (e, dropIndex) => {
+  const handleDrop = (e, dropIndex, targetListName) => {
     e.preventDefault();
-    const draggedItemIndex = draggedItemRef.current;
+    const { index: draggedItemIndex, listName: draggedListName } = draggedItemRef.current;
     
-    if (draggedItemIndex === null || draggedItemIndex === dropIndex) {
+    if (draggedItemIndex === null || draggedgedListName !== targetListName) {
         draggedItemRef.current = null;
         return;
     }
 
-    const newHistory = [...character.history];
-    const [reorderedItem] = newHistory.splice(draggedItemIndex, 1);
-    newHistory.splice(dropIndex, 0, reorderedItem);
-
-    setCharacter(prevChar => ({
-        ...prevChar,
-        history: newHistory
-    }));
+    setCharacter(prevChar => {
+        const newList = [...prevChar[targetListName]];
+        const [reorderedItem] = newList.splice(draggedItemIndex, 1);
+        newList.splice(dropIndex, 0, reorderedItem);
+        return {
+            ...prevChar,
+            [targetListName]: newList
+        };
+    });
     draggedItemRef.current = null;
   };
+
+  // Funções para a nova seção de Notas Modulares (copiadas e adaptadas da história)
+  const addNoteBlock = (type) => {
+    if (type === 'text') {
+      setCharacter(prevChar => ({
+        ...prevChar,
+        notes: [...(prevChar.notes || []), { id: crypto.randomUUID(), type: 'text', value: '', isCollapsed: false }],
+      }));
+    } else if (type === 'image') {
+      setModal({
+        isVisible: true,
+        message: 'Cole a URL da imagem para suas notas:',
+        type: 'prompt',
+        onConfirm: (url) => {
+          if (url) {
+            setCharacter(prevChar => ({
+              ...prevChar,
+              notes: [...(prevChar.notes || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true, isCollapsed: false }],
+            }));
+          }
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        },
+        onCancel: () => {
+          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        },
+      });
+    }
+  };
+
+  const updateNoteBlock = (id, field, value) => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      notes: (prevChar.notes || []).map(block => {
+        if (block.id === id) {
+          if (field === 'isCollapsed') {
+            return { ...block, isCollapsed: value };
+          }
+          if (block.type === 'image' && (field === 'width' || field === 'height')) {
+            return { ...block, [field]: value === '' ? '' : parseInt(value, 10) || 0 };
+          }
+          return { ...block, [field]: value };
+        }
+        return block;
+      }),
+    }));
+  };
+
+  const removeNoteBlock = (idToRemove) => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      notes: (prevChar.notes || []).filter(block => block.id !== idToRemove),
+    }));
+  };
+
 
   // Função para resetar a ficha do personagem para os valores padrão usando o modal personalizado
   const handleReset = () => {
@@ -899,7 +958,7 @@ const App = () => {
           mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
           basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
           magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-          inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+          inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
         });
       },
       onCancel: () => {},
@@ -1002,7 +1061,7 @@ const App = () => {
                   specializations: importedData.specializations || [],
                   equippedItems: importedData.equippedItems || [],
                   history: importedData.history || [],
-                  notes: importedData.notes || '', // Já tratado acima para a chave vazia
+                  notes: importedData.notes || [], // Agora é um array
                 };
 
                 importedCharacterData.history = importedCharacterData.history.map(block => {
@@ -1023,6 +1082,19 @@ const App = () => {
                 importedCharacterData.abilities = importedCharacterData.abilities.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
                 importedCharacterData.specializations = importedCharacterData.specializations.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
                 importedCharacterData.equippedItems = importedCharacterData.equippedItems.map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
+                // Mapeamento para notas importadas
+                importedCharacterData.notes = importedCharacterData.notes.map(block => {
+                  if (block.type === 'image') {
+                    return {
+                      ...block,
+                      width: block.width !== undefined ? block.width : '',
+                      height: block.height !== undefined ? block.height : '',
+                      fitWidth: block.fitWidth !== undefined ? block.fitWidth : true,
+                      isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false,
+                    };
+                  }
+                  return { ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false };
+                });
 
                 console.log("Dados do personagem a serem salvos no Firestore:", importedCharacterData);
 
@@ -1040,6 +1112,7 @@ const App = () => {
                     dataToSave.specializations = JSON.stringify(dataToSave.specializations);
                     dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
                     dataToSave.history = JSON.stringify(dataToSave.history);
+                    dataToSave.notes = JSON.stringify(dataToSave.notes); // Agora é um array stringificado
 
                     await setDoc(characterDocRef, dataToSave);
                     setSelectedCharIdState(newCharId); // Define o estado
@@ -1103,7 +1176,7 @@ const App = () => {
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
               basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-              inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
+              inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
             };
 
             // Define isCollapsed como false para todos os arrays de itens
@@ -1114,6 +1187,7 @@ const App = () => {
             newCharacterData.specializations = newCharacterData.specializations.map(item => ({ ...item, isCollapsed: false }));
             newCharacterData.equippedItems = newCharacterData.equippedItems.map(item => ({ ...item, isCollapsed: false }));
             newCharacterData.history = newCharacterData.history.map(item => ({ ...item, isCollapsed: false }));
+            newCharacterData.notes = newCharacterData.notes.map(item => ({ ...item, isCollapsed: false }));
 
 
             setCharacter(newCharacterData);
@@ -1134,6 +1208,7 @@ const App = () => {
             dataToSave.specializations = JSON.stringify(dataToSave.specializations);
             dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
             dataToSave.history = JSON.stringify(dataToSave.history);
+            dataToSave.notes = JSON.stringify(dataToSave.notes); // Agora é um array stringificado
 
             await setDoc(characterDocRef, dataToSave);
             fetchCharactersList();
@@ -2332,9 +2407,9 @@ const App = () => {
                           key={block.id}
                           className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
                           draggable
-                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragStart={(e) => handleDragStart(e, index, 'history')}
                           onDragOver={(e) => handleDragOver(e)}
-                          onDrop={(e) => handleDrop(e, index)}
+                          onDrop={(e) => handleDrop(e, index, 'history')}
                         >
                           {(user.uid === character.ownerUid || isMaster) && (
                             <button
@@ -2466,7 +2541,7 @@ const App = () => {
               )}
             </section>
 
-            {/* Anotações */}
+            {/* Anotações - Agora como blocos arrastáveis */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
@@ -2476,76 +2551,85 @@ const App = () => {
                 <span>{isNotesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isNotesCollapsed && (
-                <AutoResizingTextarea
-                  name="notes"
-                  value={character.notes}
-                  onChange={handleNotesChange}
-                  placeholder="Anotações diversas sobre o personagem, campanhas, NPCs, etc."
-                  className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
-                  disabled={false} // Removido o disabled condicional para permitir edição por qualquer um com acesso
-                />
-              )}
-            </section>
-
-            {/* Botões de Ação */}
-            <div className="flex flex-wrap justify-center gap-4 mt-8">
-              <button
-                onClick={handleExportJson}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
-                disabled={isLoading || !user || !character}
-              >
-                Exportar Ficha (JSON)
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".json"
-                className="hidden"
-              />
-              <button
-                onClick={handleImportJsonClick}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-                disabled={isLoading || !user}
-              >
-                Importar Ficha (JSON)
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                disabled={isLoading || !user || (user.uid !== character.ownerUid && !isMaster)}
-              >
-                Resetar Ficha
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Mensagem se não estiver logado */}
-        {!user && (
-          <p className="text-center text-gray-400 text-lg mt-8">
-            Faça login para começar a criar e gerenciar suas fichas de personagem!
-          </p>
-        )}
-      </div>
-
-      {/* Modal Personalizado */}
-      {modal.isVisible && (
-        <CustomModal
-          message={modal.message}
-          onConfirm={modal.onConfirm}
-          onCancel={modal.onCancel}
-          type={modal.type}
-          onClose={() => setModal({ ...modal, isVisible: false })}
-        />
-      )}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="text-white text-xl font-bold">Carregando...</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default App;
+                <>
+                  <div className="space-y-4 mb-4">
+                    {character.notes.length === 0 ? (
+                      <p className="text-gray-400 italic">Nenhum bloco de anotação adicionado. Adicione texto ou imagens para começar!</p>
+                    ) : (
+                      character.notes.map((block, index) => (
+                        <div
+                          key={block.id}
+                          className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index, 'notes')}
+                          onDragOver={(e) => handleDragOver(e)}
+                          onDrop={(e) => handleDrop(e, index, 'notes')}
+                        >
+                          {(user.uid === character.ownerUid || isMaster) && (
+                            <button
+                              onClick={() => removeNoteBlock(block.id)}
+                              className="absolute top-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition duration-200 ease-in-out"
+                            >
+                              X
+                            </button>
+                          )}
+                          {block.type === 'text' ? (
+                            <>
+                              {block.isCollapsed ? (
+                                <div 
+                                  className="cursor-pointer text-gray-200"
+                                  onClick={() => updateNoteBlock(block.id, 'isCollapsed', false)}
+                                >
+                                  <p className="text-lg font-semibold mb-1">Bloco de Texto</p>
+                                  <p className="text-sm italic text-gray-300">{truncateText(block.value)}</p>
+                                  <button className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end">
+                                    Exibir Mais
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <AutoResizingTextarea
+                                    value={block.value}
+                                    onChange={(e) => updateNoteBlock(block.id, 'value', e.target.value)}
+                                    placeholder="Digite suas anotações aqui..."
+                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                    disabled={false} // Sempre editável
+                                  />
+                                  <button
+                                    onClick={() => updateNoteBlock(block.id, 'isCollapsed', true)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                  >
+                                    Ocultar Texto
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          ) : ( // Image Block for Notes
+                            <>
+                              {block.isCollapsed ? (
+                                <div 
+                                  className="cursor-pointer text-gray-200 text-center py-2"
+                                  onClick={() => updateNoteBlock(block.id, 'isCollapsed', false)}
+                                >
+                                  <p className="text-lg font-semibold">Mostrar Imagem</p>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center">
+                                  <img
+                                    src={block.value}
+                                    alt="Imagem da anotação"
+                                    className="max-w-full h-auto rounded-md shadow-md"
+                                    style={{
+                                      width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
+                                      height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
+                                      objectFit: 'contain'
+                                    }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
+                                  />
+                                  {(user.uid === character.ownerUid || isMaster) && (
+                                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
+                                      <label className="flex items-center gap-1">
+                                        <input
+                                          type="checkbox"
+                                          checked={block.fitWidth}
+                                          onChange={(e) => updateNoteBlock(block.id, 'fitWidth', e.target.checke�
