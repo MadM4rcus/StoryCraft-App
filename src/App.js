@@ -145,20 +145,6 @@ const App = () => {
   // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
-  // Estados para controlar o colapso das seções
-  const [isUserStatusCollapsed, setIsUserStatusCollapsed] = useState(false); 
-  const [isCharacterInfoCollapsed, setIsCharacterInfoCollapsed] = useState(false); 
-  const [isMainAttributesCollapsed, setIsMainAttributesCollapsed] = useState(false);
-  const [isBasicAttributesCollapsed, setIsBasicAttributesCollapsed] = useState(false);
-  const [isInventoryCollapsed, setIsInventoryCollapsed] = useState(false);
-  const [isWalletCollapsed, setIsWalletCollapsed] = useState(false);
-  const [isPerksCollapsed, setIsPerksCollapsed] = useState(false);
-  const [isAbilitiesCollapsed, setIsAbilitiesCollapsed] = useState(false);
-  const [isSpecializationsCollapsed, setIsSpecializationsCollapsed] = useState(false);
-  const [isEquippedItemsCollapsed, setIsEquippedItemsCollapsed] = useState(false);
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
-  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false); // Mantido para a nova seção de notas
-
   // Mapeamento de atributos básicos para emojis
   const basicAttributeEmojis = {
     forca: '💪',
@@ -432,7 +418,6 @@ const App = () => {
               }
               deserializedData.notes = Array.isArray(notesData) ? notesData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
 
-
             } catch (e) {
               console.error("Erro ao deserializar dados do Firestore:", e);
               setModal({
@@ -443,6 +428,21 @@ const App = () => {
                 onCancel: () => {},
               });
             }
+
+            // Default values for new collapse states
+            deserializedData.isUserStatusCollapsed = data.isUserStatusCollapsed !== undefined ? data.isUserStatusCollapsed : false;
+            deserializedData.isCharacterInfoCollapsed = data.isCharacterInfoCollapsed !== undefined ? data.isCharacterInfoCollapsed : false;
+            deserializedData.isMainAttributesCollapsed = data.isMainAttributesCollapsed !== undefined ? data.isMainAttributesCollapsed : false;
+            deserializedData.isBasicAttributesCollapsed = data.isBasicAttributesCollapsed !== undefined ? data.isBasicAttributesCollapsed : false;
+            deserializedData.isInventoryCollapsed = data.isInventoryCollapsed !== undefined ? data.isInventoryCollapsed : false;
+            deserializedData.isWalletCollapsed = data.isWalletCollapsed !== undefined ? data.isWalletCollapsed : false;
+            deserializedData.isPerksCollapsed = data.isPerksCollapsed !== undefined ? data.isPerksCollapsed : false;
+            deserializedData.isAbilitiesCollapsed = data.isAbilitiesCollapsed !== undefined ? data.isAbilitiesCollapsed : false;
+            deserializedData.isSpecializationsCollapsed = data.isSpecializationsCollapsed !== undefined ? data.isSpecializationsCollapsed : false;
+            deserializedData.isEquippedItemsCollapsed = data.isEquippedItemsCollapsed !== undefined ? data.isEquippedItemsCollapsed : false;
+            deserializedData.isHistoryCollapsed = data.isHistoryCollapsed !== undefined ? data.isHistoryCollapsed : false;
+            deserializedData.isNotesCollapsed = data.isNotesCollapsed !== undefined ? data.isNotesCollapsed : false;
+
 
             deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
             deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
@@ -959,6 +959,19 @@ const App = () => {
           basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
           magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
+          // Default collapse states for sections
+          isUserStatusCollapsed: false,
+          isCharacterInfoCollapsed: false,
+          isMainAttributesCollapsed: false,
+          isBasicAttributesCollapsed: false,
+          isInventoryCollapsed: false,
+          isWalletCollapsed: false,
+          isPerksCollapsed: false,
+          isAbilitiesCollapsed: false,
+          isSpecializationsCollapsed: false,
+          isEquippedItemsCollapsed: false,
+          isHistoryCollapsed: false,
+          isNotesCollapsed: false,
         });
       },
       onCancel: () => {},
@@ -1062,6 +1075,19 @@ const App = () => {
                   equippedItems: importedData.equippedItems || [],
                   history: importedData.history || [],
                   notes: importedData.notes || [], // Agora é um array
+                  // Default collapse states for sections on import
+                  isUserStatusCollapsed: importedData.isUserStatusCollapsed !== undefined ? importedData.isUserStatusCollapsed : false,
+                  isCharacterInfoCollapsed: importedData.isCharacterInfoCollapsed !== undefined ? importedData.isCharacterInfoCollapsed : false,
+                  isMainAttributesCollapsed: importedData.isMainAttributesCollapsed !== undefined ? importedData.isMainAttributesCollapsed : false,
+                  isBasicAttributesCollapsed: importedData.isBasicAttributesCollapsed !== undefined ? importedData.isBasicAttributesCollapsed : false,
+                  isInventoryCollapsed: importedData.isInventoryCollapsed !== undefined ? importedData.isInventoryCollapsed : false,
+                  isWalletCollapsed: importedData.isWalletCollapsed !== undefined ? importedData.isWalletCollapsed : false,
+                  isPerksCollapsed: importedData.isPerksCollapsed !== undefined ? importedData.isPerksCollapsed : false,
+                  isAbilitiesCollapsed: importedData.isAbilitiesCollapsed !== undefined ? importedData.isAbilitiesCollapsed : false,
+                  isSpecializationsCollapsed: importedData.isSpecializationsCollapsed !== undefined ? importedData.isSpecializationsCollapsed : false,
+                  isEquippedItemsCollapsed: importedData.isEquippedItemsCollapsed !== undefined ? importedData.isEquippedItemsCollapsed : false,
+                  isHistoryCollapsed: importedData.isHistoryCollapsed !== undefined ? importedData.isHistoryCollapsed : false,
+                  isNotesCollapsed: importedData.isNotesCollapsed !== undefined ? importedData.isNotesCollapsed : false,
                 };
 
                 importedCharacterData.history = importedCharacterData.history.map(block => {
@@ -1177,6 +1203,19 @@ const App = () => {
               basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
+              // Default collapse states for sections on creation
+              isUserStatusCollapsed: false,
+              isCharacterInfoCollapsed: false,
+              isMainAttributesCollapsed: false,
+              isBasicAttributesCollapsed: false,
+              isInventoryCollapsed: false,
+              isWalletCollapsed: false,
+              isPerksCollapsed: false,
+              isAbilitiesCollapsed: false,
+              isSpecializationsCollapsed: false,
+              isEquippedItemsCollapsed: false,
+              isHistoryCollapsed: false,
+              isNotesCollapsed: false,
             };
 
             // Define isCollapsed como false para todos os arrays de itens
@@ -1328,8 +1367,17 @@ const App = () => {
   };
 
   // Função auxiliar para alternar o estado de colapso de uma seção
-  // Esta função agora aceita o setter de estado específico para cada seção
-  const toggleSection = (setter) => setter(prev => !prev);
+  // Esta função agora aceita a chave da propriedade no objeto character
+  const toggleSection = (sectionKey) => {
+    setCharacter(prevChar => {
+      // Garante que prevChar não é null antes de tentar acessar propriedades
+      if (!prevChar) return prevChar;
+      return {
+        ...prevChar,
+        [sectionKey]: !prevChar[sectionKey],
+      };
+    });
+  };
 
   // Lida com o clique na foto ou no botão '+' para alterar/adicionar URL da foto
   const handlePhotoUrlClick = () => {
@@ -1396,12 +1444,12 @@ const App = () => {
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
           <h2 
             className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
-            onClick={() => toggleSection(setIsUserStatusCollapsed)}
+            onClick={() => toggleSection('isUserStatusCollapsed')}
           >
             Status do Usuário
-            <span>{isUserStatusCollapsed ? '▼' : '▲'}</span>
+            <span>{character?.isUserStatusCollapsed ? '▼' : '▲'}</span>
           </h2>
-          {!isUserStatusCollapsed && (
+          {(!character || !character.isUserStatusCollapsed) && (
             <div className="text-center">
               {isAuthReady ? (
                 user ? (
@@ -1529,12 +1577,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsCharacterInfoCollapsed)}
+                onClick={() => toggleSection('isCharacterInfoCollapsed')}
               >
                 Informações do Personagem
-                <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isCharacterInfoCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isCharacterInfoCollapsed && (
+              {!character.isCharacterInfoCollapsed && (
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
                   <div className="flex-shrink-0 relative">
                     {character.photoUrl ? (
@@ -1600,12 +1648,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsMainAttributesCollapsed)}
+                onClick={() => toggleSection('isMainAttributesCollapsed')}
               >
                 Atributos Principais
-                <span>{isMainAttributesCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isMainAttributesCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isMainAttributesCollapsed && (
+              {!character.isMainAttributesCollapsed && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* HP */}
                   <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
@@ -1685,12 +1733,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsBasicAttributesCollapsed)}
+                onClick={() => toggleSection('isBasicAttributesCollapsed')}
               >
                 Atributos Básicos
-                <span>{isBasicAttributesCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isBasicAttributesCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isBasicAttributesCollapsed && (
+              {!character.isBasicAttributesCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Atributos Físicos */}
                   <div>
@@ -1767,12 +1815,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsInventoryCollapsed)}
+                onClick={() => toggleSection('isInventoryCollapsed')}
               >
                 Inventário
-                <span>{isInventoryCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isInventoryCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isInventoryCollapsed && (
+              {!character.isInventoryCollapsed && (
                 <>
                   <ul className="list-disc list-inside space-y-2 text-gray-200">
                     {character.inventory.length === 0 ? (
@@ -1855,12 +1903,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsWalletCollapsed)}
+                onClick={() => toggleSection('isWalletCollapsed')}
               >
                 Zeni: {character.wallet.zeni}
-                <span>{isWalletCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isWalletCollapsed && (
+              {!character.isWalletCollapsed && (
                 <div className="flex items-center gap-2 w-full">
                   <input
                     type="number"
@@ -1892,12 +1940,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsPerksCollapsed)}
+                onClick={() => toggleSection('isPerksCollapsed')}
               >
                 Vantagens e Desvantagens
-                <span>{isPerksCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isPerksCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isPerksCollapsed && (
+              {!character.isPerksCollapsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Vantagens */}
                   <div>
@@ -2102,12 +2150,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsAbilitiesCollapsed)}
+                onClick={() => toggleSection('isAbilitiesCollapsed')}
               >
                 Habilidades (Classe, Raça, Customizadas)
-                <span>{isAbilitiesCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isAbilitiesCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isAbilitiesCollapsed && (
+              {!character.isAbilitiesCollapsed && (
                 <>
                   <ul className="list-disc list-inside space-y-2 text-gray-200">
                     {character.abilities.length === 0 ? (
@@ -2190,12 +2238,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsSpecializationsCollapsed)}
+                onClick={() => toggleSection('isSpecializationsCollapsed')}
               >
                 Especializações (Perícias)
-                <span>{isSpecializationsCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isSpecializationsCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isSpecializationsCollapsed && (
+              {!character.isSpecializationsCollapsed && (
                 <>
                   <ul className="list-disc list-inside space-y-2 text-gray-200">
                     {character.specializations.length === 0 ? (
@@ -2295,12 +2343,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsEquippedItemsCollapsed)}
+                onClick={() => toggleSection('isEquippedItemsCollapsed')}
               >
                 Itens Equipados
-                <span>{isEquippedItemsCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isEquippedItemsCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isEquippedItemsCollapsed && (
+              {!character.isEquippedItemsCollapsed && (
                 <>
                   <ul className="list-disc list-inside space-y-2 text-gray-200">
                     {character.equippedItems.length === 0 ? (
@@ -2391,12 +2439,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsHistoryCollapsed)}
+                onClick={() => toggleSection('isHistoryCollapsed')}
               >
                 História do Personagem
-                <span>{isHistoryCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isHistoryCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isHistoryCollapsed && (
+              {!character.isHistoryCollapsed && (
                 <>
                   <div className="space-y-4 mb-4">
                     {character.history.length === 0 ? (
@@ -2545,12 +2593,12 @@ const App = () => {
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsNotesCollapsed)}
+                onClick={() => toggleSection('isNotesCollapsed')}
               >
                 Anotações
-                <span>{isNotesCollapsed ? '▼' : '▲'}</span>
+                <span>{character.isNotesCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!isNotesCollapsed && (
+              {!character.isNotesCollapsed && (
                 <>
                   <div className="space-y-4 mb-4">
                     {character.notes.length === 0 ? (
