@@ -174,7 +174,7 @@ const App = () => {
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '�',
+    agua: '💧',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -874,7 +874,7 @@ const App = () => {
     e.preventDefault();
     const { index: draggedItemIndex, listName: draggedListName } = draggedItemRef.current;
     
-    if (draggedItemIndex === null || draggedgedListName !== targetListName) {
+    if (draggedItemIndex === null || draggedListName !== targetListName) {
         draggedItemRef.current = null;
         return;
     }
@@ -2632,4 +2632,128 @@ const App = () => {
                                         <input
                                           type="checkbox"
                                           checked={block.fitWidth}
-                                          onChange={(e) => updateNoteBlock(block.id, 'fitWidth', e.target.checke�
+                                          onChange={(e) => updateNoteBlock(block.id, 'fitWidth', e.target.checked)}
+                                          className="form-checkbox text-purple-500 rounded"
+                                        />
+                                        Ajustar à Largura
+                                      </label>
+                                      {!block.fitWidth && (
+                                        <>
+                                          <label className="flex items-center gap-1">
+                                            Largura (px):
+                                            <input
+                                              type="number"
+                                              value={block.width === 0 ? '' : block.width}
+                                              onChange={(e) => updateNoteBlock(block.id, 'width', e.target.value)}
+                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                            />
+                                          </label>
+                                          <label className="flex items-center gap-1">
+                                            Altura (px):
+                                            <input
+                                              type="number"
+                                              value={block.height === 0 ? '' : block.height}
+                                              onChange={(e) => updateNoteBlock(block.id, 'height', e.target.value)}
+                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                            />
+                                          </label>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  <button
+                                    onClick={() => updateNoteBlock(block.id, 'isCollapsed', true)}
+                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
+                                  >
+                                    Ocultar Imagem
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-4 justify-center">
+                    <button
+                      onClick={() => addNoteBlock('text')}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
+                    >
+                      Adicionar Bloco de Texto
+                    </button>
+                    <button
+                      onClick={() => addNoteBlock('image')}
+                      className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
+                    >
+                      Adicionar Bloco de Imagem
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+
+            {/* Botões de Ação */}
+            <div className="flex flex-wrap justify-center gap-4 mt-8">
+              <button
+                onClick={handleExportJson}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
+                disabled={isLoading || !user || !character}
+              >
+                Exportar Ficha (JSON)
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                onClick={handleImportJsonClick}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                disabled={isLoading || !user}
+              >
+                Importar Ficha (JSON)
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-8 py-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                disabled={isLoading || !user || (user.uid !== character.ownerUid && !isMaster)}
+              >
+                Resetar Ficha
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Mensagem se não estiver logado */}
+        {!user && (
+          <p className="text-center text-gray-400 text-lg mt-8">
+            Faça login para começar a criar e gerenciar suas fichas de personagem!
+          </p>
+        )}
+      </div>
+
+      {/* Modal Personalizado */}
+      {modal.isVisible && (
+        <CustomModal
+          message={modal.message}
+          onConfirm={modal.onConfirm}
+          onCancel={modal.onCancel}
+          type={modal.type}
+          onClose={() => setModal({ ...modal, isVisible: false })}
+        />
+      )}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="text-white text-xl font-bold">Carregando...</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
