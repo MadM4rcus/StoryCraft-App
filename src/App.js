@@ -304,7 +304,7 @@ const App = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [db, user, isAuthReady, isMaster, appId]);
+  }, [db, user, isAuthReady, isMaster, appId, setModal]);
 
   // Carrega a lista de personagens quando o user, db ou isAuthReady mudam
   useEffect(() => {
@@ -1819,7 +1819,7 @@ const App = () => {
                                   className="font-semibold text-lg w-full cursor-pointer text-white"
                                   onClick={() => toggleItemCollapsed('advantages', perk.id)}
                                 >
-                                  {perk.name || 'Vantagem Sem Nome'} (Valor: {perk.value})
+                                  {perk.name || 'Vantagem Sem Nome'} {/* Alterado aqui */}
                                 </span>
                               ) : (
                                 <input
@@ -1917,7 +1917,7 @@ const App = () => {
                                   className="font-semibold text-lg w-full cursor-pointer text-white"
                                   onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
                                 >
-                                  {perk.name || 'Desvantagem Sem Nome'} (Valor: {perk.value})
+                                  {perk.name || 'Desvantagem Sem Nome'} {/* Alterado aqui */}
                                 </span>
                               ) : (
                                 <input
