@@ -1,7 +1,7 @@
 /* global __app_id, __firebase_config, __initial_auth_token */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth'; // Import signInAnonymously and signInWithCustomToken
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
@@ -13,13 +13,13 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
       onConfirm(inputValue);
     } else {
       onConfirm();
-      onClose();
+      onClose(); // Close modal after confirmation for non-prompt types
     }
   };
 
   const handleCancel = () => {
     onCancel();
-    onClose();
+    onClose(); // Close modal after cancellation
   };
 
   // Determines the confirmation button text based on the modal type
@@ -28,7 +28,7 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
       case 'confirm':
         return 'Confirmar';
       case 'prompt':
-        return 'Confirmar'; // Changed to "Confirmar" for generic prompts
+        return 'Confirmar';
       case 'info':
       default:
         return 'OK';
@@ -106,11 +106,9 @@ const App = () => {
   const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
   // Firebase states
-  const [app, setApp] = useState(null); // Firebase app instance
   const [db, setDb] = useState(null); // Firestore instance
   const [auth, setAuth] = useState(null); // Auth instance
   const [user, setUser] = useState(null); // Logged in user information
-  const [userId, setUserId] = useState(null); // User ID for Firestore
   const [isAuthReady, setIsAuthReady] = useState(false); // Indicates if authentication has been initialized
   const [isMaster, setIsMaster] = useState(false); // Indicates if the user is the master
 
@@ -171,7 +169,7 @@ const App = () => {
   // Mapping of magic attributes to emojis and their Portuguese names
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '💧',
+    agua: '�',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -186,14 +184,12 @@ const App = () => {
       const firebaseApp = initializeApp(firebaseConfig);
       const authInstance = getAuth(firebaseApp);
       const firestoreInstance = getFirestore(firebaseApp);
-      setApp(firebaseApp); // Set app instance
       setAuth(authInstance);
       setDb(firestoreInstance);
 
       const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         if (currentUser) {
           setUser(currentUser);
-          setUserId(currentUser.uid);
           console.log("User authenticated:", currentUser.uid);
 
           // Check if user is master
@@ -212,7 +208,6 @@ const App = () => {
             console.log("Anonymous login.");
           }
           setUser(authInstance.currentUser); // Set user after anonymous sign-in if successful
-          setUserId(authInstance.currentUser?.uid || crypto.randomUUID()); // Use anonymous UID or random for unauthenticated users
           setIsMaster(false);
         }
         setIsAuthReady(true);
@@ -223,13 +218,15 @@ const App = () => {
     } catch (error) {
       console.error("Error initializing Firebase or authenticating:", error);
       setIsLoading(false);
-      setModal({
+      // Use functional update for setModal to avoid dependency warning
+      setModal(prevModal => ({
+        ...prevModal,
         isVisible: true,
         message: `Error starting the application: ${error.message}. Please try again.`,
         type: 'info',
-        onConfirm: () => setModal({ ...modal, isVisible: false }),
-        onCancel: () => setModal({ ...modal, isVisible: false }),
-      });
+        onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+        onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+      }));
     }
   }, [appId, firebaseConfig, initialAuthToken]);
 
@@ -308,13 +305,14 @@ const App = () => {
       }
     } catch (error) {
       console.error("Error loading character list:", error);
-      setModal({
+      setModal(prevModal => ({
+        ...prevModal,
         isVisible: true,
         message: `Error loading character list: ${error.message}`,
         type: 'info',
-        onConfirm: () => {},
-        onCancel: () => {},
-      });
+        onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+        onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +405,7 @@ const App = () => {
               setOwnerUidState(null); // Clear state
               window.history.pushState({}, '', window.location.pathname);
               fetchCharactersList();
-              setModal({ isVisible: true, message: "The selected sheet has been deleted.", type: "info", onConfirm: () => {}, onCancel: () => {} });
+              setModal(prevModal => ({ ...prevModal, isVisible: true, message: "The selected sheet has been deleted.", type: "info", onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
               return;
             }
             const deserializedData = { ...data };
@@ -437,13 +435,14 @@ const App = () => {
 
             } catch (e) {
               console.error("Error deserializing Firestore data:", e);
-              setModal({
+              setModal(prevModal => ({
+                ...prevModal,
                 isVisible: true,
                 message: `Error loading sheet data: ${e.message}. Data might be corrupted.`,
                 type: 'info',
-                onConfirm: () => {},
-                onCancel: () => {},
-              });
+                onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+                onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+              }));
             }
 
             deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
@@ -475,13 +474,14 @@ const App = () => {
           setIsLoading(false);
         }, (error) => {
           console.error("Error listening to sheet in Firestore:", error);
-          setModal({
+          setModal(prevModal => ({
+            ...prevModal,
             isVisible: true,
             message: `Error loading sheet from Firestore: ${error.message}`,
             type: 'info',
-            onConfirm: () => {},
-            onCancel: () => {},
-          });
+            onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+            onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+          }));
           setIsLoading(false);
         });
       };
@@ -490,11 +490,18 @@ const App = () => {
       console.log('No character ID selected, clearing character state.');
       setCharacter(null);
     }
+    // The `modal` state is used in the `setModal` calls within the error handling
+    // of this useEffect. To avoid the `react-hooks/exhaustive-deps` warning,
+    // we use functional updates for `setModal` where the new state depends on the previous.
+    // However, the `onConfirm` and `onCancel` functions passed to setModal still
+    // need to be stable or explicitly declare their dependency on `modal`.
+    // By using `setModal(prev => ({ ...prev, isVisible: false }))` inside `onConfirm` and `onCancel`,
+    // we ensure they don't capture `modal` from the outer scope, thus removing the dependency.
     return () => {
       console.log('Cleaning up onSnapshot character listener.');
       unsubscribeCharacter();
     };
-  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]); // Dependencies updated
+  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]);
 
   // Saves the character to Firestore
   useEffect(() => {
@@ -822,7 +829,8 @@ const App = () => {
         history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'text', value: '', isCollapsed: false }],
       }));
     } else if (type === 'image') {
-      setModal({
+      setModal(prevModal => ({
+        ...prevModal,
         isVisible: true,
         message: 'Cole a URL da imagem:',
         type: 'prompt',
@@ -833,12 +841,12 @@ const App = () => {
               history: [...(prevChar.history || []), { id: crypto.randomUUID(), type: 'image', value: url, width: '', height: '', fitWidth: true, isCollapsed: false }],
             }));
           }
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prev => ({ ...prev, isVisible: false }));
         },
         onCancel: () => {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prev => ({ ...prev, isVisible: false }));
         },
-      });
+      }));
     }
   }, []);
 
@@ -903,7 +911,8 @@ const App = () => {
 
   // Function to reset the character sheet to default values using the custom modal
   const handleReset = useCallback(() => {
-    setModal({
+    setModal(prevModal => ({
+      ...prevModal,
       isVisible: true,
       message: 'Are you sure you want to reset the sheet? All data will be lost. (This action does NOT delete the sheet from the database)',
       type: 'confirm',
@@ -916,15 +925,16 @@ const App = () => {
           magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: '',
         });
+        setModal(prev => ({ ...prev, isVisible: false })); // Close modal after reset
       },
-      onCancel: () => {},
-    });
+      onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+    }));
   }, []);
 
   // Function to export character data as JSON
   const handleExportJson = useCallback(() => {
     if (!character) {
-      setModal({ isVisible: true, message: 'No character selected to export.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: 'No character selected to export.', type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
       return;
     }
     const jsonString = JSON.stringify(character, null, 2);
@@ -953,7 +963,8 @@ const App = () => {
         try {
           const importedData = JSON.parse(e.target.result);
           if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
-            setModal({
+            setModal(prevModal => ({
+              ...prevModal,
               isVisible: true,
               message: 'Are you sure you want to import this sheet? Current data will be replaced and a new character will be created.',
               type: 'confirm',
@@ -1046,31 +1057,33 @@ const App = () => {
                     setOwnerUidState(user.uid); // Set state
                     window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
                     fetchCharactersList();
-                    setModal({ isVisible: true, message: `Sheet for '${importedData.name}' imported and saved successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Sheet for '${importedData.name}' imported and saved successfully!`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
                 } catch (error) {
                     console.error("Error saving imported sheet:", error);
-                    setModal({ isVisible: true, message: `Error saving imported sheet: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+                    setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Error saving imported sheet: ${error.message}`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
                 }
               },
-              onCancel: () => {},
-            });
+              onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+            }));
           } else {
-            setModal({
+            setModal(prevModal => ({
+              ...prevModal,
               isVisible: true,
               message: 'The selected JSON file does not appear to be a valid character sheet.',
               type: 'info',
-              onConfirm: () => {},
-              onCancel: () => {},
-            });
+              onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+              onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+            }));
           }
         } catch (error) {
-          setModal({
+          setModal(prevModal => ({
+            ...prevModal,
             isVisible: true,
             message: 'Error reading the JSON file. Make sure it is a valid JSON.',
             type: 'info',
-            onConfirm: () => {},
-            onCancel: () => {},
-          });
+            onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })),
+            onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+          }));
           console.error('Error parsing JSON file:', error);
         }
       };
@@ -1080,7 +1093,8 @@ const App = () => {
 
   // Function to create a new character
   const handleCreateNewCharacter = useCallback(() => {
-    setModal({
+    setModal(prevModal => ({
+      ...prevModal,
       isVisible: true,
       message: 'Enter the name of the new character:',
       type: 'prompt',
@@ -1133,21 +1147,21 @@ const App = () => {
 
             await setDoc(characterDocRef, dataToSave);
             fetchCharactersList();
-            setModal({ isVisible: true, message: `Character '${name}' created successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Character '${name}' created successfully!`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
           } catch (error) {
             console.error("Error creating new character:", error);
-            setModal({ isVisible: true, message: `Error creating character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+            setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Error creating character: ${error.message}`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
           } finally {
             setIsLoading(false);
           }
         } else {
-          setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prevModal => ({ ...prevModal, isVisible: false, message: '', type: '', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
         }
       },
       onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        setModal(prevModal => ({ ...prevModal, isVisible: false, message: '', type: '', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
       },
-    });
+    }));
   }, [db, user, appId, fetchCharactersList]);
 
   // Function to select a character from the list
@@ -1169,14 +1183,15 @@ const App = () => {
 
   // Function to delete a character (changed to deleteDoc)
   const handleDeleteCharacter = useCallback((charId, charName, ownerUid) => {
-    setModal({
+    setModal(prevModal => ({
+      ...prevModal,
       isVisible: true,
       message: `Are you sure you want to PERMANENTLY DELETE character '${charName}'? This action is irreversible.`,
       type: 'confirm',
       onConfirm: async () => {
         if (!db || !user) return;
         if (user.uid !== ownerUid && !isMaster) {
-          setModal({ isVisible: true, message: 'You do not have permission to delete this character.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prevModal => ({ ...prevModal, isVisible: true, message: 'You do not have permission to delete this character.', type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
           return;
         }
         setIsLoading(true);
@@ -1188,29 +1203,29 @@ const App = () => {
           window.history.pushState({}, '', window.location.pathname);
           setCharacter(null);
           fetchCharactersList();
-          setModal({ isVisible: true, message: `Character '${charName}' permanently deleted successfully!`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Character '${charName}' permanently deleted successfully!`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
         } catch (error) {
           console.error("Error deleting character:", error);
-          setModal({ isVisible: true, message: `Error deleting character: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+          setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Error deleting character: ${error.message}`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
         } finally {
           setIsLoading(false);
         }
       },
-      onCancel: () => {},
-    });
+      onCancel: () => setModal(prev => ({ ...prev, isVisible: false })),
+    }));
   }, [db, user, isMaster, appId, fetchCharactersList]);
 
   // --- Google Authentication Functions ---
   const handleGoogleSignIn = useCallback(async () => {
     if (!auth) {
-      setModal({ isVisible: true, message: 'Firebase Auth not initialized.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: 'Firebase Auth not initialized.', type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
       return;
     }
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      setModal({ isVisible: true, message: 'Google login successful!', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: 'Google login successful!', type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
     } catch (error) {
       console.error("Error in Google login:", error);
       let errorMessage = "Error logging in with Google.";
@@ -1221,7 +1236,7 @@ const App = () => {
       } else {
         errorMessage += ` Details: ${error.message}`;
       }
-      setModal({ isVisible: true, message: errorMessage, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: errorMessage, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
     } finally {
       setIsLoading(false);
     }
@@ -1239,10 +1254,10 @@ const App = () => {
       window.history.pushState({}, '', window.location.pathname);
       setViewingAllCharacters(false);
       setIsMaster(false);
-      setModal({ isVisible: true, message: 'You have been successfully logged out.', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: 'You have been successfully logged out.', type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
     } catch (error) {
       console.error("Error logging out:", error);
-      setModal({ isVisible: true, message: `Error logging out: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal(prevModal => ({ ...prevModal, isVisible: true, message: `Error logging out: ${error.message}`, type: 'info', onConfirm: () => setModal(prev => ({ ...prev, isVisible: false })), onCancel: () => setModal(prev => ({ ...prev, isVisible: false })) }));
     } finally {
       setIsLoading(false);
     }
@@ -1257,7 +1272,8 @@ const App = () => {
       // If not owner or master, do nothing when clicking the image/button
       return;
     }
-    setModal({
+    setModal(prevModal => ({
+      ...prevModal,
       isVisible: true,
       message: 'Enter the new image URL or leave blank to remove:',
       type: 'prompt',
@@ -1266,12 +1282,12 @@ const App = () => {
           ...prevChar,
           photoUrl: newUrl,
         }));
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} }); // Close modal after update
+        setModal(prev => ({ ...prev, isVisible: false })); // Close modal after update
       },
       onCancel: () => {
-        setModal({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+        setModal(prev => ({ ...prev, isVisible: false }));
       },
-    });
+    }));
   }, [user, character, isMaster]);
 
   // Function to truncate text to the first two lines
@@ -2531,7 +2547,7 @@ const App = () => {
           onConfirm={modal.onConfirm}
           onCancel={modal.onCancel}
           type={modal.type}
-          onClose={() => setModal({ ...modal, isVisible: false })}
+          onClose={() => setModal(prev => ({ ...prev, isVisible: false }))}
         />
       )}
       {isLoading && (
