@@ -105,7 +105,12 @@ const App = () => {
   
   // Wrap firebaseConfig in useMemo to ensure stability
   const firebaseConfig = useMemo(() => {
-    return typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    try {
+      return typeof __firebase_config !== 'undefined' && __firebase_config ? JSON.parse(__firebase_config) : {};
+    } catch (e) {
+      console.error("Error parsing __firebase_config:", e);
+      return {};
+    }
   }, []); // Empty dependency array means it's computed once
 
   const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -174,7 +179,7 @@ const App = () => {
   // Mapping of magic attributes to emojis and their Portuguese names
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '💧',
+    agua: '�',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -186,6 +191,11 @@ const App = () => {
   // Initialize Firebase and set up authentication listener
   useEffect(() => {
     try {
+      // Check if firebaseConfig is valid before initializing
+      if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+        throw new Error("Firebase configuration is incomplete or invalid. Please ensure API Key, Auth Domain, and Project ID are provided.");
+      }
+
       const firebaseApp = initializeApp(firebaseConfig);
       const authInstance = getAuth(firebaseApp);
       const firestoreInstance = getFirestore(firebaseApp);
