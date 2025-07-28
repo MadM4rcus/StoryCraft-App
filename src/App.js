@@ -167,13 +167,13 @@ const App = () => {
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
     carisma: '🎭',
-    armadura: '�',
+    armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '🔥',
+    fogo: '�',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -758,7 +758,7 @@ const App = () => {
           updatedSpecs[specIndex][field] = parseInt(value, 10) || 0;
         }
       }
-      return { ...prevChar, specializations: updatedSpecs };
+      return { ...prevChar, [type]: updatedSpecs };
     });
   };
 
@@ -1312,421 +1312,539 @@ const App = () => {
           }
         `}
       </style>
-      <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
-        <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">
-          Ficha StoryCraft
-        </h1>
-
-        {/* Informações do Usuário (Firebase Authentication) */}
-        <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-          <h2 
-            className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center"
-            onClick={() => toggleSection(setIsUserStatusCollapsed)}
-          >
+      <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+        {/* Seção de Status do Usuário */}
+        <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+          <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsUserStatusCollapsed)}>
             Status do Usuário
-            <span>{isUserStatusCollapsed ? '▼' : '▲'}</span>
+            <span className="text-gray-400 text-sm">{isUserStatusCollapsed ? '▼' : '▲'}</span>
           </h2>
           {!isUserStatusCollapsed && (
-            <div className="text-center">
-              {isAuthReady ? (
-                user ? (
-                  <>
-                    <p className="text-lg text-gray-200">
-                      Logado como: <span className="font-semibold text-purple-300">{user.displayName || 'Usuário Google'}</span>
-                      {isMaster && <span className="text-yellow-400 ml-2">(Mestre)</span>}
-                    </p>
-                    <p className="text-sm text-gray-400 mb-2">{user.email}</p>
-                    <p className="text-sm text-gray-400 break-all">ID: {user.uid}</p>
+            <>
+              {user ? (
+                <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                  <p className="text-lg text-gray-200">
+                    Logado como: <span className="font-semibold text-purple-300">{user.displayName || user.email}</span>
+                    {isMaster && <span className="ml-2 px-3 py-1 bg-yellow-600 text-white text-xs font-bold rounded-full">MESTRE</span>}
+                  </p>
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                     <button
                       onClick={handleSignOut}
-                      className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                      className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
                       disabled={isLoading}
                     >
                       Sair
                     </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg text-gray-400 mb-4">Você não está logado.</p>
-                    <button
-                      onClick={handleGoogleSignIn}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
-                      disabled={isLoading}
-                    >
-                      Login com Google
-                    </button>
-                  </>
-                )
-              ) : (
-                <p className="text-lg text-gray-400">Inicializando autenticação...</p>
-              )}
-              <p className="text-sm text-gray-400 mt-2">
-                Sua ficha será salva e carregada automaticamente para o seu ID de usuário logado.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* Se o usuário está logado e não há personagem selecionado, mostra a lista de personagens */}
-        {user && !selectedCharIdState && (
-          <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
-              {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
-            </h2>
-            <div className="flex flex-wrap gap-4 mb-4">
-              <button
-                onClick={handleCreateNewCharacter}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
-                disabled={isLoading}
-              >
-                Criar Novo Personagem
-              </button>
-              {isMaster && !viewingAllCharacters && (
-                <button
-                  onClick={() => fetchCharactersList()}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-                  disabled={isLoading}
-                >
-                  Ver Todas as Fichas
-                </button>
-              )}
-              {isMaster && viewingAllCharacters && (
-                <button
-                  onClick={() => { setViewingAllCharacters(false); fetchCharactersList(); }}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-                  disabled={isLoading}
-                >
-                  Ver Minhas Fichas
-                </button>
-              )}
-            </div>
-
-            {charactersList.length === 0 && !isLoading ? (
-              <p className="text-gray-400 italic">Nenhum personagem encontrado. Crie um novo!</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {charactersList.map((char) => (
-                  <div key={char.id} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-1">{char.name || 'Personagem Sem Nome'}</h3>
-                      <p className="text-sm text-gray-300">Raça: {char.race || 'N/A'}</p>
-                      <p className="text-sm text-gray-300">Classe: {char.class || 'N/A'}</p>
-                      {isMaster && char.ownerUid && (
-                        <p className="text-xs text-gray-400 mt-2 break-all">Proprietário: {char.ownerUid}</p>
-                      )}
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4">
+                    {isMaster && (
                       <button
-                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                        onClick={() => setViewingAllCharacters(true)}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                        disabled={isLoading}
                       >
-                        Ver/Editar
+                        Ver Todas as Fichas
                       </button>
-                      {(user.uid === char.ownerUid || isMaster) && (
-                          <button
-                            onClick={() => handleDeleteCharacter(char.id, char.name, char.ownerUid)}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                          >
-                            Excluir
-                          </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Se um personagem estiver selecionado, mostra a ficha */}
-        {user && selectedCharIdState && character && (
-          <>
-            <div className="mb-4">
-              <button
-                onClick={handleBackToList}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-              >
-                ← Voltar para a Lista de Personagens
-              </button>
-            </div>
-
-            {/* Informações do Personagem */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsCharacterInfoCollapsed)}
-              >
-                Informações do Personagem
-                <span>{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
-              </h2>
-              {!isCharacterInfoCollapsed && (
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
-                  <div className="flex-shrink-0 relative">
-                    {character.photoUrl ? (
-                      <img
-                        src={character.photoUrl}
-                        alt="Foto do Personagem"
-                        className="w-[224px] h-[224px] object-cover rounded-full border-2 border-purple-500 cursor-pointer"
-                        onClick={handlePhotoUrlClick}
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/224x224/000000/FFFFFF?text=Foto'; }}
-                      />
-                    ) : (
-                      <div
-                        className="w-[224px] h-[224px] bg-gray-600 rounded-full border-2 border-purple-500 flex items-center justify-center text-6xl text-gray-400 cursor-pointer"
-                        onClick={handlePhotoUrlClick}
-                      >
-                        +
-                      </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow w-full">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">Nome:</label>
-                      <input type="text" id="name" name="name" value={character.name} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-gray-300 mb-4">Faça login para gerenciar suas fichas.</p>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    className="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                    disabled={isLoading}
+                  >
+                    Entrar com Google
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Lista de Personagens ou Ficha Detalhada */}
+        {user && !selectedCharIdState && !viewingAllCharacters && (
+          <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+            <h2 className="text-2xl font-bold mb-4 text-purple-400">Minhas Fichas</h2>
+            {charactersList.length === 0 ? (
+              <p className="text-gray-400 text-center">Você ainda não tem personagens. Crie um agora!</p>
+            ) : (
+              <ul className="space-y-3">
+                {charactersList.map((char) => (
+                  <li key={char.id} className="flex flex-col sm:flex-row items-center justify-between bg-gray-800 p-3 rounded-md shadow-sm border border-gray-600">
+                    <span className="text-lg font-semibold text-gray-200 mb-2 sm:mb-0">{char.name}</span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Abrir
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCharacter(char.id, char.name, char.ownerUid)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Excluir
+                      </button>
                     </div>
-                    <div>
-                      <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-1">Idade:</label>
-                      <input type="number" id="age" name="age" value={character.age === 0 ? '' : character.age} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              onClick={handleCreateNewCharacter}
+              className="mt-6 w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+              disabled={isLoading}
+            >
+              Criar Nova Ficha
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".json"
+              className="hidden"
+            />
+            <button
+              onClick={handleImportJsonClick}
+              className="mt-3 w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
+              disabled={isLoading}
+            >
+              Importar Ficha (JSON)
+            </button>
+          </div>
+        )}
+
+        {/* Lista de Todos os Personagens (Apenas para Mestre) */}
+        {user && viewingAllCharacters && isMaster && !selectedCharIdState && (
+          <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+            <h2 className="text-2xl font-bold mb-4 text-purple-400">Todas as Fichas (Mestre)</h2>
+            <button
+              onClick={handleBackToList}
+              className="mb-4 px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105"
+            >
+              ← Voltar para Minhas Fichas
+            </button>
+            {charactersList.length === 0 ? (
+              <p className="text-gray-400 text-center">Nenhum personagem encontrado no banco de dados.</p>
+            ) : (
+              <ul className="space-y-3">
+                {charactersList.map((char) => (
+                  <li key={char.id} className="flex flex-col sm:flex-row items-center justify-between bg-gray-800 p-3 rounded-md shadow-sm border border-gray-600">
+                    <span className="text-lg font-semibold text-gray-200 mb-2 sm:mb-0">{char.name} <span className="text-gray-400 text-sm">(Dono: {char.ownerUid.substring(0, 6)}...)</span></span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleSelectCharacter(char.id, char.ownerUid)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Abrir
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCharacter(char.id, char.name, char.ownerUid)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Excluir
+                      </button>
                     </div>
-                    <div>
-                      <label htmlFor="height" className="block text-sm font-medium text-gray-300 mb-1">Altura:</label>
-                      <input type="text" id="height" name="height" value={character.height} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Ficha de Personagem Detalhada */}
+        {user && character && selectedCharIdState && (
+          <>
+            <button
+              onClick={handleBackToList}
+              className="mb-6 px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105"
+            >
+              ← Voltar para a Lista
+            </button>
+
+            {/* Nome do Personagem e ID do Proprietário */}
+            <h1 className="text-4xl font-extrabold text-center text-purple-300 mb-6">
+              {character.name || 'Novo Personagem'}
+            </h1>
+            <p className="text-center text-gray-400 text-sm mb-6">
+              ID da Ficha: <span className="font-mono text-gray-300">{selectedCharIdState}</span><br/>
+              Proprietário: <span className="font-mono text-gray-300">{character.ownerUid}</span>
+            </p>
+
+            {/* Seção de Informações do Personagem */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsCharacterInfoCollapsed)}>
+                Informações do Personagem
+                <span className="text-gray-400 text-sm">{isCharacterInfoCollapsed ? '▼' : '▲'}</span>
+              </h2>
+              {!isCharacterInfoCollapsed && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-lg border border-gray-600">
+                    <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-purple-500 mb-3 flex items-center justify-center bg-gray-600">
+                      {character.photoUrl ? (
+                        <img
+                          src={character.photoUrl}
+                          alt="Foto do Personagem"
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/128x128/374151/F9FAFB?text=Erro"; }}
+                        />
+                      ) : (
+                        <span className="text-5xl text-gray-400">+</span>
+                      )}
+                      {(user.uid === character.ownerUid || isMaster) && (
+                        <button
+                          onClick={handlePhotoUrlClick}
+                          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-xl opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-full"
+                          title="Alterar Foto"
+                        >
+                          {character.photoUrl ? 'Alterar' : 'Adicionar'} Foto
+                        </button>
+                      )}
                     </div>
-                    <div>
-                      <label htmlFor="gender" className="block text-sm font-medium text-gray-300 mb-1">Gênero:</label>
-                      <input type="text" id="gender" name="gender" value={character.gender} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                    <div>
-                      <label htmlFor="race" className="block text-sm font-medium text-gray-300 mb-1">Raça:</label>
-                      <input type="text" id="race" name="race" value={character.race} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                    <div>
-                      <label htmlFor="class" className="block text-sm font-medium text-gray-300 mb-1">Classe:</label>
-                      <input type="text" id="class" name="class" value={character.class} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                    <div>
-                      <label htmlFor="alignment" className="block text-sm font-medium text-gray-300 mb-1">Alinhamento:</label>
-                      <input type="text" id="alignment" name="alignment" value={character.alignment} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                    <div>
-                      <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Nível:</label>
-                      <input type="number" id="level" name="level" value={character.level === 0 ? '' : character.level} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                    <div>
-                      <label htmlFor="xp" className="block text-sm font-medium text-gray-300 mb-1">XP:</label>
-                      <input type="number" id="xp" name="xp" value={character.xp === 0 ? '' : character.xp} onChange={handleChange} className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
+                    <p className="text-gray-300 text-center text-sm">Clique na imagem para alterar</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-gray-400">Nome:</span>
+                      <input
+                        type="text"
+                        name="name"
+                        value={character.name}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Idade:</span>
+                      <input
+                        type="number"
+                        name="age"
+                        value={character.age}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Altura:</span>
+                      <input
+                        type="text"
+                        name="height"
+                        value={character.height}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Gênero:</span>
+                      <input
+                        type="text"
+                        name="gender"
+                        value={character.gender}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Raça:</span>
+                      <input
+                        type="text"
+                        name="race"
+                        value={character.race}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Classe:</span>
+                      <input
+                        type="text"
+                        name="class"
+                        value={character.class}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Alinhamento:</span>
+                      <input
+                        type="text"
+                        name="alignment"
+                        value={character.alignment}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">Nível:</span>
+                      <input
+                        type="number"
+                        name="level"
+                        value={character.level}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-400">XP:</span>
+                      <input
+                        type="number"
+                        name="xp"
+                        value={character.xp}
+                        onChange={handleChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
                   </div>
                 </div>
               )}
-            </section>
+            </div>
 
-            {/* Atributos Principais */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsMainAttributesCollapsed)}
-              >
+            {/* Seção de Atributos Principais */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsMainAttributesCollapsed)}>
                 Atributos Principais
-                <span>{isMainAttributesCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isMainAttributesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isMainAttributesCollapsed && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {/* HP */}
-                  <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1">HP:</label>
-                    <div className="flex items-center gap-2">
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">HP (Vida)</h3>
+                    <div className="flex items-center space-x-2">
                       <input
                         type="number"
                         name="current"
                         data-attribute="hp"
-                        value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current}
+                        value={character.mainAttributes.hp.current}
                         onChange={handleMainAttributeChange}
-                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        disabled={user.uid !== character.ownerUid}
+                        className="w-1/2 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                       <span className="text-gray-300">/</span>
                       <input
                         type="number"
                         name="max"
                         data-attribute="hp"
-                        value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max}
+                        value={character.mainAttributes.hp.max}
                         onChange={handleMainAttributeChange}
-                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        disabled={!isMaster}
+                        className="w-1/2 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                     </div>
                   </div>
                   {/* MP */}
-                  <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1">MP:</label>
-                    <div className="flex items-center gap-2">
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">MP (Magia)</h3>
+                    <div className="flex items-center space-x-2">
                       <input
                         type="number"
                         name="current"
                         data-attribute="mp"
-                        value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current}
+                        value={character.mainAttributes.mp.current}
                         onChange={handleMainAttributeChange}
-                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        disabled={user.uid !== character.ownerUid}
+                        className="w-1/2 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                       <span className="text-gray-300">/</span>
                       <input
                         type="number"
                         name="max"
                         data-attribute="mp"
-                        value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max}
+                        value={character.mainAttributes.mp.max}
                         onChange={handleMainAttributeChange}
-                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
-                        disabled={!isMaster}
-                      />
-                    </div>
-                  </div>
-                  {/* Iniciativa, FA, FM, FD */}
-                  {['initiative', 'fa', 'fm', 'fd'].map(attr => (
-                    <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                      <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">
-                        {attr === 'fa' ? 'FA' : attr === 'fm' ? 'FM' : attr === 'fd' ? 'FD' : 'Iniciativa'}:
-                      </label>
-                      <input
-                        type="number"
-                        id={attr}
-                        name={attr}
-                        value={character.mainAttributes[attr] === 0 ? '' : character.mainAttributes[attr]}
-                        onChange={handleSingleMainAttributeChange}
-                        className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold"
+                        className="w-1/2 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center focus:ring-purple-500 focus:border-purple-500"
                         disabled={user.uid !== character.ownerUid && !isMaster}
                       />
                     </div>
-                  ))}
-                  <p className="col-span-full text-sm text-gray-400 mt-2 text-center">
-                    *A Iniciativa é baseada na Destreza ou Sabedoria (com custo de Mana para Sabedoria).
-                  </p>
+                  </div>
+                  {/* Iniciativa */}
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <label className="block">
+                      <span className="text-lg font-semibold text-gray-200">Iniciativa:</span>
+                      <input
+                        type="number"
+                        name="initiative"
+                        value={character.mainAttributes.initiative}
+                        onChange={handleSingleMainAttributeChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center mt-1 focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                  </div>
+                  {/* FA */}
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <label className="block">
+                      <span className="text-lg font-semibold text-gray-200">FA (Força de Ataque):</span>
+                      <input
+                        type="number"
+                        name="fa"
+                        value={character.mainAttributes.fa}
+                        onChange={handleSingleMainAttributeChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center mt-1 focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                  </div>
+                  {/* FM */}
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <label className="block">
+                      <span className="text-lg font-semibold text-gray-200">FM (Força Mágica):</span>
+                      <input
+                        type="number"
+                        name="fm"
+                        value={character.mainAttributes.fm}
+                        onChange={handleSingleMainAttributeChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center mt-1 focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                  </div>
+                  {/* FD */}
+                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <label className="block">
+                      <span className="text-lg font-semibold text-gray-200">FD (Força de Defesa):</span>
+                      <input
+                        type="number"
+                        name="fd"
+                        value={character.mainAttributes.fd}
+                        onChange={handleSingleMainAttributeChange}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center mt-1 focus:ring-purple-500 focus:border-purple-500"
+                        disabled={user.uid !== character.ownerUid && !isMaster}
+                      />
+                    </label>
+                  </div>
                 </div>
               )}
-            </section>
+            </div>
 
-            {/* Atributos Básicos */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsBasicAttributesCollapsed)}
-              >
+            {/* Seção de Atributos Básicos */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsBasicAttributesCollapsed)}>
                 Atributos Básicos
-                <span>{isBasicAttributesCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isBasicAttributesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isBasicAttributesCollapsed && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Atributos Físicos */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(character.basicAttributes).map(([key, attr]) => (
-                        <div key={key} className="p-2 bg-gray-600 rounded-md">
-                          <div className="flex items-center gap-2 text-xs justify-between">
-                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
-                              {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                            </label>
-                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.entries(character.basicAttributes).map(([key, attr]) => (
+                    <div key={key} className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-2 flex items-center">
+                        {basicAttributeEmojis[key]} {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </h3>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Base:</span>
+                        <input
+                          type="number"
+                          value={attr.base}
+                          onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Bônus Perm.:</span>
+                        <input
+                          type="number"
+                          value={attr.permBonus}
+                          onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Bônus Cond.:</span>
+                        <input
+                          type="number"
+                          value={attr.condBonus}
+                          onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <p className="text-right text-lg font-bold text-purple-300 mt-2">Total: {attr.total}</p>
                     </div>
-                  </div>
-
-                  {/* Atributos Mágicos */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(character.magicAttributes).map(([key, attr]) => (
-                        <div key={key} className="p-2 bg-gray-600 rounded-md">
-                          <div className="flex items-center gap-2 text-xs justify-between">
-                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
-                              {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}:
-                            </label>
-                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                  ))}
+                  {Object.entries(character.magicAttributes).map(([key, attr]) => (
+                    <div key={key} className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-2 flex items-center">
+                        {magicAttributeEmojis[key]} {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </h3>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Base:</span>
+                        <input
+                          type="number"
+                          value={attr.base}
+                          onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Bônus Perm.:</span>
+                        <input
+                          type="number"
+                          value={attr.permBonus}
+                          onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <label className="block mb-1">
+                        <span className="text-gray-400 text-sm">Bônus Cond.:</span>
+                        <input
+                          type="number"
+                          value={attr.condBonus}
+                          onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)}
+                          className="w-full p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm focus:ring-purple-500 focus:border-purple-500"
+                          disabled={user.uid !== character.ownerUid && !isMaster}
+                        />
+                      </label>
+                      <p className="text-right text-lg font-bold text-purple-300 mt-2">Total: {attr.total}</p>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
-            </section>
+            </div>
 
-            {/* Inventário */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsInventoryCollapsed)}
-              >
+            {/* Seção de Inventário */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsInventoryCollapsed)}>
                 Inventário
-                <span>{isInventoryCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isInventoryCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isInventoryCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
-                    {character.inventory.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhum item no inventário.</li>
-                    ) : (
-                      character.inventory.map((item) => (
-                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            {item.isCollapsed ? (
-                              <span 
-                                className="font-semibold text-lg w-full cursor-pointer text-white"
-                                onClick={() => toggleItemCollapsed('inventory', item.id)}
-                              >
-                                {item.name || 'Item Sem Nome'}
-                              </span>
-                            ) : (
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)}
-                                className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                placeholder="Nome do Item"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                            )}
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <button
+                      onClick={handleAddItem}
+                      className="mb-4 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    >
+                      Adicionar Item
+                    </button>
+                  )}
+                  {character.inventory.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhum item no inventário.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {character.inventory.map((item) => (
+                        <li key={item.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('inventory', item.id)}>
+                              {item.name || 'Novo Item'}
+                            </h3>
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemoveItem(item.id)}
-                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
                               >
                                 Remover
                               </button>
@@ -1734,334 +1852,318 @@ const App = () => {
                           </div>
                           {!item.isCollapsed && (
                             <>
-                              <AutoResizingTextarea
-                                value={item.description}
-                                onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)}
-                                placeholder="Descrição do item"
-                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              <button
-                                onClick={() => toggleItemCollapsed('inventory', item.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                              >
-                                Ocultar Item
-                              </button>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Nome:</span>
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-gray-400">Descrição:</span>
+                                <AutoResizingTextarea
+                                  value={item.description}
+                                  onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)}
+                                  placeholder="Descrição do item..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
                             </>
                           )}
-                          {item.isCollapsed && (
-                            <button
-                                onClick={() => toggleItemCollapsed('inventory', item.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                            >
-                                Exibir Item
-                            </button>
-                          )}
                         </li>
-                      ))
-                    )}
-                  </ul>
-                  {/* Botão de adicionar no final da lista */}
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={handleAddItem}
-                      className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                      aria-label="Adicionar Item"
-                    >
-                      +
-                    </button>
-                  </div>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
-            </section>
+            </div>
 
-            {/* Carteira */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsWalletCollapsed)}
-              >
-                Zeni: {character.wallet.zeni}
-                <span>{isWalletCollapsed ? '▼' : '▲'}</span>
+            {/* Seção de Carteira (Zeni) */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsWalletCollapsed)}>
+                Carteira (Zeni)
+                <span className="text-gray-400 text-sm">{isWalletCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isWalletCollapsed && (
-                <div className="flex items-center gap-2 w-full">
-                  <input
-                    type="number"
-                    value={zeniAmount === 0 ? '' : zeniAmount}
-                    onChange={handleZeniChange}
-                    className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white text-lg"
-                    placeholder="Valor"
-                    disabled={user.uid !== character.ownerUid && !isMaster}
-                  />
-                  <button
-                    onClick={handleAddZeni}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
-                    disabled={user.uid !== character.ownerUid && !isMaster}
-                  >
-                    Adicionar
-                  </button>
-                  <button
-                    onClick={handleRemoveZeni}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                    disabled={user.uid !== character.ownerUid && !isMaster}
-                  >
-                    Remover
-                  </button>
+                <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                  <p className="text-3xl font-bold text-green-400">
+                    Zeni: {character.wallet.zeni}
+                  </p>
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <div className="flex flex-grow space-x-2">
+                      <input
+                        type="number"
+                        value={zeniAmount}
+                        onChange={handleZeniChange}
+                        placeholder="Valor"
+                        className="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                      />
+                      <button
+                        onClick={handleAddZeni}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={handleRemoveZeni}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-            </section>
+            </div>
 
-            {/* Vantagens e Desvantagens */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsPerksCollapsed)}
-              >
+            {/* Seção de Vantagens e Desvantagens */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsPerksCollapsed)}>
                 Vantagens e Desvantagens
-                <span>{isPerksCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isPerksCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isPerksCollapsed && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <>
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <div className="flex gap-4 mb-4">
+                      <button
+                        onClick={() => handleAddPerk('advantages')}
+                        className="flex-1 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                      >
+                        Adicionar Vantagem
+                      </button>
+                      <button
+                        onClick={() => handleAddPerk('disadvantages')}
+                        className="flex-1 px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                      >
+                        Adicionar Desvantagem
+                      </button>
+                    </div>
+                  )}
+
                   {/* Vantagens */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Vantagens</h3>
-                    <ul className="list-disc list-inside space-y-2 text-gray-200">
-                      {character.advantages.length === 0 ? (
-                        <li className="text-gray-400 italic">Nenhuma vantagem.</li>
-                      ) : (
-                        character.advantages.map((perk) => (
-                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                            <div className="flex justify-between items-center mb-1">
-                              {perk.isCollapsed ? (
-                                <span 
-                                  className="font-semibold text-lg w-full cursor-pointer text-white"
-                                  onClick={() => toggleItemCollapsed('advantages', perk.id)}
-                                >
-                                  {perk.name || 'Vantagem Sem Nome'} {/* Alterado aqui */}
-                                </span>
-                              ) : (
+                  <h3 className="text-xl font-bold text-green-300 mb-3">Vantagens</h3>
+                  {character.advantages.length === 0 ? (
+                    <p className="text-gray-400 text-center mb-4">Nenhuma vantagem.</p>
+                  ) : (
+                    <ul className="space-y-4 mb-6">
+                      {character.advantages.map((perk) => (
+                        <li key={perk.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-lg font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('advantages', perk.id)}>
+                              {perk.name || 'Nova Vantagem'} ({perk.value >= 0 ? '+' : ''}{perk.value} Pts)
+                            </h4>
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemovePerk('advantages', perk.id)}
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
+                          {!perk.isCollapsed && (
+                            <>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Nome:</span>
                                 <input
                                   type="text"
                                   value={perk.name}
                                   onChange={(e) => handlePerkChange('advantages', perk.id, 'name', e.target.value)}
-                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                  placeholder="Nome da Vantagem"
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
                                   disabled={user.uid !== character.ownerUid && !isMaster}
                                 />
-                              )}
-                              <input
-                                type="number"
-                                value={perk.value === 0 ? '' : perk.value}
-                                onChange={(e) => handlePerkChange('advantages', perk.id, 'value', e.target.value)}
-                                className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                placeholder="Valor"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              {(user.uid === character.ownerUid || isMaster) && (
-                                <button
-                                  onClick={() => handleRemovePerk('advantages', perk.id)}
-                                  className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                                >
-                                  Remover
-                                </button>
-                              )}
-                            </div>
-                            {!perk.isCollapsed && (
-                              <>
+                              </label>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Descrição:</span>
                                 <AutoResizingTextarea
                                   value={perk.description}
                                   onChange={(e) => handlePerkChange('advantages', perk.id, 'description', e.target.value)}
-                                  placeholder="Descrição da vantagem"
-                                  className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Descrição da vantagem..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
                                   disabled={user.uid !== character.ownerUid && !isMaster}
                                 />
-                                <div className="flex gap-3 text-sm text-gray-400 mt-2">
-                                  <span>Origem:</span>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('advantages', perk.id, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
-                                  </label>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('advantages', perk.id, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
-                                  </label>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('advantages', perk.id, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
-                                  </label>
-                                </div>
-                                <button
-                                  onClick={() => toggleItemCollapsed('advantages', perk.id)}
-                                  className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                >
-                                  Ocultar Vantagem
-                                </button>
-                              </>
-                            )}
-                            {perk.isCollapsed && (
-                                <button
-                                    onClick={() => toggleItemCollapsed('advantages', perk.id)}
-                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                >
-                                    Exibir Vantagem
-                                </button>
-                            )}
-                          </li>
-                        ))
-                      )}
+                              </label>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Valor em Pontos:</span>
+                                <input
+                                  type="number"
+                                  value={perk.value}
+                                  onChange={(e) => handlePerkChange('advantages', perk.id, 'value', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <div className="flex items-center space-x-4 text-gray-400">
+                                <span className="mr-2">Origem:</span>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.class}
+                                    onChange={() => handlePerkOriginChange('advantages', perk.id, 'class')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Classe</span>
+                                </label>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.race}
+                                    onChange={() => handlePerkOriginChange('advantages', perk.id, 'race')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Raça</span>
+                                </label>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.manual}
+                                    onChange={() => handlePerkOriginChange('advantages', perk.id, 'manual')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Manual</span>
+                                </label>
+                              </div>
+                            </>
+                          )}
+                        </li>
+                      ))}
                     </ul>
-                    {/* Botão de adicionar no final da lista */}
-                    <div className="flex justify-end mt-4">
-                      <button
-                        onClick={() => handleAddPerk('advantages')}
-                        className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 flex items-center justify-center"
-                        disabled={user.uid !== character.ownerUid && !isMaster}
-                        aria-label="Adicionar Vantagem"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Desvantagens */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Desvantagens</h3>
-                    <ul className="list-disc list-inside space-y-2 text-gray-200">
-                      {character.disadvantages.length === 0 ? (
-                        <li className="text-gray-400 italic">Nenhuma desvantagem.</li>
-                      ) : (
-                        character.disadvantages.map((perk) => (
-                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                            <div className="flex justify-between items-center mb-1">
-                              {perk.isCollapsed ? (
-                                <span 
-                                  className="font-semibold text-lg w-full cursor-pointer text-white"
-                                  onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
-                                >
-                                  {perk.name || 'Desvantagem Sem Nome'} {/* Alterado aqui */}
-                                </span>
-                              ) : (
+                  <h3 className="text-xl font-bold text-red-300 mb-3">Desvantagens</h3>
+                  {character.disadvantages.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhuma desvantagem.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {character.disadvantages.map((perk) => (
+                        <li key={perk.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-lg font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('disadvantages', perk.id)}>
+                              {perk.name || 'Nova Desvantagem'} ({perk.value >= 0 ? '+' : ''}{perk.value} Pts)
+                            </h4>
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => handleRemovePerk('disadvantages', perk.id)}
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
+                          {!perk.isCollapsed && (
+                            <>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Nome:</span>
                                 <input
                                   type="text"
                                   value={perk.name}
                                   onChange={(e) => handlePerkChange('disadvantages', perk.id, 'name', e.target.value)}
-                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                  placeholder="Nome da Desvantagem"
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
                                   disabled={user.uid !== character.ownerUid && !isMaster}
                                 />
-                              )}
-                              <input
-                                type="number"
-                                value={perk.value === 0 ? '' : perk.value}
-                                onChange={(e) => handlePerkChange('disadvantages', perk.id, 'value', e.target.value)}
-                                className="w-10 ml-2 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                placeholder="Valor"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              {(user.uid === character.ownerUid || isMaster) && (
-                                <button
-                                  onClick={() => handleRemovePerk('disadvantages', perk.id)}
-                                  className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
-                                >
-                                  Remover
-                                </button>
-                              )}
-                            </div>
-                            {!perk.isCollapsed && (
-                              <>
+                              </label>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Descrição:</span>
                                 <AutoResizingTextarea
                                   value={perk.description}
                                   onChange={(e) => handlePerkChange('disadvantages', perk.id, 'description', e.target.value)}
-                                  placeholder="Descrição da desvantagem"
-                                  className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                  placeholder="Descrição da desvantagem..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
                                   disabled={user.uid !== character.ownerUid && !isMaster}
                                 />
-                                <div className="flex gap-3 text-sm text-gray-400 mt-2">
-                                  <span>Origem:</span>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.class} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'class')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Classe
-                                  </label>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.race} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'race')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Raça
-                                  </label>
-                                  <label className="flex items-center gap-1">
-                                    <input type="checkbox" checked={perk.origin.manual} onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'manual')} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> Manual
-                                  </label>
-                                </div>
-                                <button
-                                  onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
-                                  className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                >
-                                  Ocultar Desvantagem
-                                </button>
-                              </>
-                            )}
-                            {perk.isCollapsed && (
-                                <button
-                                    onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
-                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                >
-                                    Exibir Desvantagem
-                                </button>
-                            )}
-                          </li>
-                        ))
-                      )}
+                              </label>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Valor em Pontos:</span>
+                                <input
+                                  type="number"
+                                  value={perk.value}
+                                  onChange={(e) => handlePerkChange('disadvantages', perk.id, 'value', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <div className="flex items-center space-x-4 text-gray-400">
+                                <span className="mr-2">Origem:</span>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.class}
+                                    onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'class')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Classe</span>
+                                </label>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.race}
+                                    onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'race')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Raça</span>
+                                </label>
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={perk.origin.manual}
+                                    onChange={() => handlePerkOriginChange('disadvantages', perk.id, 'manual')}
+                                    className="form-checkbox h-5 w-5 text-purple-600 rounded"
+                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                  />
+                                  <span className="ml-2">Manual</span>
+                                </label>
+                              </div>
+                            </>
+                          )}
+                        </li>
+                      ))}
                     </ul>
-                    {/* Botão de adicionar no final da lista */}
-                    <div className="flex justify-end mt-4">
-                      <button
-                        onClick={() => handleAddPerk('disadvantages')}
-                        className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 flex items-center justify-center"
-                        disabled={user.uid !== character.ownerUid && !isMaster}
-                        aria-label="Adicionar Desvantagem"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  )}
+                </>
               )}
-            </section>
+            </div>
 
-            {/* Habilidades de Classe/Raça e Customizadas */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsAbilitiesCollapsed)}
-              >
-                Habilidades (Classe, Raça, Customizadas)
-                <span>{isAbilitiesCollapsed ? '▼' : '▲'}</span>
+            {/* Seção de Habilidades */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsAbilitiesCollapsed)}>
+                Habilidades
+                <span className="text-gray-400 text-sm">{isAbilitiesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isAbilitiesCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
-                    {character.abilities.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhuma habilidade adicionada.</li>
-                    ) : (
-                      character.abilities.map((ability) => (
-                        <li key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            {ability.isCollapsed ? (
-                                <span 
-                                  className="font-semibold text-lg w-full cursor-pointer text-white"
-                                  onClick={() => toggleItemCollapsed('abilities', ability.id)}
-                                >
-                                  {ability.title || 'Habilidade Sem Título'}
-                                </span>
-                            ) : (
-                                <input
-                                  type="text"
-                                  value={ability.title}
-                                  onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)}
-                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                  placeholder="Título da Habilidade"
-                                  disabled={user.uid !== character.ownerUid && !isMaster}
-                                />
-                            )}
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <button
+                      onClick={handleAddAbility}
+                      className="mb-4 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    >
+                      Adicionar Habilidade
+                    </button>
+                  )}
+                  {character.abilities.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhuma habilidade.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {character.abilities.map((ability) => (
+                        <li key={ability.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
+                              {ability.title || 'Nova Habilidade'}
+                            </h3>
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemoveAbility(ability.id)}
-                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
                               >
                                 Remover
                               </button>
@@ -2069,192 +2171,143 @@ const App = () => {
                           </div>
                           {!ability.isCollapsed && (
                             <>
-                              <AutoResizingTextarea
-                                value={ability.description}
-                                onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)}
-                                placeholder="Descrição da habilidade"
-                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              <button
-                                onClick={() => toggleItemCollapsed('abilities', ability.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                              >
-                                Ocultar Habilidade
-                              </button>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Título:</span>
+                                <input
+                                  type="text"
+                                  value={ability.title}
+                                  onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-gray-400">Descrição:</span>
+                                <AutoResizingTextarea
+                                  value={ability.description}
+                                  onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)}
+                                  placeholder="Descrição da habilidade..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
                             </>
                           )}
-                          {ability.isCollapsed && (
-                            <button
-                                onClick={() => toggleItemCollapsed('abilities', ability.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                            >
-                                Exibir Habilidade
-                            </button>
-                          )}
                         </li>
-                      ))
-                    )}
-                  </ul>
-                  {/* Botão de adicionar no final da lista */}
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={handleAddAbility}
-                      className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 flex items-center justify-center"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                      aria-label="Adicionar Habilidade"
-                    >
-                      +
-                    </button>
-                  </div>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
-            </section>
+            </div>
 
-            {/* Especializações (Perícias) */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsSpecializationsCollapsed)}
-              >
-                Especializações (Perícias)
-                <span>{isSpecializationsCollapsed ? '▼' : '▲'}</span>
+            {/* Seção de Especializações */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsSpecializationsCollapsed)}>
+                Especializações
+                <span className="text-gray-400 text-sm">{isSpecializationsCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isSpecializationsCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
-                    {character.specializations.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhuma especialização adicionada.</li>
-                    ) : (
-                      character.specializations.map((spec) => (
-                        <li key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            {spec.isCollapsed ? (
-                                <span 
-                                  className="font-semibold text-lg w-full cursor-pointer text-white"
-                                  onClick={() => toggleItemCollapsed('specializations', spec.id)}
-                                >
-                                  {spec.name || 'Especialização Sem Nome'} (Mod: {spec.modifier}, Bônus: {spec.bonus})
-                                </span>
-                            ) : (
-                                <input
-                                  type="text"
-                                  value={spec.name}
-                                  onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)}
-                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                  placeholder="Nome da Especialização"
-                                  disabled={user.uid !== character.ownerUid && !isMaster}
-                                />
-                            )}
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <button
+                      onClick={handleAddSpecialization}
+                      className="mb-4 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    >
+                      Adicionar Especialização
+                    </button>
+                  )}
+                  {character.specializations.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhuma especialização.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {character.specializations.map((spec) => (
+                        <li key={spec.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
+                              {spec.name || 'Nova Especialização'}
+                            </h3>
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemoveSpecialization(spec.id)}
-                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
                               >
                                 Remover
                               </button>
                             )}
                           </div>
                           {!spec.isCollapsed && (
-                            <>
-                              <div className="flex gap-4 mt-2 text-sm">
-                                <label className="flex items-center gap-1">
-                                  Modificador:
-                                  <input
-                                    type="number"
-                                    value={spec.modifier === 0 ? '' : spec.modifier}
-                                    onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)}
-                                    className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                    placeholder="0"
-                                    disabled={user.uid !== character.ownerUid && !isMaster}
-                                  />
-                                </label>
-                                <label className="flex items-center gap-1">
-                                  Bônus:
-                                  <input
-                                    type="number"
-                                    value={spec.bonus === 0 ? '' : spec.bonus}
-                                    onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)}
-                                    className="w-8 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                    placeholder="0"
-                                    disabled={user.uid !== character.ownerUid && !isMaster}
-                                  />
-                                </label>
-                              </div>
-                              <button
-                                onClick={() => toggleItemCollapsed('specializations', spec.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                              >
-                                Ocultar Especialização
-                              </button>
-                            </>
-                          )}
-                          {spec.isCollapsed && (
-                            <button
-                                onClick={() => toggleItemCollapsed('specializations', spec.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                            >
-                                Exibir Especialização
-                            </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <label className="block">
+                                <span className="text-gray-400">Nome:</span>
+                                <input
+                                  type="text"
+                                  value={spec.name}
+                                  onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-gray-400">Modificador:</span>
+                                <input
+                                  type="number"
+                                  value={spec.modifier}
+                                  onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-gray-400">Bônus:</span>
+                                <input
+                                  type="number"
+                                  value={spec.bonus}
+                                  onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                            </div>
                           )}
                         </li>
-                      ))
-                    )}
-                  </ul>
-                  {/* Botão de adicionar no final da lista */}
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={handleAddSpecialization}
-                      className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 flex items-center justify-center"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                      aria-label="Adicionar Especialização"
-                    >
-                      +
-                    </button>
-                  </div>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
-            </section>
+            </div>
 
-            {/* Itens Equipados */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsEquippedItemsCollapsed)}
-              >
+            {/* Seção de Itens Equipados */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsEquippedItemsCollapsed)}>
                 Itens Equipados
-                <span>{isEquippedItemsCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isEquippedItemsCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isEquippedItemsCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
-                    {character.equippedItems.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhum item equipado.</li>
-                    ) : (
-                      character.equippedItems.map((item) => (
-                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            {item.isCollapsed ? (
-                                <span 
-                                  className="font-semibold text-lg w-full cursor-pointer text-white"
-                                  onClick={() => toggleItemCollapsed('equippedItems', item.id)}
-                                >
-                                  {item.name || 'Item Equipado Sem Nome'}
-                                </span>
-                            ) : (
-                                <input
-                                  type="text"
-                                  value={item.name}
-                                  onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)}
-                                  className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                  placeholder="Nome do Item Equipado"
-                                  disabled={user.uid !== character.ownerUid && !isMaster}
-                                />
-                            )}
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <button
+                      onClick={handleAddEquippedItem}
+                      className="mb-4 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                    >
+                      Adicionar Item Equipado
+                    </button>
+                  )}
+                  {character.equippedItems.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhum item equipado.</p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {character.equippedItems.map((item) => (
+                        <li key={item.id} className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-semibold text-gray-200 cursor-pointer" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
+                              {item.name || 'Novo Item Equipado'}
+                            </h3>
                             {(user.uid === character.ownerUid || isMaster) && (
                               <button
                                 onClick={() => handleRemoveEquippedItem(item.id)}
-                                className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
                               >
                                 Remover
                               </button>
@@ -2262,260 +2315,200 @@ const App = () => {
                           </div>
                           {!item.isCollapsed && (
                             <>
-                              <AutoResizingTextarea
-                                value={item.description}
-                                onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)}
-                                placeholder="Descrição do item"
-                                className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              <label className="block text-sm font-medium text-gray-300 mb-1">Atributos/Efeitos:</label>
-                              <AutoResizingTextarea
-                                value={item.attributes}
-                                onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)}
-                                placeholder="Ex: +5 Força, Dano Fogo, etc."
-                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
-                                disabled={user.uid !== character.ownerUid && !isMaster}
-                              />
-                              <button
-                                onClick={() => toggleItemCollapsed('equippedItems', item.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                              >
-                                Ocultar Item
-                              </button>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Nome:</span>
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)}
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block mb-2">
+                                <span className="text-gray-400">Descrição:</span>
+                                <AutoResizingTextarea
+                                  value={item.description}
+                                  onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)}
+                                  placeholder="Descrição do item equipado..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-gray-400">Atributos/Efeitos:</span>
+                                <AutoResizingTextarea
+                                  value={item.attributes}
+                                  onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)}
+                                  placeholder="Atributos ou efeitos que o item concede..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              </label>
                             </>
                           )}
-                          {item.isCollapsed && (
-                            <button
-                                onClick={() => toggleItemCollapsed('equippedItems', item.id)}
-                                className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                            >
-                                Exibir Item
-                            </button>
-                          )}
                         </li>
-                      ))
-                    )}
-                  </ul>
-                  {/* Botão de adicionar no final da lista */}
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={handleAddEquippedItem}
-                      className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 flex items-center justify-center"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                      aria-label="Adicionar Item Equipado"
-                    >
-                      +
-                    </button>
-                  </div>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
-            </section>
+            </div>
 
-            {/* História do Personagem */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsHistoryCollapsed)}
-              >
-                História do Personagem
-                <span>{isHistoryCollapsed ? '▼' : '▲'}</span>
+            {/* Seção de História Modular */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsHistoryCollapsed)}>
+                História
+                <span className="text-gray-400 text-sm">{isHistoryCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isHistoryCollapsed && (
                 <>
-                  <div className="space-y-4 mb-4">
-                    {character.history.length === 0 ? (
-                      <p className="text-gray-400 italic">Nenhum bloco de história adicionado. Adicione texto ou imagens para começar!</p>
-                    ) : (
-                      character.history.map((block, index) => (
+                  {(user.uid === character.ownerUid || isMaster) && (
+                    <div className="flex gap-4 mb-4">
+                      <button
+                        onClick={() => addHistoryBlock('text')}
+                        className="flex-1 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                      >
+                        Adicionar Bloco de Texto
+                      </button>
+                      <button
+                        onClick={() => addHistoryBlock('image')}
+                        className="flex-1 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                      >
+                        Adicionar Imagem
+                      </button>
+                    </div>
+                  )}
+                  {character.history.length === 0 ? (
+                    <p className="text-gray-400 text-center">Nenhum bloco de história adicionado.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {character.history.map((block, index) => (
                         <div
                           key={block.id}
-                          className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
-                          draggable
+                          draggable={(user.uid === character.ownerUid || isMaster)}
                           onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e)}
+                          onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, index)}
+                          className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-600 cursor-grab active:cursor-grabbing"
                         >
-                          {(user.uid === character.ownerUid || isMaster) && (
-                            <button
-                              onClick={() => removeHistoryBlock(block.id)}
-                              className="absolute top-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition duration-200 ease-in-out"
-                            >
-                              X
-                            </button>
-                          )}
-                          {block.type === 'text' ? (
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-xl font-semibold text-gray-200 cursor-pointer" onClick={() => updateHistoryBlock(block.id, 'isCollapsed', !block.isCollapsed)}>
+                              {block.type === 'text' ? `Bloco de Texto ${index + 1}` : `Imagem ${index + 1}`}
+                            </h3>
+                            {(user.uid === character.ownerUid || isMaster) && (
+                              <button
+                                onClick={() => removeHistoryBlock(block.id)}
+                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition duration-200 ease-in-out transform hover:scale-105"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
+                          {!block.isCollapsed && (
                             <>
-                              {block.isCollapsed ? (
-                                <div 
-                                  className="cursor-pointer text-gray-200"
-                                  onClick={() => updateHistoryBlock(block.id, 'isCollapsed', false)}
-                                >
-                                  <p className="text-lg font-semibold mb-1">Bloco de Texto</p>
-                                  <p className="text-sm italic text-gray-300">{truncateText(block.value)}</p>
-                                  <button className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end">
-                                    Exibir Mais
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <AutoResizingTextarea
+                              {block.type === 'text' && (
+                                <AutoResizingTextarea
+                                  value={block.value}
+                                  onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
+                                  placeholder="Escreva sua história aqui..."
+                                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                                  disabled={user.uid !== character.ownerUid && !isMaster}
+                                />
+                              )}
+                              {block.type === 'image' && (
+                                <div className="flex flex-col items-center">
+                                  <input
+                                    type="text"
                                     value={block.value}
                                     onChange={(e) => updateHistoryBlock(block.id, 'value', e.target.value)}
-                                    placeholder="Digite seu texto aqui..."
-                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                    placeholder="URL da Imagem"
+                                    className="w-full p-2 mb-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
                                     disabled={user.uid !== character.ownerUid && !isMaster}
                                   />
-                                  <button
-                                    onClick={() => updateHistoryBlock(block.id, 'isCollapsed', true)}
-                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                  >
-                                    Ocultar Texto
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          ) : ( // Image Block
-                            <>
-                              {block.isCollapsed ? (
-                                <div 
-                                  className="cursor-pointer text-gray-200 text-center py-2"
-                                  onClick={() => updateHistoryBlock(block.id, 'isCollapsed', false)}
-                                >
-                                  <p className="text-lg font-semibold">Mostrar Imagem</p>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center">
-                                  <img
-                                    src={block.value}
-                                    alt="Imagem da história"
-                                    className="max-w-full h-auto rounded-md shadow-md"
-                                    style={{
-                                      width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
-                                      height: block.fitWidth ? 'auto' : (block.height ? `${block.height}px` : 'auto'),
-                                      objectFit: 'contain'
-                                    }}
-                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/000000/FFFFFF?text=Erro+ao+carregar+imagem'; }}
-                                  />
-                                  {(user.uid === character.ownerUid || isMaster) && (
-                                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
-                                      <label className="flex items-center gap-1">
-                                        <input
-                                          type="checkbox"
-                                          checked={block.fitWidth}
-                                          onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
-                                          className="form-checkbox text-purple-500 rounded"
-                                        />
-                                        Ajustar à Largura
-                                      </label>
-                                      {!block.fitWidth && (
-                                        <>
-                                          <label className="flex items-center gap-1">
-                                            Largura (px):
-                                            <input
-                                              type="number"
-                                              value={block.width === 0 ? '' : block.width}
-                                              onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
-                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                            />
-                                          </label>
-                                          <label className="flex items-center gap-1">
-                                            Altura (px):
-                                            <input
-                                              type="number"
-                                              value={block.height === 0 ? '' : block.height}
-                                              onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
-                                              className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                            />
-                                          </label>
-                                        </>
-                                      )}
-                                    </div>
+                                  {block.value && (
+                                    <img
+                                      src={block.value}
+                                      alt={`História Imagem ${index + 1}`}
+                                      className="max-w-full h-auto rounded-md border border-gray-600 mt-2"
+                                      style={{
+                                        width: block.fitWidth ? '100%' : (block.width ? `${block.width}px` : 'auto'),
+                                        height: block.height ? `${block.height}px` : 'auto',
+                                        objectFit: 'contain'
+                                      }}
+                                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/400x200/374151/F9FAFB?text=Erro+ao+carregar+imagem"; }}
+                                    />
                                   )}
-                                  <button
-                                    onClick={() => updateHistoryBlock(block.id, 'isCollapsed', true)}
-                                    className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-md self-end"
-                                  >
-                                    Ocultar Imagem
-                                  </button>
+                                  <div className="flex items-center space-x-2 mt-2">
+                                    <label className="flex items-center text-gray-400">
+                                      <input
+                                        type="checkbox"
+                                        checked={block.fitWidth}
+                                        onChange={(e) => updateHistoryBlock(block.id, 'fitWidth', e.target.checked)}
+                                        className="form-checkbox h-4 w-4 text-purple-600 rounded"
+                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                      />
+                                      <span className="ml-1 text-sm">Ajustar Largura</span>
+                                    </label>
+                                    {!block.fitWidth && (
+                                      <>
+                                        <label className="text-gray-400 text-sm">Largura:</label>
+                                        <input
+                                          type="number"
+                                          value={block.width}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'width', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm"
+                                          disabled={user.uid !== character.ownerUid && !isMaster}
+                                        />
+                                        <label className="text-gray-400 text-sm">Altura:</label>
+                                        <input
+                                          type="number"
+                                          value={block.height}
+                                          onChange={(e) => updateHistoryBlock(block.id, 'height', e.target.value)}
+                                          className="w-20 p-1 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-sm"
+                                          disabled={user.uid !== character.ownerUid && !isMaster}
+                                        />
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </>
                           )}
                         </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-4 mt-4 justify-center">
-                    <button
-                      onClick={() => addHistoryBlock('text')}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                    >
-                      Adicionar Bloco de Texto
-                    </button>
-                    <button
-                      onClick={() => addHistoryBlock('image')}
-                      className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-                      disabled={user.uid !== character.ownerUid && !isMaster}
-                    >
-                      Adicionar Bloco de Imagem
-                    </button>
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
-            </section>
+            </div>
 
-            {/* Anotações */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-              <h2 
-                className="text-2xl font-bold text-yellow-300 mb-4 mt-6 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection(setIsNotesCollapsed)}
-              >
+            {/* Seção de Anotações */}
+            <div className="mb-6 bg-gray-700 p-4 rounded-lg shadow-md border border-gray-600">
+              <h2 className="text-2xl font-bold mb-4 text-purple-400 cursor-pointer flex justify-between items-center" onClick={() => toggleSection(setIsNotesCollapsed)}>
                 Anotações
-                <span>{isNotesCollapsed ? '▼' : '▲'}</span>
+                <span className="text-gray-400 text-sm">{isNotesCollapsed ? '▼' : '▲'}</span>
               </h2>
               {!isNotesCollapsed && (
-                // Debug log for the disabled prop of notes
-                console.log("Notes disabled check:", {
-                    userUid: user?.uid,
-                    characterOwnerUid: character?.ownerUid,
-                    isMaster: isMaster,
-                    isDisabled: user?.uid !== character?.ownerUid && !isMaster
-                }),
                 <AutoResizingTextarea
                   name="notes"
                   value={character.notes}
                   onChange={handleNotesChange}
-                  placeholder="Anotações diversas sobre o personagem, campanhas, NPCs, etc."
-                  className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
-                  disabled={user.uid !== character.ownerUid && !isMaster}
+                  placeholder="Anotações gerais sobre o personagem..."
+                  className="w-full p-3 bg-gray-800 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
+                  disabled={false} // Removido o disabled condicional
                 />
               )}
-            </section>
+            </div>
 
-            {/* Botões de Ação */}
-            <div className="flex flex-wrap justify-center gap-4 mt-8">
+            {/* Botões de Ação da Ficha */}
+            <div className="flex flex-col sm:flex-row justify-around gap-4 mt-8">
               <button
                 onClick={handleExportJson}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
-                disabled={isLoading || !user || !character}
-              >
-                Exportar Ficha (JSON)
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".json"
-                className="hidden"
-              />
-              <button
-                onClick={handleImportJsonClick}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
                 disabled={isLoading || !user}
               >
-                Importar Ficha (JSON)
+                Exportar Ficha (JSON)
               </button>
               <button
                 onClick={handleReset}
@@ -2548,7 +2541,7 @@ const App = () => {
       )}
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="text-white text-xl font-bold">Carregando...</div>
+          <div className="text-white text-xl">Carregando...</div>
         </div>
       )}
     </div>
