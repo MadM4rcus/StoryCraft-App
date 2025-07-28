@@ -1,3 +1,4 @@
+/* global __app_id, __firebase_config, __initial_auth_token */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth'; // Import signInAnonymously and signInWithCustomToken
@@ -172,7 +173,7 @@ const App = () => {
     fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
-    terra: '�',
+    terra: '🪨',
     luz: '🌟',
     trevas: '🌑',
     espirito: '🌀',
@@ -1216,7 +1217,7 @@ const App = () => {
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Login canceled by user.";
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = "Login popup request already in progress. Please try again.";
+        errorMessage = "Login popup already in progress. Please try again.";
       } else {
         errorMessage += ` Details: ${error.message}`;
       }
