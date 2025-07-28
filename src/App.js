@@ -102,7 +102,12 @@ const App = () => {
   // Environment variables for Firebase configuration
   // Safely access global variables, providing fallbacks for build environment
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  
+  // Wrap firebaseConfig in useMemo to ensure stability
+  const firebaseConfig = useMemo(() => {
+    return typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  }, []); // Empty dependency array means it's computed once
+
   const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
   // Firebase states
@@ -169,7 +174,7 @@ const App = () => {
   // Mapping of magic attributes to emojis and their Portuguese names
   const magicAttributeEmojis = {
     fogo: '🔥',
-    agua: '�',
+    agua: '💧',
     ar: '🌬️',
     terra: '🪨',
     luz: '🌟',
@@ -1346,8 +1351,7 @@ const App = () => {
                       Logado como: <span className="font-semibold text-purple-300">{user.displayName || 'Usuário Google'}</span>
                       {isMaster && <span className="text-yellow-400 ml-2">(Mestre)</span>}
                     </p>
-                    <p className="text-sm text-gray-400 mb-2">{user.email}</p>
-                    <p className="text-sm text-gray-400 break-all">ID: {user.uid}</p>
+                    <p className="text-sm text-gray-400 mb-2">ID: {user.uid}</p>
                     <button
                       onClick={handleSignOut}
                       className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75"
