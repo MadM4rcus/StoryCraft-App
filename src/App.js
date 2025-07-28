@@ -166,14 +166,14 @@ const App = () => {
     inteligencia: '🧠',
     constituicao: '❤️‍🩹',
     sabedoria: '🧘‍♂️',
-    carisma: '🎭',
+    carisma: '�',
     armadura: '🦴',
     poderDeFogo: '🎯',
   };
 
   // Mapeamento de atributos mágicos para emojis e seus nomes em português
   const magicAttributeEmojis = {
-    fogo: '�',
+    fogo: '🔥',
     agua: '💧',
     ar: '🌬️',
     terra: '🪨',
@@ -758,7 +758,7 @@ const App = () => {
           updatedSpecs[specIndex][field] = parseInt(value, 10) || 0;
         }
       }
-      return { ...prevChar, [type]: updatedSpecs };
+      return { ...prevChar, specializations: updatedSpecs }; // CORRIGIDO: 'type' substituído por 'specializations'
     });
   };
 
