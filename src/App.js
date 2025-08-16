@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc, collectionGroup } from 'firebase/firestore';
 
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
