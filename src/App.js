@@ -178,19 +178,37 @@ const App = () => {
       setAuth(authInstance);
       setDb(firestoreInstance);
 
-      const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
+      const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         setUser(currentUser);
-        setIsAuthReady(true);
-        if (!currentUser) {
-          setCharacter(null);
-          setCharactersList([]);
-          // Limpar selectedCharIdState e ownerUidState ao deslogar
-          setSelectedCharIdState(null);
-          setOwnerUidState(null);
-          window.history.pushState({}, '', window.location.pathname);
-          setViewingAllCharacters(false);
-          setIsMaster(false);
+setIsAuthReady(true);
+
+if (currentUser) {
+    // Verifica e cria o documento do usuário se ele não existir
+    const userDocRef = doc(firestoreInstance, `artifacts/${appId}/users/${currentUser.uid}`);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+        try {
+            await setDoc(userDocRef, {
+                isMaster: false,
+                displayName: currentUser.displayName,
+                email: currentUser.email
+            });
+            console.log("Documento de usuário criado para:", currentUser.uid);
+        } catch (error) {
+            console.error("Erro ao criar documento do usuário:", error);
         }
+    }
+} else {
+  // Lógica de logout (já existente)
+  setCharacter(null);
+  setCharactersList([]);
+  setSelectedCharIdState(null);
+  setOwnerUidState(null);
+  window.history.pushState({}, '', window.location.pathname);
+  setViewingAllCharacters(false);
+  setIsMaster(false);
+}
       });
       return () => unsubscribe();
     } catch (error) {
@@ -203,7 +221,7 @@ const App = () => {
         onCancel: () => {},
       });
     }
-  }, [firebaseConfig, setModal]); // Adicionado setModal às dependências
+  }, [firebaseConfig, appId, setModal]);
 
   // Efeito para inicializar selectedCharIdState e ownerUidState a partir da URL na primeira renderização
   useEffect(() => {
