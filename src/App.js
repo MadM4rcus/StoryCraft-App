@@ -145,30 +145,6 @@ const App = () => {
   // Ref para o input de arquivo para acioná-lo programaticamente
   const fileInputRef = useRef(null);
 
-  // Mapeamento de atributos básicos para emojis
-  const basicAttributeEmojis = {
-    forca: '💪',
-    destreza: '🏃‍♂️',
-    inteligencia: '🧠',
-    constituicao: '❤️‍🩹',
-    sabedoria: '🧘‍♂️',
-    carisma: '🎭',
-    armadura: '🦴',
-    poderDeFogo: '🎯',
-  };
-
-  // Mapeamento de atributos mágicos para emojis e seus nomes em português
-  const magicAttributeEmojis = {
-    fogo: '🔥',
-    agua: '💧',
-    ar: '🌬️',
-    terra: '🪨',
-    luz: '🌟',
-    trevas: '🌑',
-    espirito: '🌀',
-    outro: '🪄',
-  };
-
   // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
@@ -403,8 +379,8 @@ if (currentUser) {
             const deserializedData = { ...data };
             try {
               deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
-              deserializedData.basicAttributes = typeof deserializedData.basicAttributes === 'string' ? JSON.parse(deserializedData.basicAttributes) : deserializedData.basicAttributes;
-              deserializedData.magicAttributes = typeof deserializedData.magicAttributes === 'string' ? JSON.parse(deserializedData.magicAttributes) : deserializedData.magicAttributes;
+              // NOVA LÓGICA PARA ATRIBUTOS
+              deserializedData.attributes = typeof deserializedData.attributes === 'string' ? JSON.parse(deserializedData.attributes) : deserializedData.attributes;
               
               // Deserialização e adição de isCollapsed para todas as listas
               deserializedData.inventory = (typeof deserializedData.inventory === 'string' ? JSON.parse(deserializedData.inventory) : deserializedData.inventory || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
@@ -451,7 +427,7 @@ if (currentUser) {
             deserializedData.isUserStatusCollapsed = data.isUserStatusCollapsed !== undefined ? data.isUserStatusCollapsed : false;
             deserializedData.isCharacterInfoCollapsed = data.isCharacterInfoCollapsed !== undefined ? data.isCharacterInfoCollapsed : false;
             deserializedData.isMainAttributesCollapsed = data.isMainAttributesCollapsed !== undefined ? data.isMainAttributesCollapsed : false;
-            deserializedData.isBasicAttributesCollapsed = data.isBasicAttributesCollapsed !== undefined ? data.isBasicAttributesCollapsed : false;
+            deserializedData.isAttributesCollapsed = data.isAttributesCollapsed !== undefined ? data.isAttributesCollapsed : false; // NOVO
             deserializedData.isInventoryCollapsed = data.isInventoryCollapsed !== undefined ? data.isInventoryCollapsed : false;
             deserializedData.isWalletCollapsed = data.isWalletCollapsed !== undefined ? data.isWalletCollapsed : false;
             deserializedData.isPerksCollapsed = data.isPerksCollapsed !== undefined ? data.isPerksCollapsed : false;
@@ -463,8 +439,7 @@ if (currentUser) {
 
 
             deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
-            deserializedData.basicAttributes = deserializedData.basicAttributes || { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
-            deserializedData.magicAttributes = deserializedData.magicAttributes || { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } };
+            deserializedData.attributes = deserializedData.attributes || []; // NOVO
             deserializedData.inventory = deserializedData.inventory || [];
             deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
             deserializedData.advantages = deserializedData.advantages || [];
@@ -530,8 +505,7 @@ if (currentUser) {
           dataToSave.ownerUid = targetUidForSave;
 
           dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
-          dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
-          dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
+          dataToSave.attributes = JSON.stringify(dataToSave.attributes); // NOVO
           dataToSave.inventory = JSON.stringify(dataToSave.inventory);
           dataToSave.wallet = JSON.stringify(dataToSave.wallet);
           dataToSave.advantages = JSON.stringify(dataToSave.advantages);
@@ -545,6 +519,11 @@ if (currentUser) {
           if ('deleted' in dataToSave) {
             delete dataToSave.deleted;
           }
+          
+          // REMOVE a propriedade antiga para não poluir o banco
+          delete dataToSave.basicAttributes;
+          delete dataToSave.magicAttributes;
+
 
           await setDoc(characterDocRef, dataToSave, { merge: true });
           console.log(`Ficha de '${character.name}' salva automaticamente no Firestore.`);
@@ -606,24 +585,49 @@ if (currentUser) {
     }));
   };
 
-  // Lida com mudanças nos atributos básicos e mágicos (Valor Base, Bônus Permanente, Bônus Condicional)
-  const handleBasicAttributeChange = (category, attributeName, field, value) => {
-    setCharacter(prevChar => {
-      const updatedAttribute = {
-        ...prevChar[category][attributeName],
-        [field]: parseInt(value, 10) || 0,
-      };
-      updatedAttribute.total = updatedAttribute.base + updatedAttribute.permBonus + updatedAttribute.condBonus;
+  // --- NOVAS FUNÇÕES PARA ATRIBUTOS DINÂMICOS ---
 
-      return {
-        ...prevChar,
-        [category]: {
-          ...prevChar[category],
-          [attributeName]: updatedAttribute,
-        },
-      };
+  // Adiciona um novo bloco de atributo
+  const handleAddAttribute = () => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      attributes: [
+        ...(prevChar.attributes || []),
+        { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 }
+      ]
+    }));
+  };
+
+  // Remove um bloco de atributo pelo ID
+  const handleRemoveAttribute = (idToRemove) => {
+    setCharacter(prevChar => ({
+      ...prevChar,
+      attributes: prevChar.attributes.filter(attr => attr.id !== idToRemove)
+    }));
+  };
+
+  // Lida com a mudança em qualquer campo de um atributo
+  const handleAttributeChange = (id, field, value) => {
+    setCharacter(prevChar => {
+      const newAttributes = prevChar.attributes.map(attr => {
+        if (attr.id === id) {
+          const updatedAttr = { ...attr };
+          if (field === 'name') {
+            updatedAttr.name = value;
+          } else {
+            updatedAttr[field] = parseInt(value, 10) || 0;
+          }
+          
+          // Recalcula o total
+          updatedAttr.total = (updatedAttr.base || 0) + (updatedAttr.perm || 0) + (updatedAttr.cond || 0) + (updatedAttr.arma || 0);
+          return updatedAttr;
+        }
+        return attr;
+      });
+      return { ...prevChar, attributes: newAttributes };
     });
   };
+
 
   // Função genérica para alternar o estado de colapso de um item em uma lista
   const toggleItemCollapsed = (listName, id) => {
@@ -974,14 +978,13 @@ if (currentUser) {
           name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '',
           level: 0, xp: 100,
           mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-          basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-          magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+          attributes: [], // NOVO
           inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
           // Default collapse states for sections
           isUserStatusCollapsed: false,
           isCharacterInfoCollapsed: false,
           isMainAttributesCollapsed: false,
-          isBasicAttributesCollapsed: false,
+          isAttributesCollapsed: false, // NOVO
           isInventoryCollapsed: false,
           isWalletCollapsed: false,
           isPerksCollapsed: false,
@@ -1042,7 +1045,7 @@ if (currentUser) {
           }
           console.log("Dados JSON importados (após limpeza):", importedData);
 
-          if (importedData.name && importedData.mainAttributes && importedData.basicAttributes) {
+          if (importedData.name && importedData.mainAttributes) {
             setModal({
               isVisible: true,
               message: 'Tem certeza que deseja importar esta ficha? Os dados atuais serão substituídos e um novo personagem será criado.',
@@ -1064,26 +1067,7 @@ if (currentUser) {
                     fm: importedData.mainAttributes?.fm || 0,
                     fd: importedData.mainAttributes?.fd || 0,
                   },
-                  basicAttributes: {
-                    forca: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.forca },
-                    destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.destreza },
-                    inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.inteligencia },
-                    constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.constituicao },
-                    sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.sabedoria },
-                    carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.carisma },
-                    armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.armadura },
-                    poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.basicAttributes?.poderDeFogo },
-                  },
-                  magicAttributes: {
-                    fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.fogo },
-                    agua: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.agua },
-                    ar: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.ar },
-                    terra: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.terra },
-                    luz: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.luz },
-                    trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.trevas },
-                    espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.espirito },
-                    outro: { base: 0, permBonus: 0, condBonus: 0, total: 0, ...importedData.magicAttributes?.outro },
-                  },
+                  attributes: importedData.attributes || [], // NOVO
                   inventory: importedData.inventory || [],
                   wallet: importedData.wallet || { zeni: 0 },
                   advantages: importedData.advantages || [],
@@ -1097,7 +1081,7 @@ if (currentUser) {
                   isUserStatusCollapsed: importedData.isUserStatusCollapsed !== undefined ? importedData.isUserStatusCollapsed : false,
                   isCharacterInfoCollapsed: importedData.isCharacterInfoCollapsed !== undefined ? importedData.isCharacterInfoCollapsed : false,
                   isMainAttributesCollapsed: importedData.isMainAttributesCollapsed !== undefined ? importedData.isMainAttributesCollapsed : false,
-                  isBasicAttributesCollapsed: importedData.isBasicAttributesCollapsed !== undefined ? importedData.isBasicAttributesCollapsed : false,
+                  isAttributesCollapsed: importedData.isAttributesCollapsed !== undefined ? importedData.isAttributesCollapsed : false, // NOVO
                   isInventoryCollapsed: importedData.isInventoryCollapsed !== undefined ? importedData.isInventoryCollapsed : false,
                   isWalletCollapsed: importedData.isWalletCollapsed !== undefined ? importedData.isWalletCollapsed : false,
                   isPerksCollapsed: importedData.isPerksCollapsed !== undefined ? importedData.isPerksCollapsed : false,
@@ -1146,8 +1130,7 @@ if (currentUser) {
                     const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
                     const dataToSave = { ...importedCharacterData };
                     dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
-                    dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
-                    dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
+                    dataToSave.attributes = JSON.stringify(dataToSave.attributes); // NOVO
                     dataToSave.inventory = JSON.stringify(dataToSave.inventory);
                     dataToSave.wallet = JSON.stringify(dataToSave.wallet);
                     dataToSave.advantages = JSON.stringify(dataToSave.advantages);
@@ -1175,12 +1158,12 @@ if (currentUser) {
           } else {
             setModal({
               isVisible: true,
-              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida (faltam nome, atributos principais ou básicos).',
+              message: 'O arquivo JSON selecionado não parece ser uma ficha de personagem válida (faltam nome ou atributos principais).',
               type: 'info',
               onConfirm: () => {},
               onCancel: () => {},
             });
-            console.error('JSON inválido: Faltam campos essenciais (nome, mainAttributes ou basicAttributes).', importedData);
+            console.error('JSON inválido: Faltam campos essenciais (nome ou mainAttributes).', importedData);
           }
         } catch (error) {
           setModal({
@@ -1218,14 +1201,13 @@ if (currentUser) {
               age: '', height: '', gender: '', race: '', class: '', alignment: '',
               level: 0, xp: 100,
               mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-              basicAttributes: { forca: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, destreza: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, inteligencia: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, constituicao: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, sabedoria: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, carisma: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, armadura: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, poderDeFogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
-              magicAttributes: { fogo: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, agua: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, ar: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, terra: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, luz: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, trevas: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, espirito: { base: 0, permBonus: 0, condBonus: 0, total: 0 }, outro: { base: 0, permBonus: 0, condBonus: 0, total: 0 } },
+              attributes: [], // NOVO
               inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], // Agora é um array
               // Default collapse states for sections on creation
               isUserStatusCollapsed: false,
               isCharacterInfoCollapsed: false,
               isMainAttributesCollapsed: false,
-              isBasicAttributesCollapsed: false,
+              isAttributesCollapsed: false, // NOVO
               isInventoryCollapsed: false,
               isWalletCollapsed: false,
               isPerksCollapsed: false,
@@ -1255,8 +1237,7 @@ if (currentUser) {
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
             const dataToSave = { ...newCharacterData };
             dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
-            dataToSave.basicAttributes = JSON.stringify(dataToSave.basicAttributes);
-            dataToSave.magicAttributes = JSON.stringify(dataToSave.magicAttributes);
+            dataToSave.attributes = JSON.stringify(dataToSave.attributes); // NOVO
             dataToSave.inventory = JSON.stringify(dataToSave.inventory);
             dataToSave.wallet = JSON.stringify(dataToSave.wallet);
             dataToSave.advantages = JSON.stringify(dataToSave.advantages);
@@ -1747,87 +1728,92 @@ if (currentUser) {
               )}
             </section>
 
-            {/* Atributos Básicos */}
+            {/* --- SEÇÃO DE ATRIBUTOS MODIFICADA --- */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
               <h2 
                 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleSection('isBasicAttributesCollapsed')}
+                onClick={() => toggleSection('isAttributesCollapsed')}
               >
-                Atributos Básicos
-                <span>{character.isBasicAttributesCollapsed ? '▼' : '▲'}</span>
+                Atributos
+                <span>{character.isAttributesCollapsed ? '▼' : '▲'}</span>
               </h2>
-              {!character.isBasicAttributesCollapsed && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Atributos Físicos */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Físicos</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(character.basicAttributes).map(([key, attr]) => (
-                        <div key={key} className="p-2 bg-gray-600 rounded-md">
-                          <div className="flex items-center gap-2 text-xs justify-between">
-                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
-                              {basicAttributeEmojis[key] || ''} {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                            </label>
-                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+              {!character.isAttributesCollapsed && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {character.attributes.map((attr, index) => (
+                      <div 
+                        key={attr.id} 
+                        className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index, 'attributes')}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, index, 'attributes')}
+                      >
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                          {/* Nome do Atributo */}
+                          <input 
+                            type="text" 
+                            placeholder="Nome do Atributo"
+                            value={attr.name} 
+                            onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} 
+                            className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" 
+                            disabled={user.uid !== character.ownerUid && !isMaster} 
+                          />
+                          
+                          {/* Campos de Valores */}
+                          <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
+                            {['base', 'perm', 'cond', 'arma'].map(field => (
+                              <div key={field} className="flex flex-col items-center">
+                                <span className="text-gray-400 text-xs text-center capitalize">{field === 'perm' ? 'Perm.' : field === 'cond' ? 'Cond.' : field}</span>
+                                <input 
+                                  type="number" 
+                                  value={attr[field] === 0 ? '' : attr[field]} 
+                                  onChange={(e) => handleAttributeChange(attr.id, field, e.target.value)} 
+                                  className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" 
+                                  disabled={user.uid !== character.ownerUid && !isMaster} 
+                                />
                               </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('basicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
-                              </div>
+                            ))}
+                            <div className="flex flex-col items-center">
+                              <span className="text-gray-400 text-xs text-center">Total</span>
+                              <input 
+                                type="number" 
+                                value={attr.total === 0 ? '' : attr.total} 
+                                readOnly 
+                                className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" 
+                              />
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        {/* Botão de Remover */}
+                        {(user.uid === character.ownerUid || isMaster) && (
+                          <button
+                            onClick={() => handleRemoveAttribute(attr.id)}
+                            className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out"
+                            aria-label="Remover Atributo"
+                          >
+                            X
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-
-                  {/* Atributos Mágicos */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Mágicos</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(character.magicAttributes).map(([key, attr]) => (
-                        <div key={key} className="p-2 bg-gray-600 rounded-md">
-                          <div className="flex items-center gap-2 text-xs justify-between">
-                            <label className="capitalize text-base font-medium text-gray-200 flex-shrink-0">
-                              {magicAttributeEmojis[key] || ''} {key.charAt(0).toUpperCase() + key.slice(1)}:
-                            </label>
-                            <div className="flex items-center gap-2 text-xs flex-grow justify-end">
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Base</span>
-                                <input type="number" value={attr.base === 0 ? '' : attr.base} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'base', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Perm.</span>
-                                <input type="number" value={attr.permBonus === 0 ? '' : attr.permBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'permBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Cond.</span>
-                                <input type="number" value={attr.condBonus === 0 ? '' : attr.condBonus} onChange={(e) => handleBasicAttributeChange('magicAttributes', key, 'condBonus', e.target.value)} className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-xs text-center">Total</span>
-                                <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-10 p-1 bg-gray-700 border border-gray-500 rounded-md text-white font-bold cursor-not-allowed text-center" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  
+                  {/* Botão de Adicionar */}
+                  <div className="flex justify-center mt-4">
+                    <button
+                      onClick={handleAddAttribute}
+                      className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center"
+                      disabled={user.uid !== character.ownerUid && !isMaster}
+                      aria-label="Adicionar Atributo"
+                    >
+                      +
+                    </button>
                   </div>
-                </div>
+                </>
               )}
             </section>
+
 
             {/* Inventário */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600 relative"> {/* Added relative positioning */}
@@ -2822,4 +2808,4 @@ if (currentUser) {
   );
 };
 
-export default App;
+export default App
