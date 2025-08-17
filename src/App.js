@@ -108,7 +108,7 @@ const Section = ({ title, sectionKey, isCollapsed, onToggle, children }) => (
 /**
  * Exibe a lista de personagens do usuário.
  */
-const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, onCreate, onDelete, onToggleView, isLoading }) => (
+const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, onCreate, onDelete, onToggleView, isLoading, canEdit }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
       {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
@@ -139,9 +139,11 @@ const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, o
               <button onClick={() => onSelect(char.id, char.ownerUid)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
                 Ver/Editar
               </button>
-              <button onClick={() => onDelete(char.id, char.name, char.ownerUid)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
-                Excluir
-              </button>
+              {(canEdit || (isMaster && viewingAllCharacters)) && (
+                <button onClick={() => onDelete(char.id, char.name, char.ownerUid)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
+                  Excluir
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -163,14 +165,14 @@ const DynamicBlockSection = ({
   isCollapsed, 
   onToggle, 
   canEdit,
-  // Drag and Drop handlers
   draggedItemRef,
   handleDragStart,
   handleDragOver,
   handleDrop,
+  gridClass = "space-y-2" // Default to single column
 }) => (
   <Section title={title} sectionKey={sectionKey} isCollapsed={isCollapsed} onToggle={onToggle}>
-    <div className="space-y-2">
+    <div className={gridClass}>
       {items.length === 0 ? (
         <p className="text-gray-400 italic">Nenhum item adicionado.</p>
       ) : (
@@ -189,7 +191,7 @@ const DynamicBlockSection = ({
       )}
     </div>
     {canEdit && (
-      <div className="flex justify-end mt-4">
+      <div className="flex justify-center mt-4">
         <button
           onClick={onAddItem}
           className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center"
@@ -220,7 +222,6 @@ const App = () => {
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
   const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
   const [isLoading, setIsLoading] = useState(false);
-  const [zeniAmount, setZeniAmount] = useState(0);
 
   // --- REFS ---
   const fileInputRef = useRef(null);
@@ -309,14 +310,16 @@ const App = () => {
       if (isMaster && fetchAll) {
         const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
         const usersSnapshot = await getDocs(usersCollectionRef);
-        for (const userDoc of usersSnapshot.docs) {
+        const promises = usersSnapshot.docs.map(async (userDoc) => {
           const userUid = userDoc.id;
           const charSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
           const charSnapshot = await getDocs(charSheetsRef);
-          charSnapshot.docs.forEach(doc => {
-            if (!doc.data().deleted) chars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
-          });
-        }
+          return charSnapshot.docs
+            .map(doc => (doc.data().deleted ? null : { id: doc.id, ownerUid: userUid, ...doc.data() }))
+            .filter(Boolean);
+        });
+        const charactersByUser = await Promise.all(promises);
+        chars = charactersByUser.flat();
       } else {
         const userCharSheetsRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
         const q = query(userCharSheetsRef);
@@ -438,10 +441,6 @@ const App = () => {
 
 
   // --- HANDLERS (Funções de Manipulação) ---
-
-  const handleSetCharacter = (update) => {
-    setCharacter(prev => ({ ...prev, ...update }));
-  };
   
   const handleSetCharacterList = (listName, newList) => {
     setCharacter(prev => ({ ...prev, [listName]: newList }));
@@ -568,6 +567,7 @@ const App = () => {
             onDelete={handleDeleteCharacter}
             onToggleView={handleToggleView}
             isLoading={isLoading}
+            canEdit={canEdit}
           />
         )}
 
@@ -595,6 +595,7 @@ const App = () => {
               handleDragStart={handleDragStart}
               handleDragOver={handleDragOver}
               handleDrop={handleDrop}
+              gridClass="grid grid-cols-1 md:grid-cols-2 gap-4"
             />
 
             <DynamicBlockSection
@@ -628,4 +629,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default App
