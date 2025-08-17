@@ -1826,12 +1826,19 @@ if (currentUser) {
               </h2>
               {!character.isInventoryCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                  <div className="space-y-2">
                     {character.inventory.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhum item no inventário.</li>
+                      <p className="text-gray-400 italic">Nenhum item no inventário.</p>
                     ) : (
-                      character.inventory.map((item) => (
-                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.inventory.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index, 'inventory')}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index, 'inventory')}
+                        >
                           <div className="flex justify-between items-center mb-1">
                             {item.isCollapsed ? (
                               <span 
@@ -1884,10 +1891,10 @@ if (currentUser) {
                                 Exibir Item
                             </button>
                           )}
-                        </li>
+                        </div>
                       ))
                     )}
-                  </ul>
+                  </div>
                   {/* Botão de adicionar no final da lista */}
                   <div className="flex justify-end mt-4">
                     <button
@@ -1954,19 +1961,26 @@ if (currentUser) {
                   {/* Vantagens */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Vantagens</h3>
-                    <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    <div className="space-y-2">
                       {character.advantages.length === 0 ? (
-                        <li className="text-gray-400 italic">Nenhuma vantagem.</li>
+                        <p className="text-gray-400 italic">Nenhuma vantagem.</p>
                       ) : (
-                        character.advantages.map((perk) => (
-                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                        character.advantages.map((perk, index) => (
+                          <div 
+                            key={perk.id} 
+                            className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index, 'advantages')}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index, 'advantages')}
+                          >
                             <div className="flex justify-between items-center mb-1">
                               {perk.isCollapsed ? (
                                 <span 
                                   className="font-semibold text-lg w-full cursor-pointer text-white"
                                   onClick={() => toggleItemCollapsed('advantages', perk.id)}
                                 >
-                                  {perk.name || 'Vantagem Sem Nome'} {/* Alterado aqui */}
+                                  {perk.name || 'Vantagem Sem Nome'}
                                 </span>
                               ) : (
                                 <input
@@ -2032,10 +2046,10 @@ if (currentUser) {
                                     Exibir Vantagem
                                 </button>
                             )}
-                          </li>
+                          </div>
                         ))
                       )}
-                    </ul>
+                    </div>
                     {/* Botão de adicionar no final da lista */}
                     <div className="flex justify-end mt-4">
                       <button
@@ -2052,19 +2066,26 @@ if (currentUser) {
                   {/* Desvantagens */}
                   <div>
                     <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1">Desvantagens</h3>
-                    <ul className="list-disc list-inside space-y-2 text-gray-200">
+                    <div className="space-y-2">
                       {character.disadvantages.length === 0 ? (
-                        <li className="text-gray-400 italic">Nenhuma desvantagem.</li>
+                        <p className="text-gray-400 italic">Nenhuma desvantagem.</p>
                       ) : (
-                        character.disadvantages.map((perk) => (
-                          <li key={perk.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                        character.disadvantages.map((perk, index) => (
+                          <div 
+                            key={perk.id} 
+                            className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index, 'disadvantages')}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index, 'disadvantages')}
+                          >
                             <div className="flex justify-between items-center mb-1">
                               {perk.isCollapsed ? (
                                 <span 
                                   className="font-semibold text-lg w-full cursor-pointer text-white"
                                   onClick={() => toggleItemCollapsed('disadvantages', perk.id)}
                                 >
-                                  {perk.name || 'Desvantagem Sem Nome'} {/* Alterado aqui */}
+                                  {perk.name || 'Desvantagem Sem Nome'}
                                 </span>
                               ) : (
                                 <input
@@ -2130,10 +2151,10 @@ if (currentUser) {
                                     Exibir Desvantagem
                                 </button>
                             )}
-                          </li>
+                          </div>
                         ))
                       )}
-                    </ul>
+                    </div>
                     {/* Botão de adicionar no final da lista */}
                     <div className="flex justify-end mt-4">
                       <button
@@ -2161,12 +2182,19 @@ if (currentUser) {
               </h2>
               {!character.isAbilitiesCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                  <div className="space-y-2">
                     {character.abilities.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhuma habilidade adicionada.</li>
+                      <p className="text-gray-400 italic">Nenhuma habilidade adicionada.</p>
                     ) : (
-                      character.abilities.map((ability) => (
-                        <li key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.abilities.map((ability, index) => (
+                        <div 
+                          key={ability.id} 
+                          className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index, 'abilities')}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index, 'abilities')}
+                        >
                           <div className="flex justify-between items-center mb-1">
                             {ability.isCollapsed ? (
                                 <span 
@@ -2219,10 +2247,10 @@ if (currentUser) {
                                 Exibir Habilidade
                             </button>
                           )}
-                        </li>
+                        </div>
                       ))
                     )}
-                  </ul>
+                  </div>
                   {/* Botão de adicionar no final da lista */}
                   <div className="flex justify-end mt-4">
                     <button
@@ -2249,12 +2277,19 @@ if (currentUser) {
               </h2>
               {!character.isSpecializationsCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                  <div className="space-y-2">
                     {character.specializations.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhuma especialização adicionada.</li>
+                      <p className="text-gray-400 italic">Nenhuma especialização adicionada.</p>
                     ) : (
-                      character.specializations.map((spec) => (
-                        <li key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.specializations.map((spec, index) => (
+                        <div 
+                          key={spec.id} 
+                          className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index, 'specializations')}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index, 'specializations')}
+                        >
                           <div className="flex justify-between items-center mb-1">
                             {spec.isCollapsed ? (
                                 <span 
@@ -2324,10 +2359,10 @@ if (currentUser) {
                                 Exibir Especialização
                             </button>
                           )}
-                        </li>
+                        </div>
                       ))
                     )}
-                  </ul>
+                  </div>
                   {/* Botão de adicionar no final da lista */}
                   <div className="flex justify-end mt-4">
                     <button
@@ -2354,12 +2389,19 @@ if (currentUser) {
               </h2>
               {!character.isEquippedItemsCollapsed && (
                 <>
-                  <ul className="list-disc list-inside space-y-2 text-gray-200">
+                  <div className="space-y-2">
                     {character.equippedItems.length === 0 ? (
-                      <li className="text-gray-400 italic">Nenhum item equipado.</li>
+                      <p className="text-gray-400 italic">Nenhum item equipado.</p>
                     ) : (
-                      character.equippedItems.map((item) => (
-                        <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                      character.equippedItems.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index, 'equippedItems')}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index, 'equippedItems')}
+                        >
                           <div className="flex justify-between items-center mb-1">
                             {item.isCollapsed ? (
                                 <span 
@@ -2420,10 +2462,10 @@ if (currentUser) {
                                 Exibir Item
                             </button>
                           )}
-                        </li>
+                        </div>
                       ))
                     )}
-                  </ul>
+                  </div>
                   {/* Botão de adicionar no final da lista */}
                   <div className="flex justify-end mt-4">
                     <button
@@ -2808,4 +2850,4 @@ if (currentUser) {
   );
 };
 
-export default App
+export default App;
