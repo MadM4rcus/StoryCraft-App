@@ -4,96 +4,43 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
 // =====================================================================================
-//  HELPER & UI COMPONENTS (Componentes de UI e Auxiliares)
+//  HELPER & UI COMPONENTS
 // =====================================================================================
 
-/**
- * Componente Modal para prompts e confirmações personalizadas.
- */
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
-
-  const handleConfirm = () => {
-    if (type === 'prompt') {
-      onConfirm(inputValue);
-    } else {
-      onConfirm();
-      onClose();
-    }
-  };
-
-  const handleCancel = () => {
-    onCancel();
-    onClose();
-  };
-
-  const confirmButtonText = useMemo(() => {
-    switch (type) {
-      case 'confirm': return 'Confirmar';
-      case 'prompt': return 'Confirmar';
-      default: return 'OK';
-    }
-  }, [type]);
+  const handleConfirm = () => type === 'prompt' ? onConfirm(inputValue) : (onConfirm(), onClose());
+  const handleCancel = () => { onCancel(); onClose(); };
+  const confirmButtonText = useMemo(() => type === 'confirm' || type === 'prompt' ? 'Confirmar' : 'OK', [type]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
         <p className="text-lg text-gray-100 mb-4 text-center">{message}</p>
-        {type === 'prompt' && (
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
-            placeholder="Digite aqui..."
-          />
-        )}
+        {type === 'prompt' && <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500" placeholder="Digite aqui..." />}
         <div className="flex justify-around gap-4">
-          <button
-            onClick={handleConfirm}
-            className={`px-5 py-2 rounded-lg font-bold shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-75 ${
-              type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-            } text-white`}
-          >
-            {confirmButtonText}
-          </button>
-          {type !== 'info' && (
-            <button
-              onClick={handleCancel}
-              className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-            >
-              Cancelar
-            </button>
-          )}
+          <button onClick={handleConfirm} className={`px-5 py-2 rounded-lg font-bold shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-75 ${type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'} text-white`}>{confirmButtonText}</button>
+          {type !== 'info' && <button onClick={handleCancel} className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">Cancelar</button>}
         </div>
       </div>
     </div>
   );
 };
 
-/**
- * Textarea com altura automática que se ajusta ao conteúdo.
- */
 const AutoResizingTextarea = ({ value, onChange, placeholder, className, disabled }) => {
-    const textareaRef = useRef(null);
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-        }
-    }, [value]);
-    return <textarea ref={textareaRef} value={value} onChange={onChange} placeholder={placeholder} className={`${className} resize-none overflow-hidden`} rows="1" disabled={disabled} />;
+  const textareaRef = useRef(null);
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [value]);
+  return <textarea ref={textareaRef} value={value} onChange={onChange} placeholder={placeholder} className={`${className} resize-none overflow-hidden`} rows="1" disabled={disabled} />;
 };
 
-/**
- * Componente reutilizável para uma seção colapsável com título.
- */
 const Section = ({ title, sectionKey, isCollapsed, onToggle, children }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-    <h2 
-      className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center"
-      onClick={() => onToggle(sectionKey)}
-    >
+    <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => onToggle(sectionKey)}>
       {title}
       <span>{isCollapsed ? '▼' : '▲'}</span>
     </h2>
@@ -102,48 +49,53 @@ const Section = ({ title, sectionKey, isCollapsed, onToggle, children }) => (
 );
 
 // =====================================================================================
-//  CHARACTER SHEET COMPONENTS (Componentes da Ficha de Personagem)
+//  CHARACTER SHEET COMPONENTS
 // =====================================================================================
 
-/**
- * Exibe a lista de personagens do usuário.
- */
-const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, onCreate, onDelete, onToggleView, isLoading, canEdit }) => (
+const UserStatus = ({ user, isMaster, isAuthReady, isLoading, onSignIn, onSignOut, onToggle, isCollapsed }) => (
+    <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+        <h2 className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center" onClick={() => onToggle('isUserStatusCollapsed')}>
+            Status do Usuário <span>{isCollapsed ? '▼' : '▲'}</span>
+        </h2>
+        {!isCollapsed && (
+            <div className="text-center">
+                {!isAuthReady ? <p>Inicializando...</p> : user ? (
+                    <>
+                        <p className="text-lg text-gray-200">Logado como: <span className="font-semibold text-purple-300">{user.displayName || 'Usuário'}</span>{isMaster && <span className="text-yellow-400 ml-2">(Mestre)</span>}</p>
+                        <p className="text-sm text-gray-400 mb-2">{user.email}</p>
+                        <p className="text-sm text-gray-400 break-all">ID: {user.uid}</p>
+                        <button onClick={onSignOut} className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md" disabled={isLoading}>Sair</button>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-lg text-gray-400 mb-4">Você não está logado.</p>
+                        <button onClick={onSignIn} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg" disabled={isLoading}>Login com Google</button>
+                    </>
+                )}
+            </div>
+        )}
+    </section>
+);
+
+const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, onCreate, onDelete, onToggleView, isLoading, user }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-    <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
-      {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
-    </h2>
+    <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">{viewingAllCharacters ? 'Todas as Fichas' : 'Meus Personagens'}</h2>
     <div className="flex flex-wrap gap-4 mb-4">
-      <button onClick={onCreate} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75" disabled={isLoading}>
-        Criar Novo Personagem
-      </button>
-      {isMaster && (
-        <button onClick={onToggleView} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75" disabled={isLoading}>
-          {viewingAllCharacters ? 'Ver Minhas Fichas' : 'Ver Todas as Fichas'}
-        </button>
-      )}
+      <button onClick={onCreate} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md" disabled={isLoading}>Criar Novo</button>
+      {isMaster && <button onClick={onToggleView} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md" disabled={isLoading}>{viewingAllCharacters ? 'Ver Minhas Fichas' : 'Ver Todas'}</button>}
     </div>
-    {characters.length === 0 && !isLoading ? (
-      <p className="text-gray-400 italic">Nenhum personagem encontrado. Crie um novo!</p>
-    ) : (
+    {characters.length === 0 && !isLoading ? <p className="text-gray-400 italic">Nenhum personagem encontrado.</p> : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {characters.map((char) => (
           <div key={char.id} className="bg-gray-600 p-4 rounded-lg shadow-md flex flex-col justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">{char.name || 'Personagem Sem Nome'}</h3>
-              <p className="text-sm text-gray-300">Raça: {char.race || 'N/A'}</p>
-              <p className="text-sm text-gray-300">Classe: {char.class || 'N/A'}</p>
-              {isMaster && char.ownerUid && <p className="text-xs text-gray-400 mt-2 break-all">Proprietário: {char.ownerUid}</p>}
+              <h3 className="text-xl font-bold text-white mb-1">{char.name || 'Sem Nome'}</h3>
+              <p className="text-sm text-gray-300">Raça: {char.race || 'N/A'}, Classe: {char.class || 'N/A'}</p>
+              {isMaster && char.ownerUid && <p className="text-xs text-gray-400 mt-2 break-all">ID Dono: {char.ownerUid}</p>}
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => onSelect(char.id, char.ownerUid)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
-                Ver/Editar
-              </button>
-              {(canEdit || (isMaster && viewingAllCharacters)) && (
-                <button onClick={() => onDelete(char.id, char.name, char.ownerUid)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
-                  Excluir
-                </button>
-              )}
+              <button onClick={() => onSelect(char.id, char.ownerUid)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md">Ver/Editar</button>
+              {(user.uid === char.ownerUid || isMaster) && <button onClick={() => onDelete(char.id, char.name, char.ownerUid)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md">Excluir</button>}
             </div>
           </div>
         ))}
@@ -152,64 +104,25 @@ const CharacterList = ({ characters, isMaster, viewingAllCharacters, onSelect, o
   </section>
 );
 
-/**
- * Componente genérico para renderizar qualquer lista de blocos dinâmicos e arrastáveis.
- */
-const DynamicBlockSection = ({ 
-  title, 
-  sectionKey, 
-  listName,
-  items, 
-  renderItem, 
-  onAddItem, 
-  isCollapsed, 
-  onToggle, 
-  canEdit,
-  draggedItemRef,
-  handleDragStart,
-  handleDragOver,
-  handleDrop,
-  gridClass = "space-y-2" // Default to single column
-}) => (
+const DynamicBlockSection = ({ title, sectionKey, listName, items, renderItem, onAddItem, isCollapsed, onToggle, canEdit, handleDragStart, handleDragOver, handleDrop, gridClass = "space-y-2" }) => (
   <Section title={title} sectionKey={sectionKey} isCollapsed={isCollapsed} onToggle={onToggle}>
     <div className={gridClass}>
-      {items.length === 0 ? (
-        <p className="text-gray-400 italic">Nenhum item adicionado.</p>
-      ) : (
-        items.map((item, index) => (
-          <div
-            key={item.id}
-            draggable={canEdit}
-            onDragStart={(e) => canEdit && handleDragStart(e, index, listName)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => canEdit && handleDrop(e, index, listName)}
-            className={canEdit ? 'cursor-move' : ''}
-          >
-            {renderItem(item, index)}
-          </div>
-        ))
-      )}
+      {items.length === 0 ? <p className="text-gray-400 italic">Nenhum item.</p> : items.map((item, index) => (
+        <div key={item.id} draggable={canEdit} onDragStart={(e) => canEdit && handleDragStart(e, index, listName)} onDragOver={handleDragOver} onDrop={(e) => canEdit && handleDrop(e, index, listName)} className={canEdit ? 'cursor-move' : ''}>
+          {renderItem(item, index)}
+        </div>
+      ))}
     </div>
-    {canEdit && (
-      <div className="flex justify-center mt-4">
-        <button
-          onClick={onAddItem}
-          className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center"
-          aria-label={`Adicionar ${title}`}
-        >
-          +
-        </button>
-      </div>
-    )}
+    {canEdit && <div className="flex justify-center mt-4"><button onClick={onAddItem} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label={`Adicionar ${title}`}>+</button></div>}
   </Section>
 );
 
 // =====================================================================================
-//  MAIN APP COMPONENT (Componente Principal da Aplicação)
+//  MAIN APP COMPONENT
 // =====================================================================================
 
 const App = () => {
-  // --- STATE MANAGEMENT (Gerenciamento de Estado) ---
+  // --- STATE & REFS ---
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
@@ -220,65 +133,47 @@ const App = () => {
   const [selectedCharIdState, setSelectedCharIdState] = useState(null);
   const [ownerUidState, setOwnerUidState] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
-  const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+  const [modal, setModal] = useState({ isVisible: false });
   const [isLoading, setIsLoading] = useState(false);
-
-  // --- REFS ---
   const fileInputRef = useRef(null);
   const draggedItemRef = useRef(null);
 
-  // --- FIREBASE CONFIG ---
-  const firebaseConfig = useMemo(() => ({
-    apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
-    authDomain: "storycraft-a5f7e.firebaseapp.com",
-    projectId: "storycraft-a5f7e",
-    storageBucket: "storycraft-a5f7e.firebaseapp.com",
-    messagingSenderId: "727724875985",
-    appId: "1:727724875985:web:97411448885c68c289e5f0",
-    measurementId: "G-JH03Y2NZDK"
-  }), []);
+  // --- CONFIG & DERIVED STATE ---
+  const firebaseConfig = useMemo(() => ({ apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU", authDomain: "storycraft-a5f7e.firebaseapp.com", projectId: "storycraft-a5f7e", storageBucket: "storycraft-a5f7e.firebaseapp.com", messagingSenderId: "727724875985", appId: "1:727724875985:web:97411448885c68c289e5f0" }), []);
   const appId = firebaseConfig.appId;
-  
-  const canEdit = useMemo(() => {
-    if (!user || !character) return false;
-    return user.uid === character.ownerUid || isMaster;
-  }, [user, character, isMaster]);
+  const canEdit = useMemo(() => user && character && (user.uid === character.ownerUid || isMaster), [user, character, isMaster]);
 
-  // --- FIREBASE & AUTH EFFECTS (Efeitos de Firebase e Autenticação) ---
-
+  // --- FIREBASE & DATA EFFECTS ---
   useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
-      const authInstance = getAuth(app);
-      const firestoreInstance = getFirestore(app);
-      setAuth(authInstance);
-      setDb(firestoreInstance);
-
-      const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
-        setUser(currentUser);
-        setIsAuthReady(true);
-        if (currentUser) {
-          const userDocRef = doc(firestoreInstance, `artifacts/${appId}/users/${currentUser.uid}`);
-          const userDocSnap = await getDoc(userDocRef);
-          if (!userDocSnap.exists()) {
-            await setDoc(userDocRef, { isMaster: false, displayName: currentUser.displayName, email: currentUser.email });
-          }
-        } else {
-          setCharacter(null);
-          setCharactersList([]);
-          setSelectedCharIdState(null);
-          setOwnerUidState(null);
-          window.history.pushState({}, '', window.location.pathname);
-          setViewingAllCharacters(false);
-          setIsMaster(false);
-        }
-      });
-      return () => unsubscribe();
+      setAuth(getAuth(app));
+      setDb(getFirestore(app));
     } catch (error) {
       console.error("Erro ao inicializar Firebase:", error);
       setModal({ isVisible: true, message: `Erro ao inicializar: ${error.message}`, type: 'info' });
     }
-  }, [firebaseConfig, appId]);
+  }, [firebaseConfig]);
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+      if (currentUser) {
+        const userDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}`);
+        const userDocSnap = await getDoc(userDocRef);
+        if (!userDocSnap.exists()) {
+          await setDoc(userDocRef, { isMaster: false, displayName: currentUser.displayName, email: currentUser.email });
+        }
+      } else {
+        setCharacter(null); setCharactersList([]); setSelectedCharIdState(null); setOwnerUidState(null);
+        window.history.pushState({}, '', window.location.pathname);
+        setViewingAllCharacters(false); setIsMaster(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [auth, db, appId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -287,346 +182,145 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    let unsubscribeRole = () => {};
-    if (db && user && isAuthReady) {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
-      unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
-        setIsMaster(docSnap.exists() && docSnap.data().isMaster === true);
-      }, (error) => {
-        console.error("Erro ao carregar papel do usuário:", error);
-        setIsMaster(false);
-      });
-    } else {
-      setIsMaster(false);
-    }
-    return () => unsubscribeRole();
-  }, [db, user, isAuthReady, appId]);
+    if (!db || !user) { setIsMaster(false); return; }
+    const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
+    const unsubscribe = onSnapshot(userRoleDocRef, (docSnap) => setIsMaster(docSnap.exists() && docSnap.data().isMaster === true));
+    return () => unsubscribe();
+  }, [db, user, appId]);
 
   const fetchCharactersList = useCallback(async (fetchAll = viewingAllCharacters) => {
-    if (!db || !user || !isAuthReady) return;
+    if (!db || !user) return;
     setIsLoading(true);
     try {
       let chars = [];
       if (isMaster && fetchAll) {
-        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const promises = usersSnapshot.docs.map(async (userDoc) => {
-          const userUid = userDoc.id;
-          const charSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
-          const charSnapshot = await getDocs(charSheetsRef);
-          return charSnapshot.docs
-            .map(doc => (doc.data().deleted ? null : { id: doc.id, ownerUid: userUid, ...doc.data() }))
-            .filter(Boolean);
-        });
-        const charactersByUser = await Promise.all(promises);
-        chars = charactersByUser.flat();
+        const usersSnapshot = await getDocs(collection(db, `artifacts/${appId}/users`));
+        const promises = usersSnapshot.docs.map(userDoc => getDocs(collection(db, `artifacts/${appId}/users/${userDoc.id}/characterSheets`)).then(snap => snap.docs.map(d => ({...d.data(), id: d.id, ownerUid: userDoc.id}))));
+        chars = (await Promise.all(promises)).flat().filter(c => !c.deleted);
       } else {
-        const userCharSheetsRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
-        const q = query(userCharSheetsRef);
-        const querySnapshot = await getDocs(q);
-        chars = querySnapshot.docs.map(doc => doc.data().deleted ? null : { id: doc.id, ownerUid: user.uid, ...doc.data() }).filter(Boolean);
+        const querySnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`));
+        chars = querySnapshot.docs.map(d => ({...d.data(), id: d.id, ownerUid: user.uid})).filter(c => !c.deleted);
       }
       setCharactersList(chars);
-    } catch (error) {
-      console.error("Erro ao carregar lista de personagens:", error);
-      setModal({ isVisible: true, message: `Erro ao carregar personagens: ${error.message}`, type: 'info' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [db, user, isAuthReady, isMaster, appId, viewingAllCharacters]);
+    } catch (error) { console.error("Erro ao carregar lista:", error); } 
+    finally { setIsLoading(false); }
+  }, [db, user, isMaster, appId, viewingAllCharacters]);
 
-  useEffect(() => {
-    if (user && db && isAuthReady) {
-      fetchCharactersList();
-    }
-  }, [user, db, isAuthReady, fetchCharactersList]);
+  useEffect(() => { if (user && db) fetchCharactersList(); }, [user, db, fetchCharactersList]);
   
-  const deserializeData = (data) => {
+  const deserializeData = useCallback((data) => {
     const deserialized = { ...data };
-    const fieldsToParse = [
-      'mainAttributes', 'attributes', 'inventory', 'wallet', 'advantages', 
-      'disadvantages', 'abilities', 'specializations', 'equippedItems', 
-      'history', 'notes'
-    ];
-    
-    fieldsToParse.forEach(field => {
-      if (typeof deserialized[field] === 'string') {
-        try {
-          deserialized[field] = JSON.parse(deserialized[field]);
-        } catch (e) {
-          console.error(`Erro ao deserializar campo ${field}:`, e);
-          deserialized[field] = Array.isArray(deserialized[field]) ? [] : {};
-        }
-      }
-    });
-
-    // Garante que arrays de itens tenham a propriedade 'isCollapsed'
-    const listFields = ['inventory', 'advantages', 'disadvantages', 'abilities', 'specializations', 'equippedItems', 'history', 'notes'];
-    listFields.forEach(field => {
-        deserialized[field] = (deserialized[field] || []).map(item => ({...item, isCollapsed: item.isCollapsed || false}));
-    });
-
+    const fieldsToParse = ['mainAttributes', 'attributes', 'inventory', 'wallet', 'advantages', 'disadvantages', 'abilities', 'specializations', 'equippedItems', 'history', 'notes'];
+    fieldsToParse.forEach(field => { if (typeof deserialized[field] === 'string') try { deserialized[field] = JSON.parse(deserialized[field]); } catch (e) { deserialized[field] = []; } });
+    ['inventory', 'advantages', 'disadvantages', 'abilities', 'specializations', 'equippedItems', 'history', 'notes'].forEach(field => { deserialized[field] = (deserialized[field] || []).map(item => ({...item, isCollapsed: item.isCollapsed || false})); });
     return deserialized;
-  };
+  }, []);
 
   useEffect(() => {
-    let unsubscribeCharacter = () => {};
-    if (db && user && isAuthReady && selectedCharIdState) {
-      const loadCharacter = async () => {
-        setIsLoading(true);
-        let targetUid = ownerUidState;
-        if (!targetUid && isMaster) {
-            // Lógica para mestre encontrar o dono do personagem (omitida para brevidade)
-        } else if (!targetUid) {
-            targetUid = user.uid;
-        }
-
-        if (!targetUid) {
-          setIsLoading(false);
-          return;
-        }
-
-        const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${selectedCharIdState}`);
-        unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
-          if (docSnap.exists() && !docSnap.data().deleted) {
-            const deserialized = deserializeData(docSnap.data());
-            setCharacter(deserialized);
-          } else {
-            setCharacter(null);
-            setSelectedCharIdState(null);
-            window.history.pushState({}, '', window.location.pathname);
-            fetchCharactersList();
-          }
-          setIsLoading(false);
-        }, (error) => {
-          console.error("Erro ao ouvir a ficha:", error);
-          setIsLoading(false);
-        });
-      };
-      loadCharacter();
-    } else {
-      setCharacter(null);
-    }
-    return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]);
+    if (!db || !user || !selectedCharIdState) { setCharacter(null); return; }
+    const targetUid = ownerUidState || user.uid;
+    const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${selectedCharIdState}`);
+    const unsubscribe = onSnapshot(characterDocRef, (docSnap) => {
+      if (docSnap.exists() && !docSnap.data().deleted) setCharacter(deserializeData(docSnap.data()));
+      else { setCharacter(null); setSelectedCharIdState(null); window.history.pushState({}, '', window.location.pathname); fetchCharactersList(); }
+    });
+    return () => unsubscribe();
+  }, [db, user, selectedCharIdState, ownerUidState, appId, deserializeData, fetchCharactersList]);
 
   useEffect(() => {
-    if (!db || !user || !isAuthReady || !character || !selectedCharIdState || !canEdit) {
-      return;
-    }
-
+    if (!db || !user || !character || !selectedCharIdState || !canEdit) return;
     const handler = setTimeout(() => {
       const characterDocRef = doc(db, `artifacts/${appId}/users/${character.ownerUid}/characterSheets/${selectedCharIdState}`);
       const dataToSave = { ...character };
-      
-      // Serializa todos os campos que são objetos ou arrays
-      Object.keys(dataToSave).forEach(key => {
-        if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) {
-          dataToSave[key] = JSON.stringify(dataToSave[key]);
-        }
-      });
-      
-      // Remove campos que não devem ser salvos
-      delete dataToSave.deleted;
-      delete dataToSave.basicAttributes;
-      delete dataToSave.magicAttributes;
-
-      setDoc(characterDocRef, dataToSave, { merge: true }).catch(error => {
-        console.error('Erro ao salvar ficha:', error);
-      });
+      Object.keys(dataToSave).forEach(key => { if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) dataToSave[key] = JSON.stringify(dataToSave[key]); });
+      delete dataToSave.deleted; delete dataToSave.basicAttributes; delete dataToSave.magicAttributes;
+      setDoc(characterDocRef, dataToSave, { merge: true }).catch(error => console.error('Erro ao salvar:', error));
     }, 1000);
-
     return () => clearTimeout(handler);
-  }, [character, db, user, isAuthReady, selectedCharIdState, canEdit, appId]);
+  }, [character, db, user, selectedCharIdState, canEdit, appId]);
 
-
-  // --- HANDLERS (Funções de Manipulação) ---
-  
-  const handleSetCharacterList = (listName, newList) => {
-    setCharacter(prev => ({ ...prev, [listName]: newList }));
-  };
-
-  const handleGoogleSignIn = async () => { /* ... (sem alterações) ... */ };
-  const handleSignOut = async () => { /* ... (sem alterações) ... */ };
-  const handleCreateNewCharacter = () => { /* ... (sem alterações, mas usando a nova estrutura de dados) ... */ };
-  const handleDeleteCharacter = (charId, charName, ownerUid) => { /* ... (sem alterações) ... */ };
-  const handleSelectCharacter = (charId, ownerUid) => {
-    setSelectedCharIdState(charId);
-    setOwnerUidState(ownerUid);
-    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
-    setViewingAllCharacters(false);
-  };
-  const handleBackToList = () => {
-    setSelectedCharIdState(null);
-    setOwnerUidState(null);
-    window.history.pushState({}, '', window.location.pathname);
-    setCharacter(null);
-    fetchCharactersList();
-  };
-  const handleToggleView = () => {
-    const newViewingAll = !viewingAllCharacters;
-    setViewingAllCharacters(newViewingAll);
-    fetchCharactersList(newViewingAll);
-  };
-  const toggleSection = (sectionKey) => {
-    setCharacter(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
-  };
-
-  // --- Handlers Genéricos para Listas Dinâmicas ---
-  const handleAddItem = (listName, newItem) => {
-    const currentList = character[listName] || [];
-    handleSetCharacterList(listName, [...currentList, newItem]);
-  };
-
-  const handleRemoveItem = (listName, idToRemove) => {
-    const currentList = character[listName] || [];
-    handleSetCharacterList(listName, currentList.filter(item => item.id !== idToRemove));
-  };
-
+  // --- HANDLERS ---
+  const handleSetCharacterList = (listName, newList) => setCharacter(prev => ({ ...prev, [listName]: newList }));
+  const handleGoogleSignIn = async () => { if (!auth) return; try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (error) { console.error(error); } };
+  const handleSignOut = async () => { if (!auth) return; try { await signOut(auth); } catch (error) { console.error(error); } };
+  const handleCreateNewCharacter = () => setModal({ isVisible: true, message: 'Nome do novo personagem:', type: 'prompt', onConfirm: async (name) => { if (!name) return; /* ... (lógica de criação omitida para brevidade) ... */ } });
+  const handleDeleteCharacter = (charId, charName, ownerUid) => setModal({ isVisible: true, message: `Excluir '${charName}'?`, type: 'confirm', onConfirm: async () => await deleteDoc(doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`)) });
+  const handleSelectCharacter = (charId, ownerUid) => { setSelectedCharIdState(charId); setOwnerUidState(ownerUid); window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`); setViewingAllCharacters(false); };
+  const handleBackToList = () => { setSelectedCharIdState(null); setOwnerUidState(null); window.history.pushState({}, '', window.location.pathname); };
+  const handleToggleView = () => setViewingAllCharacters(v => !v);
+  const toggleSection = (sectionKey) => setCharacter(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+  const handleAddItem = (listName, newItem) => handleSetCharacterList(listName, [...(character[listName] || []), newItem]);
+  const handleRemoveItem = (listName, id) => handleSetCharacterList(listName, (character[listName] || []).filter(item => item.id !== id));
   const handleUpdateItem = (listName, id, field, value) => {
-    const currentList = character[listName] || [];
-    const newList = currentList.map(item => {
+    const newList = (character[listName] || []).map(item => {
       if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        // Recalculo específico para atributos
-        if (listName === 'attributes') {
-          updatedItem.total = (updatedItem.base || 0) + (updatedItem.perm || 0) + (updatedItem.cond || 0) + (updatedItem.arma || 0);
-        }
-        return updatedItem;
+        const updated = { ...item, [field]: value };
+        if (listName === 'attributes') updated.total = (updated.base || 0) + (updated.perm || 0) + (updated.cond || 0) + (updated.arma || 0);
+        return updated;
       }
       return item;
     });
     handleSetCharacterList(listName, newList);
   };
-
-  const handleDragStart = (e, index, listName) => {
-    draggedItemRef.current = { index, listName };
-    e.dataTransfer.effectAllowed = "move";
-  };
+  const handleDragStart = (e, index, listName) => { draggedItemRef.current = { index, listName }; e.dataTransfer.effectAllowed = "move"; };
   const handleDragOver = (e) => e.preventDefault();
   const handleDrop = (e, dropIndex, targetListName) => {
     e.preventDefault();
     const { index: draggedIndex, listName } = draggedItemRef.current;
     if (draggedIndex === null || listName !== targetListName) return;
-    
-    const currentList = [...character[listName]];
-    const [draggedItem] = currentList.splice(draggedIndex, 1);
-    currentList.splice(dropIndex, 0, draggedItem);
-    handleSetCharacterList(listName, currentList);
+    const list = [...character[listName]];
+    const [draggedItem] = list.splice(draggedIndex, 1);
+    list.splice(dropIndex, 0, draggedItem);
+    handleSetCharacterList(listName, list);
     draggedItemRef.current = null;
   };
   
-  // --- RENDER FUNCTIONS (Funções de Renderização para Listas) ---
-
+  // --- RENDER FUNCTIONS ---
   const renderAttributeItem = (attr) => (
     <div className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative">
       <div className="flex flex-col sm:flex-row items-center gap-3">
         <input type="text" placeholder="Nome" value={attr.name} onChange={(e) => handleUpdateItem('attributes', attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={!canEdit} />
         <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
-          {['base', 'perm', 'cond', 'arma'].map(field => (
-            <div key={field} className="flex flex-col items-center">
-              <span className="text-gray-400 text-xs text-center capitalize">{field === 'perm' ? 'Perm.' : field === 'cond' ? 'Cond.' : field}</span>
-              <input type="number" value={attr[field] === 0 ? '' : attr[field]} onChange={(e) => handleUpdateItem('attributes', attr.id, field, parseInt(e.target.value) || 0)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={!canEdit} />
-            </div>
-          ))}
+          {['base', 'perm', 'cond', 'arma'].map(field => (<div key={field} className="flex flex-col items-center"><span className="text-gray-400 text-xs text-center capitalize">{field.substring(0,4)}</span><input type="number" value={attr[field] === 0 ? '' : attr[field]} onChange={(e) => handleUpdateItem('attributes', attr.id, field, parseInt(e.target.value) || 0)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={!canEdit} /></div>))}
           <div className="flex flex-col items-center"><span className="text-gray-400 text-xs text-center">Total</span><input type="number" value={attr.total} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" /></div>
         </div>
       </div>
       {canEdit && <button onClick={() => handleRemoveItem('attributes', attr.id)} className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center">X</button>}
     </div>
   );
-
-  const renderInventoryItem = (item) => (
+  const renderSimpleItem = (listName, placeholder) => (item) => (
     <div className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
       <div className="flex justify-between items-center mb-1">
-        <input type="text" value={item.name} onChange={e => handleUpdateItem('inventory', item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" placeholder="Nome do Item" disabled={!canEdit} />
-        {canEdit && <button onClick={() => handleRemoveItem('inventory', item.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>}
+        <input type="text" value={item.name} onChange={e => handleUpdateItem(listName, item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" placeholder={placeholder} disabled={!canEdit} />
+        {canEdit && <button onClick={() => handleRemoveItem(listName, item.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>}
       </div>
-      <AutoResizingTextarea value={item.description} onChange={e => handleUpdateItem('inventory', item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={!canEdit} />
+      <AutoResizingTextarea value={item.description} onChange={e => handleUpdateItem(listName, item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={!canEdit} />
     </div>
   );
   
-  // ... outras funções de renderização para vantagens, habilidades, etc. ...
-
-  // --- RENDER PRINCIPAL ---
+  // --- MAIN RENDER ---
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
-       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"] { -moz-appearance: textfield; }`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"] { -moz-appearance: textfield; }`}</style>
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
         <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">Ficha StoryCraft</h1>
-        
-        {/* ... (UI de Autenticação) ... */}
-
-        {user && !selectedCharIdState && (
-          <CharacterList 
-            characters={charactersList}
-            isMaster={isMaster}
-            viewingAllCharacters={viewingAllCharacters}
-            onSelect={handleSelectCharacter}
-            onCreate={handleCreateNewCharacter}
-            onDelete={handleDeleteCharacter}
-            onToggleView={handleToggleView}
-            isLoading={isLoading}
-            canEdit={canEdit}
-          />
-        )}
-
+        <UserStatus user={user} isMaster={isMaster} isAuthReady={isAuthReady} isLoading={isLoading} onSignIn={handleGoogleSignIn} onSignOut={handleSignOut} onToggle={toggleSection} isCollapsed={character?.isUserStatusCollapsed} />
+        {user && !selectedCharIdState && <CharacterList characters={charactersList} isMaster={isMaster} viewingAllCharacters={viewingAllCharacters} onSelect={handleSelectCharacter} onCreate={handleCreateNewCharacter} onDelete={handleDeleteCharacter} onToggleView={handleToggleView} isLoading={isLoading} user={user} />}
         {user && selectedCharIdState && character && (
           <>
-            <button onClick={handleBackToList} className="mb-4 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">
-              ← Voltar para a Lista
-            </button>
-            
-            {/* ... (Componente CharacterHeader) ... */}
-
-            {/* ... (Componente MainAttributes) ... */}
-            
-            <DynamicBlockSection
-              title="Atributos"
-              sectionKey="isAttributesCollapsed"
-              listName="attributes"
-              items={character.attributes || []}
-              renderItem={renderAttributeItem}
-              onAddItem={() => handleAddItem('attributes', { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 })}
-              isCollapsed={character.isAttributesCollapsed}
-              onToggle={toggleSection}
-              canEdit={canEdit}
-              draggedItemRef={draggedItemRef}
-              handleDragStart={handleDragStart}
-              handleDragOver={handleDragOver}
-              handleDrop={handleDrop}
-              gridClass="grid grid-cols-1 md:grid-cols-2 gap-4"
-            />
-
-            <DynamicBlockSection
-              title="Inventário"
-              sectionKey="isInventoryCollapsed"
-              listName="inventory"
-              items={character.inventory || []}
-              renderItem={renderInventoryItem}
-              onAddItem={() => handleAddItem('inventory', { id: crypto.randomUUID(), name: '', description: '' })}
-              isCollapsed={character.isInventoryCollapsed}
-              onToggle={toggleSection}
-              canEdit={canEdit}
-              draggedItemRef={draggedItemRef}
-              handleDragStart={handleDragStart}
-              handleDragOver={handleDragOver}
-              handleDrop={handleDrop}
-            />
-
-            {/* ... (Outras seções usando DynamicBlockSection) ... */}
-            
-            {/* ... (ActionButtons) ... */}
+            <button onClick={handleBackToList} className="mb-4 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">← Voltar</button>
+            {/* ... (CharacterHeader, MainAttributes, etc. - OMITIDOS PARA BREVIDADE) ... */}
+            <DynamicBlockSection title="Atributos" sectionKey="isAttributesCollapsed" listName="attributes" items={character.attributes || []} renderItem={renderAttributeItem} onAddItem={() => handleAddItem('attributes', { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 })} isCollapsed={character.isAttributesCollapsed} onToggle={toggleSection} canEdit={canEdit} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} gridClass="grid grid-cols-1 md:grid-cols-2 gap-4" />
+            <DynamicBlockSection title="Inventário" sectionKey="isInventoryCollapsed" listName="inventory" items={character.inventory || []} renderItem={renderSimpleItem('inventory', 'Nome do Item')} onAddItem={() => handleAddItem('inventory', { id: crypto.randomUUID(), name: '', description: '' })} isCollapsed={character.isInventoryCollapsed} onToggle={toggleSection} canEdit={canEdit} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} />
+            {/* ... (Outras seções) ... */}
           </>
         )}
-
-        {!user && <p className="text-center text-gray-400 text-lg mt-8">Faça login para começar!</p>}
+        {!user && isAuthReady && <p className="text-center text-gray-400 text-lg mt-8">Faça login para começar!</p>}
       </div>
-
-      {modal.isVisible && <CustomModal {...modal} onClose={() => setModal(prev => ({ ...prev, isVisible: false }))} />}
+      {modal.isVisible && <CustomModal {...modal} onClose={() => setModal(p => ({ ...p, isVisible: false }))} />}
       {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
     </div>
   );
 };
 
-export default App
+export default App;
