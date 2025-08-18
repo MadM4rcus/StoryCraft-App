@@ -334,21 +334,21 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
 const useListManager = (setCharacter) => {
   const addItem = useCallback((listName, newItemTemplate) => {
     setCharacter(prev => ({
-    ...prev,
+     ...prev,
       [listName]: [...(prev[listName] ||), newItemTemplate]
     }));
   }, [setCharacter]);
 
   const removeItem = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-    ...prev,
+     ...prev,
       [listName]: (prev[listName] ||).filter(item => item.id!== itemId)
     }));
   }, [setCharacter]);
 
   const updateItem = useCallback((listName, itemId, field, value) => {
     setCharacter(prev => ({
-    ...prev,
+     ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, [field]: value } : item
       )
@@ -357,7 +357,7 @@ const useListManager = (setCharacter) => {
 
   const toggleItemCollapsed = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-    ...prev,
+     ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, isCollapsed:!item.isCollapsed } : item
       )
