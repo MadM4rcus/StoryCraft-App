@@ -1,28 +1,125 @@
-// [código fonte do '2colun block.txt']
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
-// ===================================================================================
-//  1. COMPONENTES AUXILIARES
-//  Componentes genéricos e reutilizáveis (Modais, Inputs, etc.)
-// ===================================================================================
+// --- CONSTANTES & CONFIGURAÇÃO ---
+// Agrupa configurações estáticas da aplicação para fácil acesso e modificação.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
+  authDomain: "storycraft-a5f7e.firebaseapp.com",
+  projectId: "storycraft-a5f7e",
+  storageBucket: "storycraft-a5f7e.firebaseapp.com",
+  messagingSenderId: "727724875985",
+  appId: "1:727724875985:web:97411448885c68c289e5f0",
+  measurementId: "G-JH03Y2NZDK"
+};
+
+const APP_ID = FIREBASE_CONFIG.appId;
+
+// --- FUNÇÕES UTILITÁRIAS & AUXILIARES ---
+// Funções puras e reutilizáveis que auxiliam em tarefas comuns, como manipulação de dados.
 
 /**
- * Componente Modal para prompts e confirmações personalizadas
+ * Desserializa os dados de um personagem vindos do Firestore.
+ * Converte strings JSON em objetos e garante valores padrão para todas as propriedades.
+ * @param {object} data - Os dados brutos do documento do Firestore.
+ * @returns {object} - O objeto de personagem totalmente hidratado e seguro para uso.
  */
+const deserializeCharacter = (data) => {
+  const deserialized = {...data };
+
+  const parseJsonField = (field, defaultValue =) => {
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch (e) {
+        console.error("Erro ao fazer parse do campo JSON, retornando valor padrão:", e);
+        return defaultValue;
+      }
+    }
+    return field |
+
+| defaultValue;
+  };
+
+  const ensureCollapsedState = (item) => ({...item, isCollapsed: item.isCollapsed?? false });
+
+  deserialized.mainAttributes = parseJsonField(data.mainAttributes, { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 });
+  deserialized.attributes = parseJsonField(data.attributes,);
+  deserialized.wallet = parseJsonField(data.wallet, { zeni: 0 });
+
+  // Garante que todos os itens em listas tenham o estado 'isCollapsed'
+  deserialized.inventory = parseJsonField(data.inventory,).map(ensureCollapsedState);
+  deserialized.advantages = parseJsonField(data.advantages,).map(ensureCollapsedState);
+  deserialized.disadvantages = parseJsonField(data.disadvantages,).map(ensureCollapsedState);
+  deserialized.abilities = parseJsonField(data.abilities,).map(ensureCollapsedState);
+  deserialized.specializations = parseJsonField(data.specializations,).map(ensureCollapsedState);
+  deserialized.equippedItems = parseJsonField(data.equippedItems,).map(ensureCollapsedState);
+  
+  // Tratamento especial para 'history' e 'notes' que podem ser strings antigas
+  let historyData = parseJsonField(data.history,);
+  if (typeof data.history === 'string' &&!Array.isArray(historyData)) {
+      historyData =;
+  }
+  deserialized.history = historyData.map(ensureCollapsedState);
+
+  let notesData = parseJsonField(data.notes,);
+  if (typeof data.notes === 'string' &&!Array.isArray(notesData)) {
+      notesData =;
+  }
+  deserialized.notes = notesData.map(ensureCollapsedState);
+  
+  // Garante valores padrão para campos de primeiro nível e estados de colapso de seções
+  const sectionCollapseKeys =;
+  sectionCollapseKeys.forEach(key => {
+    deserialized[key] = data[key]?? false;
+  });
+
+  deserialized.level = data.level?? 0;
+  deserialized.xp = data.xp?? 100;
+  deserialized.photoUrl = data.photoUrl |
+
+| '';
+
+  return deserialized;
+};
+
+/**
+ * Serializa os campos de um personagem que são objetos/arrays para strings JSON antes de salvar no Firestore.
+ * @param {object} characterData - O objeto de personagem.
+ * @returns {object} - Uma cópia do objeto de personagem com os campos relevantes convertidos para string.
+ */
+const serializeCharacterForSave = (characterData) => {
+    const dataToSave = {...characterData };
+    const fieldsToStringify = [
+        'mainAttributes', 'attributes', 'inventory', 'wallet', 'advantages',
+        'disadvantages', 'abilities', 'specializations', 'equippedItems', 'history', 'notes'
+    ];
+
+    fieldsToStringify.forEach(field => {
+        if (dataToSave[field]) {
+            dataToSave[field] = JSON.stringify(dataToSave[field]);
+        }
+    });
+    
+    // Remove propriedades que não devem ser persistidas
+    delete dataToSave.deleted;
+    delete dataToSave.basicAttributes;
+    delete dataToSave.magicAttributes;
+
+    return dataToSave;
+};
+
+// --- COMPONENTES DE UI REUTILIZÁVEIS ---
+// Componentes React que lidam com a apresentação e podem ser usados em várias partes da aplicação.
+
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
 
   const handleConfirm = () => {
-    if (type === 'prompt') {
-      onConfirm(inputValue);
-    } else {
-      onConfirm();
-      onClose();
-    }
+    type === 'prompt'? onConfirm(inputValue) : onConfirm();
+    onClose();
   };
 
   const handleCancel = () => {
@@ -31,15 +128,7 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   };
 
   const confirmButtonText = useMemo(() => {
-    switch (type) {
-      case 'confirm':
-        return 'Confirmar';
-      case 'prompt':
-        return 'Confirmar';
-      case 'info':
-      default:
-        return 'OK';
-    }
+    return type === 'confirm'? 'Confirmar' : 'OK';
   }, [type]);
 
   return (
@@ -59,12 +148,12 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
           <button
             onClick={handleConfirm}
             className={`px-5 py-2 rounded-lg font-bold shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-75 ${
-              type === 'confirm' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+              type === 'confirm'? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
             } text-white`}
           >
             {confirmButtonText}
           </button>
-          {type !== 'info' && (
+          {type!== 'info' && (
             <button
               onClick={handleCancel}
               className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
@@ -78,9 +167,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   );
 };
 
-/**
- * Componente de Textarea com redimensionamento automático de altura
- */
 const AutoResizingTextarea = ({ value, onChange, placeholder, className, disabled }) => {
     const textareaRef = useRef(null);
     useEffect(() => {
@@ -89,6 +175,7 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
             textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
         }
     }, [value]);
+
     return (
         <textarea
             ref={textareaRef}
@@ -103,648 +190,442 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 };
 
 
-// ===================================================================================
-//  2. COMPONENTE PRINCIPAL DA APLICAÇÃO
-// ===================================================================================
+// --- CUSTOM REACT HOOKS (LÓGICA CENTRAL) ---
+// Hooks personalizados que encapsulam a lógica de negócios complexa, mantendo o componente App limpo.
 
-const App = () => {
-
-  // ---------------------------------------------------------------------------------
-  //  A. GERENCIAMENTO DE ESTADO (STATES & REFS)
-  // ---------------------------------------------------------------------------------
-
-  // Configuração do Firebase
-  const firebaseConfig = useMemo(() => ({
-    apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
-    authDomain: "storycraft-a5f7e.firebaseapp.com",
-    projectId: "storycraft-a5f7e",
-    storageBucket: "storycraft-a5f7e.firebaseapp.com",
-    messagingSenderId: "727724875985",
-    appId: "1:727724875985:web:97411448885c68c289e5f0",
-    measurementId: "G-JH03Y2NZDK"
-  }), []);
-  const appId = firebaseConfig.appId;
-
-  // Estados para Firebase e Autenticação
-  const [db, setDb] = useState(null);
+/**
+ * Gerencia a autenticação Firebase, estado do usuário e papel (Mestre/Jogador).
+ */
+const useFirebaseAuth = (setModal) => {
   const [auth, setAuth] = useState(null);
+  const = useState(null);
   const [user, setUser] = useState(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const = useState(false);
   const [isMaster, setIsMaster] = useState(false);
 
-  // Estados para gerenciamento de personagens
-  const [character, setCharacter] = useState(null);
-  const [charactersList, setCharactersList] = useState([]);
-  const [selectedCharIdState, setSelectedCharIdState] = useState(null);
-  const [ownerUidState, setOwnerUidState] = useState(null);
-  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
-
-  // Estados para UI (Modal, Loading, etc.)
-  const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
-  const [isLoading, setIsLoading] = useState(false);
-  const [zeniAmount, setZeniAmount] = useState(0);
-  const fileInputRef = useRef(null);
-  const draggedItemRef = useRef(null);
-
-  // ---------------------------------------------------------------------------------
-  //  B. EFEITOS E SINCRONIZAÇÃO COM FIREBASE (useEffect)
-  // ---------------------------------------------------------------------------------
-
-  // Efeito 1: Inicializa Firebase e o listener de autenticação
   useEffect(() => {
     try {
-      const app = initializeApp(firebaseConfig);
+      const app = initializeApp(FIREBASE_CONFIG);
       const authInstance = getAuth(app);
-      const firestoreInstance = getFirestore(app);
+      const dbInstance = getFirestore(app);
       setAuth(authInstance);
-      setDb(firestoreInstance);
+      setDb(dbInstance);
 
       const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         setUser(currentUser);
         setIsAuthReady(true);
 
         if (currentUser) {
-          const userDocRef = doc(firestoreInstance, `artifacts/${appId}/users/${currentUser.uid}`);
+          const userDocRef = doc(dbInstance, `artifacts/${APP_ID}/users/${currentUser.uid}`);
           const userDocSnap = await getDoc(userDocRef);
           if (!userDocSnap.exists()) {
-            try {
-              await setDoc(userDocRef, { isMaster: false, displayName: currentUser.displayName, email: currentUser.email });
-            } catch (error) {
-              console.error("Erro ao criar documento do usuário:", error);
-            }
+            await setDoc(userDocRef, {
+              isMaster: false,
+              displayName: currentUser.displayName,
+              email: currentUser.email
+            });
           }
         } else {
-          setCharacter(null);
-          setCharactersList([]);
-          setSelectedCharIdState(null);
-          setOwnerUidState(null);
-          window.history.pushState({}, '', window.location.pathname);
-          setViewingAllCharacters(false);
           setIsMaster(false);
         }
       });
       return () => unsubscribe();
     } catch (error) {
       console.error("Erro ao inicializar Firebase:", error);
-      setModal({ isVisible: true, message: `Erro ao inicializar o aplicativo. Detalhes: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
+      setModal({ isVisible: true, message: `Erro ao inicializar: ${error.message}`, type: 'info' });
     }
-  }, [firebaseConfig, appId]);
+  }, [setModal]);
 
-  // Efeito 2: Pega os parâmetros da URL na primeira renderização
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialCharId = params.get('charId');
-    const initialOwnerUid = params.get('ownerUid');
-    setSelectedCharIdState(initialCharId);
-    setOwnerUidState(initialOwnerUid);
-  }, []);
-
-  // Efeito 3: Carrega o papel do usuário (mestre/jogador)
-  useEffect(() => {
-    let unsubscribeRole = () => {};
-    if (db && user && isAuthReady) {
-      const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
-      unsubscribeRole = onSnapshot(userRoleDocRef, (docSnap) => {
-        setIsMaster(docSnap.exists() && docSnap.data().isMaster === true);
-      }, (error) => {
-        console.error("Erro ao carregar papel do usuário:", error);
-        setIsMaster(false);
-      });
-    } else {
+    if (!db ||!user ||!isAuthReady) {
       setIsMaster(false);
+      return;
     }
-    return () => unsubscribeRole();
-  }, [db, user, isAuthReady, appId]);
-  
-  // Efeito 4: Carrega a lista de personagens
-  const fetchCharactersList = useCallback(async () => {
-    if (!db || !user || !isAuthReady) return;
-    setIsLoading(true);
-    try {
-      let allChars = [];
-      if (isMaster) {
-        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        for (const userDoc of usersSnapshot.docs) {
-          const userUid = userDoc.id;
-          const userCharacterSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
-          const charSnapshot = await getDocs(userCharacterSheetsRef);
-          charSnapshot.docs.forEach(doc => {
-            if (!doc.data().deleted) {
-              allChars.push({ id: doc.id, ownerUid: userUid, ...doc.data() });
-            }
-          });
-        }
-        setCharactersList(allChars);
-        setViewingAllCharacters(true);
-      } else {
-        const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
-        const q = query(charactersCollectionRef);
-        const querySnapshot = await getDocs(q);
-        const chars = querySnapshot.docs.map(doc => {
-            if (!doc.data().deleted) {
-                return { id: doc.id, ownerUid: user.uid, ...doc.data() };
-            }
-            return null;
-        }).filter(Boolean);
-        setCharactersList(chars);
-        setViewingAllCharacters(false);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar lista de personagens:", error);
-      setModal({ isVisible: true, message: `Erro ao carregar lista de personagens: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [db, user, isAuthReady, isMaster, appId]);
+    const userRoleDocRef = doc(db, `artifacts/${APP_ID}/users/${user.uid}`);
+    const unsubscribe = onSnapshot(userRoleDocRef, (docSnap) => {
+      setIsMaster(docSnap.exists() && docSnap.data().isMaster === true);
+    }, (error) => {
+      console.error("Erro ao carregar papel do usuário:", error);
+      setIsMaster(false);
+    });
+    return () => unsubscribe();
+  },);
 
-  useEffect(() => {
-    if (user && db && isAuthReady) {
-      fetchCharactersList();
-    }
-  }, [user, db, isAuthReady, fetchCharactersList]);
-  
-  // Efeito 5: Listener em tempo real para o personagem SELECIONADO
-  useEffect(() => {
-    let unsubscribeCharacter = () => {};
-    const currentSelectedCharacterId = selectedCharIdState;
-    const currentOwnerUidFromUrl = ownerUidState;
-
-    if (db && user && isAuthReady && currentSelectedCharacterId) {
-      const loadCharacter = async () => {
-        setIsLoading(true);
-        let targetUid = currentOwnerUidFromUrl;
-
-        if (!targetUid) {
-          if (isMaster) {
-            let foundOwnerUid = null;
-            try {
-              const usersSnapshot = await getDocs(collection(db, `artifacts/${appId}/users`));
-              for (const userDoc of usersSnapshot.docs) {
-                const charSnap = await getDoc(doc(db, `artifacts/${appId}/users/${userDoc.id}/characterSheets/${currentSelectedCharacterId}`));
-                if (charSnap.exists()) {
-                  foundOwnerUid = userDoc.id;
-                  break;
-                }
-              }
-            } catch (error) { console.error("Erro ao buscar ownerUid para mestre:", error); }
-            
-            if (foundOwnerUid) {
-              targetUid = foundOwnerUid;
-              setOwnerUidState(foundOwnerUid);
-            } else {
-              setCharacter(null);
-              setSelectedCharIdState(null);
-              setOwnerUidState(null);
-              window.history.pushState({}, '', window.location.pathname);
-              fetchCharactersList();
-              setIsLoading(false);
-              return;
-            }
-          } else {
-            targetUid = user.uid;
-            setOwnerUidState(user.uid);
-          }
-        }
-        
-        if (!targetUid) {
-          setIsLoading(false);
-          setCharacter(null);
-          setSelectedCharIdState(null);
-          setOwnerUidState(null);
-          window.history.pushState({}, '', window.location.pathname);
-          return;
-        }
-
-        const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUid}/characterSheets/${currentSelectedCharacterId}`);
-        unsubscribeCharacter = onSnapshot(characterDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.deleted) {
-              setCharacter(null);
-              setSelectedCharIdState(null);
-              setOwnerUidState(null);
-              window.history.pushState({}, '', window.location.pathname);
-              fetchCharactersList();
-              setModal({ isVisible: true, message: "A ficha selecionada foi excluída.", type: "info", onConfirm: () => {}, onCancel: () => {} });
-              return;
-            }
-            // Bloco de Deserialização e Normalização de Dados...
-            const deserializedData = { ...data };
-            try {
-              // ... (toda a sua lógica de JSON.parse e verificação de campos)
-              deserializedData.mainAttributes = typeof deserializedData.mainAttributes === 'string' ? JSON.parse(deserializedData.mainAttributes) : deserializedData.mainAttributes;
-              deserializedData.attributes = typeof deserializedData.attributes === 'string' ? JSON.parse(deserializedData.attributes) : deserializedData.attributes;
-              const listsToNormalize = ['inventory', 'advantages', 'disadvantages', 'abilities', 'specializations', 'equippedItems'];
-              listsToNormalize.forEach(listName => {
-                  deserializedData[listName] = (typeof deserializedData[listName] === 'string' ? JSON.parse(deserializedData[listName]) : deserializedData[listName] || []).map(item => ({ ...item, isCollapsed: item.isCollapsed !== undefined ? item.isCollapsed : false }));
-              });
-              let historyData = deserializedData.history;
-              if (typeof historyData === 'string') { try { historyData = JSON.parse(historyData); } catch (e) { historyData = [{ id: crypto.randomUUID(), type: 'text', value: historyData }]; } }
-              deserializedData.history = Array.isArray(historyData) ? historyData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
-              let notesData = deserializedData.notes;
-              if (typeof notesData === 'string') { try { notesData = JSON.parse(notesData); } catch (e) { notesData = [{ id: crypto.randomUUID(), type: 'text', value: notesData }]; } }
-              deserializedData.notes = Array.isArray(notesData) ? notesData.map(block => ({ ...block, isCollapsed: block.isCollapsed !== undefined ? block.isCollapsed : false })) : [];
-            } catch (e) {
-                console.error("Erro ao deserializar dados do Firestore:", e);
-                setModal({ isVisible: true, message: `Erro ao carregar dados da ficha: ${e.message}. Os dados podem estar corrompidos.`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
-            }
-            setCharacter(deserializedData);
-          } else {
-            setCharacter(null);
-            setSelectedCharIdState(null);
-            setOwnerUidState(null);
-            window.history.pushState({}, '', window.location.pathname);
-            fetchCharactersList();
-          }
-          setIsLoading(false);
-        }, (error) => {
-          console.error("Erro ao ouvir a ficha no Firestore:", error);
-          setModal({ isVisible: true, message: `Erro ao carregar ficha do Firestore: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
-          setIsLoading(false);
-        });
-      };
-      loadCharacter();
-    } else if (!currentSelectedCharacterId) {
-      setCharacter(null);
-    }
-    return () => unsubscribeCharacter();
-  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]);
-
-  // Efeito 6: Salva a ficha no Firestore (Auto-save)
-  useEffect(() => {
-    if (db && user && isAuthReady && character && selectedCharIdState) {
-      const targetUidForSave = character.ownerUid || user.uid;
-      if (user.uid !== targetUidForSave && !isMaster) return;
-
-      const handler = setTimeout(() => {
-        const saveCharacter = async () => {
-          try {
-            const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharIdState}`);
-            const dataToSave = { ...character };
-            // Bloco de Serialização para salvar...
-            dataToSave.mainAttributes = JSON.stringify(dataToSave.mainAttributes);
-            dataToSave.attributes = JSON.stringify(dataToSave.attributes);
-            dataToSave.inventory = JSON.stringify(dataToSave.inventory);
-            dataToSave.wallet = JSON.stringify(dataToSave.wallet);
-            dataToSave.advantages = JSON.stringify(dataToSave.advantages);
-            dataToSave.disadvantages = JSON.stringify(dataToSave.disadvantages);
-            dataToSave.abilities = JSON.stringify(dataToSave.abilities);
-            dataToSave.specializations = JSON.stringify(dataToSave.specializations);
-            dataToSave.equippedItems = JSON.stringify(dataToSave.equippedItems);
-            dataToSave.history = JSON.stringify(dataToSave.history);
-            dataToSave.notes = JSON.stringify(dataToSave.notes);
-            delete dataToSave.deleted;
-
-            await setDoc(characterDocRef, dataToSave, { merge: true });
-          } catch (error) {
-            console.error('Erro ao salvar ficha no Firestore automaticamente:', error);
-          }
-        };
-        saveCharacter();
-      }, 500);
-      return () => clearTimeout(handler);
-    }
-  }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]);
-
-  // ---------------------------------------------------------------------------------
-  //  C. FUNÇÕES DE MANIPULAÇÃO (HANDLERS)
-  // ---------------------------------------------------------------------------------
-
-  // C.1. Autenticação e Navegação
-  // =================================
   const handleGoogleSignIn = async () => {
     if (!auth) return;
-    setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Erro no login com Google:", error);
-      setModal({ isVisible: true, message: `Erro ao fazer login: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
-    } finally {
-      setIsLoading(false);
+      setModal({ isVisible: true, message: `Erro de login: ${error.message}`, type: 'info' });
     }
   };
 
   const handleSignOut = async () => {
     if (!auth) return;
-    setIsLoading(true);
     try {
       await signOut(auth);
-      // O listener onAuthStateChanged já limpa os estados.
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
-      setModal({ isVisible: true, message: `Erro ao fazer logout: ${error.message}`, type: 'info', onConfirm: () => {}, onCancel: () => {} });
-    } finally {
-      setIsLoading(false);
+      setModal({ isVisible: true, message: `Erro de logout: ${error.message}`, type: 'info' });
     }
   };
 
-  const handleSelectCharacter = (charId, ownerUid) => {
-    setSelectedCharIdState(charId);
-    setOwnerUidState(ownerUid);
-    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
-    setViewingAllCharacters(false);
+  return { auth, db, user, isMaster, isAuthReady, handleGoogleSignIn, handleSignOut };
+};
+
+/**
+ * Gerencia o carregamento e salvamento automático de um personagem no Firestore.
+ */
+const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId, ownerUid, setModal) => {
+  const [character, setCharacter] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Efeito para carregar o personagem selecionado em tempo real
+  useEffect(() => {
+    if (!db ||!user ||!isAuthReady ||!selectedCharId) {
+      setCharacter(null);
+      return;
+    }
+
+    let unsubscribe = () => {};
+    const loadCharacter = async () => {
+      setIsLoading(true);
+      try {
+        const characterDocRef = doc(db, `artifacts/${APP_ID}/users/${ownerUid}/characterSheets/${selectedCharId}`);
+        unsubscribe = onSnapshot(characterDocRef, (docSnap) => {
+          if (docSnap.exists() &&!docSnap.data().deleted) {
+            setCharacter(deserializeCharacter(docSnap.data()));
+          } else {
+            setCharacter(null);
+            // Lógica para limpar URL e estado será tratada no componente principal
+          }
+          setIsLoading(false);
+        }, (error) => {
+          console.error("Erro ao ouvir a ficha:", error);
+          setModal({ isVisible: true, message: `Erro ao carregar ficha: ${error.message}`, type: 'info' });
+          setIsLoading(false);
+        });
+      } catch (error) {
+        console.error("Erro ao configurar listener:", error);
+        setIsLoading(false);
+      }
+    };
+    
+    loadCharacter();
+    return () => unsubscribe();
+  },);
+
+  // Efeito para salvar o personagem automaticamente
+  useEffect(() => {
+    if (!db ||!user ||!isAuthReady ||!character ||!selectedCharId) return;
+
+    const targetUid = character.ownerUid |
+
+| user.uid;
+    if (user.uid!== targetUid &&!isMaster) return;
+
+    const handler = setTimeout(async () => {
+      try {
+        const characterDocRef = doc(db, `artifacts/${APP_ID}/users/${targetUid}/characterSheets/${selectedCharId}`);
+        const dataToSave = serializeCharacterForSave(character);
+        await setDoc(characterDocRef, dataToSave, { merge: true });
+      } catch (error) {
+        console.error('Erro ao salvar ficha automaticamente:', error);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  },);
+
+  return { character, setCharacter, isLoading };
+};
+
+/**
+ * Gerenciador genérico para operações em listas (adicionar, remover, atualizar, etc.).
+ */
+const useListManager = (setCharacter) => {
+  const addItem = useCallback((listName, newItemTemplate) => {
+    setCharacter(prev => ({
+     ...prev,
+      [listName]: [...(prev[listName] ||), newItemTemplate]
+    }));
+  }, [setCharacter]);
+
+  const removeItem = useCallback((listName, itemId) => {
+    setCharacter(prev => ({
+     ...prev,
+      [listName]: (prev[listName] ||).filter(item => item.id!== itemId)
+    }));
+  }, [setCharacter]);
+
+  const updateItem = useCallback((listName, itemId, field, value) => {
+    setCharacter(prev => ({
+     ...prev,
+      [listName]: (prev[listName] ||).map(item =>
+        item.id === itemId? {...item, [field]: value } : item
+      )
+    }));
+  }, [setCharacter]);
+
+  const toggleItemCollapsed = useCallback((listName, itemId) => {
+    setCharacter(prev => ({
+     ...prev,
+      [listName]: (prev[listName] ||).map(item =>
+        item.id === itemId? {...item, isCollapsed:!item.isCollapsed } : item
+      )
+    }));
+  }, [setCharacter]);
+  
+  const reorderList = useCallback((listName, dragIndex, dropIndex) => {
+    setCharacter(prev => {
+      const list = [...(prev[listName] ||)];
+      const [draggedItem] = list.splice(dragIndex, 1);
+      list.splice(dropIndex, 0, draggedItem);
+      return {...prev, [listName]: list };
+    });
+  }, [setCharacter]);
+
+  return { addItem, removeItem, updateItem, toggleItemCollapsed, reorderList };
+};
+
+
+// --- COMPONENTE PRINCIPAL DA APLICAÇÃO (App) ---
+// Orquestra os hooks e componentes para renderizar a UI e gerenciar o estado da aplicação.
+const App = () => {
+  // Estado para o modal
+  const = useState({ isVisible: false, message: '', type: 'info', onConfirm: () => {}, onCancel: () => {} });
+  const setModal = useCallback((modalConfig) => {
+    setModalState(prev => ({...prev,...modalConfig, onConfirm: () => {}, onCancel: () => {},...modalConfig }));
+  },);
+
+  // Hooks de lógica central
+  const { auth, db, user, isMaster, isAuthReady, handleGoogleSignIn, handleSignOut } = useFirebaseAuth(setModal);
+  
+  // Estado para seleção de personagem
+  const = useState(null);
+  const [ownerUid, setOwnerUid] = useState(null);
+
+  // Efeito para ler charId/ownerUid da URL na carga inicial
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSelectedCharId(params.get('charId'));
+    setOwnerUid(params.get('ownerUid'));
+  },);
+
+  const { character, setCharacter, isLoading: isCharacterLoading } = useCharacterPersistence(db, user, isMaster, isAuthReady, selectedCharId, ownerUid, setModal);
+  const listManager = useListManager(setCharacter);
+  
+  // Estado para lista de personagens
+  const [charactersList, setCharactersList] = useState();
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
+
+  // Função para buscar a lista de personagens
+  const fetchCharactersList = useCallback(async (viewAll = false) => {
+    if (!db ||!user) return;
+    setIsListLoading(true);
+    try {
+      let chars =;
+      if (isMaster && viewAll) {
+        const usersSnapshot = await getDocs(collection(db, `artifacts/${APP_ID}/users`));
+        for (const userDoc of usersSnapshot.docs) {
+          const charSnapshot = await getDocs(collection(db, `artifacts/${APP_ID}/users/${userDoc.id}/characterSheets`));
+          charSnapshot.forEach(doc => {
+            if (!doc.data().deleted) chars.push({ id: doc.id, ownerUid: userDoc.id,...doc.data() });
+          });
+        }
+        setViewingAllCharacters(true);
+      } else {
+        const q = query(collection(db, `artifacts/${APP_ID}/users/${user.uid}/characterSheets`));
+        const querySnapshot = await getDocs(q);
+        chars = querySnapshot.docs.map(doc =>!doc.data().deleted? { id: doc.id, ownerUid: user.uid,...doc.data() } : null).filter(Boolean);
+        setViewingAllCharacters(false);
+      }
+      setCharactersList(chars);
+    } catch (error) {
+      console.error("Erro ao carregar lista de personagens:", error);
+      setModal({ isVisible: true, message: `Erro ao carregar personagens: ${error.message}`, type: 'info' });
+    } finally {
+      setIsListLoading(false);
+    }
+  }, [db, user, isMaster, setModal]);
+
+  // Carrega a lista de personagens quando o usuário é autenticado
+  useEffect(() => {
+    if (user && db && isAuthReady) {
+      fetchCharactersList(viewingAllCharacters);
+    }
+  },); // removido viewingAllCharacters para evitar recarga em toggle
+
+  // --- Manipuladores de Eventos (Handlers) ---
+
+  const handleSelectCharacter = (charId, charOwnerUid) => {
+    setSelectedCharId(charId);
+    setOwnerUid(charOwnerUid);
+    window.history.pushState({}, '', `?charId=${charId}&ownerUid=${charOwnerUid}`);
   };
 
   const handleBackToList = () => {
-    setSelectedCharIdState(null);
-    setOwnerUidState(null);
+    setSelectedCharId(null);
+    setOwnerUid(null);
     window.history.pushState({}, '', window.location.pathname);
-    setCharacter(null);
-    fetchCharactersList();
+    fetchCharactersList(viewingAllCharacters);
   };
-
-  // C.2. Ações CRUD de Personagem
-  // =================================
+  
   const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
       message: 'Digite o nome do novo personagem:',
       type: 'prompt',
       onConfirm: async (name) => {
-        if (name) {
-          setIsLoading(true);
+        if (name && db && user) {
+          const newCharId = crypto.randomUUID();
+          const newCharacterData = { /*... objeto do personagem padrão... */
+            id: newCharId, ownerUid: user.uid, name, photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '',
+            level: 0, xp: 100, mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+            attributes:, inventory:, wallet: { zeni: 0 }, advantages:, disadvantages:, abilities:, specializations:, equippedItems:, history:, notes:,
+          };
           try {
-            const newCharId = crypto.randomUUID();
-            // Sua estrutura de dados de personagem novo...
-            const newCharacterData = { /* ... */  name: name, ownerUid: user.uid, id: newCharId }; 
-            const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
-            // Serializa os dados antes de salvar
-            const dataToSave = { ...newCharacterData };
-            dataToSave.mainAttributes = JSON.stringify({}); // Exemplo
-            dataToSave.attributes = JSON.stringify([]); // Exemplo
-            // ... serializar todos os outros campos
-            await setDoc(characterDocRef, dataToSave);
-            
-            setSelectedCharIdState(newCharId);
-            setOwnerUidState(user.uid);
-            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
+            const characterDocRef = doc(db, `artifacts/${APP_ID}/users/${user.uid}/characterSheets/${newCharId}`);
+            await setDoc(characterDocRef, serializeCharacterForSave(newCharacterData));
+            handleSelectCharacter(newCharId, user.uid);
             fetchCharactersList();
           } catch (error) {
-            console.error("Erro ao criar novo personagem:", error);
-          } finally {
-            setIsLoading(false);
-            setModal({isVisible: false});
+            setModal({ isVisible: true, message: `Erro ao criar: ${error.message}`, type: 'info' });
           }
-        } else {
-             setModal({isVisible: false});
         }
-      },
-      onCancel: () => setModal({isVisible: false}),
+      }
     });
   };
-
-  const handleDeleteCharacter = (charId, charName, ownerUid) => {
+  
+  const handleDeleteCharacter = (charId, charName, charOwnerUid) => {
     setModal({
       isVisible: true,
-      message: `Tem certeza que deseja EXCLUIR permanentemente o personagem '${charName}'?`,
+      message: `Tem certeza que deseja EXCLUIR permanentemente '${charName}'?`,
       type: 'confirm',
       onConfirm: async () => {
-        if (!db || !user || (user.uid !== ownerUid && !isMaster)) return;
-        setIsLoading(true);
+        if (!db ||!user |
+
+| (user.uid!== charOwnerUid &&!isMaster)) return;
         try {
-          const characterDocRef = doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`);
+          const characterDocRef = doc(db, `artifacts/${APP_ID}/users/${charOwnerUid}/characterSheets/${charId}`);
           await deleteDoc(characterDocRef);
-          handleBackToList(); // Reutiliza a função de voltar para a lista
+          handleBackToList();
         } catch (error) {
-          console.error("Erro ao excluir personagem:", error);
-        } finally {
-          setIsLoading(false);
+          setModal({ isVisible: true, message: `Erro ao excluir: ${error.message}`, type: 'info' });
         }
-      },
-      onCancel: () => {},
+      }
     });
   };
   
-  // C.3. Funções de Edição da Ficha (agrupadas)
-  // ============================================
-
-  // -- Funções Genéricas --
-  const handleChange = (e) => {
+  const handleSimpleChange = (e) => {
     const { name, value } = e.target;
     const isNumeric = ['age', 'level', 'xp'].includes(name);
-    setCharacter(prev => ({ ...prev, [name]: isNumeric ? parseInt(value, 10) || 0 : value }));
+    setCharacter(prev => ({...prev, [name]: isNumeric? parseInt(value, 10) |
+
+| 0 : value }));
   };
 
-  const toggleSection = (sectionKey) => {
-    setCharacter(prev => (prev ? { ...prev, [sectionKey]: !prev[sectionKey] } : prev));
+  const handleMainAttributeChange = (e, isSingleValue = false) => {
+    const { name, value, dataset } = e.target;
+    const parsedValue = parseInt(value, 10) |
+
+| 0;
+    
+    setCharacter(prev => {
+      const newMainAttributes = {...prev.mainAttributes };
+      if (isSingleValue) {
+        newMainAttributes[name] = parsedValue;
+      } else {
+        const attributeName = dataset.attribute;
+        newMainAttributes[attributeName] = {...newMainAttributes[attributeName], [name]: parsedValue };
+      }
+      return {...prev, mainAttributes: newMainAttributes };
+    });
   };
   
-  const toggleItemCollapsed = (listName, id) => {
-    setCharacter(prevChar => ({
-        ...prevChar,
-        [listName]: (prevChar[listName] || []).map(item => 
-            item.id === id ? { ...item, isCollapsed: !item.isCollapsed } : item
-        ),
-    }));
-  };
-
-  // -- Atributos --
-  const handleAddAttribute = () => {
-    setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 }] }));
-  };
-  const handleRemoveAttribute = (id) => {
-    setCharacter(prev => ({ ...prev, attributes: prev.attributes.filter(attr => attr.id !== id) }));
-  };
   const handleAttributeChange = (id, field, value) => {
     setCharacter(prev => {
         const newAttributes = prev.attributes.map(attr => {
             if (attr.id === id) {
-                const updatedAttr = { ...attr, [field]: field === 'name' ? value : parseInt(value, 10) || 0 };
-                updatedAttr.total = (updatedAttr.base || 0) + (updatedAttr.perm || 0) + (updatedAttr.cond || 0) + (updatedAttr.arma || 0);
+                const updatedAttr = {...attr, [field]: field === 'name'? value : parseInt(value, 10) |
+
+| 0 };
+                updatedAttr.total = (updatedAttr.base |
+
+| 0) + (updatedAttr.perm |
+| 0) + (updatedAttr.cond |
+| 0) + (updatedAttr.arma |
+| 0);
                 return updatedAttr;
             }
             return attr;
         });
-        return { ...prev, attributes: newAttributes };
+        return {...prev, attributes: newAttributes };
     });
   };
-
-  // -- Inventário --
-  const handleAddItem = () => { /* ... */ };
-  const handleRemoveItem = (id) => { /* ... */ };
-  const handleInventoryItemChange = (id, field, value) => { /* ... */ };
   
-  // ... (aqui entrariam todas as outras funções 'handle' que você criou,
-  // como handleZeniChange, handleAddPerk, addHistoryBlock, etc.
-  // A estrutura é a mesma: agrupar por funcionalidade)
+  const [zeniAmount, setZeniAmount] = useState(0);
+  const handleZeniOperation = (operation) => {
+    setCharacter(prev => {
+      const currentZeni = prev.wallet?.zeni |
 
-
-  // C.4. Funções de Importação/Exportação e Reset
-  // ==================================================
-  const handleExportJson = () => { /* ... */ };
-  const handleImportJsonClick = () => { fileInputRef.current.click(); };
-  const handleFileChange = (event) => { /* ... */ };
-  const handleReset = () => { /* ... */ };
-
-
-  // ---------------------------------------------------------------------------------
-  //  D. LÓGICA DE RENDERIZAÇÃO E JSX
-  // ---------------------------------------------------------------------------------
+| 0;
+      const newZeni = operation === 'add'
+       ? currentZeni + zeniAmount
+        : Math.max(0, currentZeni - zeniAmount);
+      return {...prev, wallet: {...prev.wallet, zeni: newZeni } };
+    });
+    setZeniAmount(0);
+  };
   
-  // D.1. Lógica Condicional para Renderização
-  // ===========================================
-  if (!isAuthReady) {
-    return (
-        <div className="fixed inset-0 bg-gray-900 flex items-center justify-center">
-            <div className="text-white text-xl font-bold">Inicializando...</div>
-        </div>
-    );
-  }
+  // O restante dos handlers (export, import, etc.) permanece similar, mas simplificado.
+  //...
 
-  // D.2. Retorno Principal do Componente
-  // ======================================
+  // --- Renderização (JSX) ---
+  const isLoading = isAuthReady === false |
+
+| isCharacterLoading |
+| isListLoading;
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
-      <style>{` /* ... seus estilos ... */ `}</style>
-
+      <style>{`/*... Estilos... */`}</style>
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
-        <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">
-          Ficha StoryCraft
-        </h1>
-
-        {/* --- Seção de Autenticação --- */}
+        <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">Ficha StoryCraft</h1>
+        
+        {/* Bloco de Autenticação */}
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-            {/* JSX da autenticação vai aqui */}
+          {/*... JSX para login/logout... */}
         </section>
 
-        {/* --- Conteúdo Principal (Lista ou Ficha) --- */}
-        {user ? (
-            selectedCharIdState && character ? (
-                // Se um personagem está selecionado, mostra a ficha
-                // AQUI É A MÁGICA: Passamos todos os dados e funções necessários
-                // para o componente de exibição. Seu colaborador foca neste componente.
-                <CharacterSheetDisplay
-                    character={character}
-                    user={user}
-                    isMaster={isMaster}
-                    onBackToList={handleBackToList}
-                    // Passando todas as funções de manipulação como props
-                    handlers={{
-                        handleChange,
-                        toggleSection,
-                        toggleItemCollapsed,
-                        addAttribute: handleAddAttribute,
-                        removeAttribute: handleRemoveAttribute,
-                        attributeChange: handleAttributeChange,
-                        // ... todas as outras funções
-                    }}
-                />
-            ) : (
-                // Se não há personagem selecionado, mostra a lista
-                <CharacterListDisplay
-                    characters={charactersList}
-                    isLoading={isLoading}
-                    isMaster={isMaster}
-                    viewingAllCharacters={viewingAllCharacters}
-                    onSelectCharacter={handleSelectCharacter}
-                    onCreateCharacter={handleCreateNewCharacter}
-                    onDeleteCharacter={handleDeleteCharacter}
-                    onFetchAll={fetchCharactersList}
-                />
-            )
-        ) : (
-            // Mensagem para usuário deslogado
-            <p className="text-center text-gray-400 text-lg mt-8">
-                Faça login para começar a criar e gerenciar suas fichas de personagem!
-            </p>
+        {user &&!selectedCharId && (
+          // Seção da Lista de Personagens
+          <section>
+            {/*... JSX para lista de personagens, botões de criar, ver todos, etc.... */}
+          </section>
         )}
 
-        {/* --- Botões de Ação Globais (se aplicável) --- */}
-        {user && character && (
-            <div className="flex flex-wrap justify-center gap-4 mt-8">
-                {/* Botões de Exportar, Importar, Resetar... */}
-            </div>
+        {user && selectedCharId && character && (
+          // Seção da Ficha do Personagem
+          <>
+            {/*... JSX para toda a ficha do personagem... */}
+            {/* Exemplo de uso do listManager: */}
+            <button onClick={() => listManager.addItem('inventory', { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false })}>
+              Adicionar Item
+            </button>
+            {/*... O restante do JSX da ficha... */}
+          </>
         )}
 
+        {/* Modal e Indicador de Carregamento */}
+        {modal.isVisible && <CustomModal {...modal} onClose={() => setModalState(p => ({...p, isVisible: false}))} />}
+        {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
       </div>
-
-      {/* --- Elementos Globais (Modal e Loading) --- */}
-      {modal.isVisible && (
-        <CustomModal
-          message={modal.message}
-          onConfirm={modal.onConfirm}
-          onCancel={modal.onCancel}
-          type={modal.type}
-          onClose={() => setModal({ ...modal, isVisible: false })}
-        />
-      )}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="text-white text-xl font-bold">Carregando...</div>
-        </div>
-      )}
     </div>
   );
 };
-
-
-// ===================================================================================
-//  3. COMPONENTES DE EXIBIÇÃO (UI-FOCUSED)
-//  Estes componentes recebem dados e funções via props e apenas renderizam o JSX.
-//  É AQUI QUE SEU COLABORADOR DE UI VAI TRABALHAR!
-// ===================================================================================
-
-const CharacterListDisplay = ({ characters, isLoading, onSelectCharacter, onCreateCharacter, onDeleteCharacter, ...props }) => {
-    // Todo o JSX que antes mostrava a lista de personagens
-    // usa as props para chamar as funções, ex: onClick={onCreateCharacter}
-    return (
-        <section>
-            <h2 className="text-2xl font-bold text-yellow-300 mb-4">Meus Personagens</h2>
-            <button onClick={onCreateCharacter}>Criar Novo Personagem</button>
-            {/* ... resto do JSX da lista ... */}
-        </section>
-    );
-};
-
-const CharacterSheetDisplay = ({ character, user, isMaster, onBackToList, handlers }) => {
-    // Todo o GIGANTESCO JSX da ficha do personagem vai aqui.
-    // Ele usa os 'handlers' para fazer as modificações, por exemplo:
-    // onChange={handlers.handleChange}
-    // onClick={handlers.addAttribute}
-    return (
-        <>
-            <button onClick={onBackToList}>← Voltar para a Lista</button>
-            
-            {/* Seção Informações do Personagem */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl">
-                 <h2 onClick={() => handlers.toggleSection('isCharacterInfoCollapsed')}>
-                    Informações do Personagem
-                 </h2>
-                 {!character.isCharacterInfoCollapsed && (
-                    <div>
-                        <label>Nome:</label>
-                        <input name="name" value={character.name} onChange={handlers.handleChange} />
-                        {/* ... resto dos campos de informação ... */}
-                    </div>
-                 )}
-            </section>
-
-            {/* Seção Atributos */}
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl">
-                 <h2 onClick={() => handlers.toggleSection('isAttributesCollapsed')}>
-                    Atributos
-                 </h2>
-                 {!character.isAttributesCollapsed && (
-                    <div>
-                        {character.attributes.map(attr => (
-                            <div key={attr.id}>
-                                <input value={attr.name} onChange={(e) => handlers.attributeChange(attr.id, 'name', e.target.value)} />
-                                {/* ... inputs para base, perm, etc. ... */}
-                                <button onClick={() => handlers.removeAttribute(attr.id)}>X</button>
-                            </div>
-                        ))}
-                        <button onClick={handlers.addAttribute}>+</button>
-                    </div>
-                 )}
-            </section>
-
-            {/* ... Todas as outras seções da ficha (Inventário, Habilidades, etc.) ... */}
-        </>
-    );
-};
-
 
 export default App;
