@@ -4,7 +4,6 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 
 // --- CONSTANTES & CONFIGURAÇÃO ---
-// Agrupa configurações estáticas da aplicação para fácil acesso e modificação.
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
   authDomain: "storycraft-a5f7e.firebaseapp.com",
@@ -14,17 +13,14 @@ const FIREBASE_CONFIG = {
   appId: "1:727724875985:web:97411448885c68c289e5f0",
   measurementId: "G-JH03Y2NZDK"
 };
-
 const APP_ID = FIREBASE_CONFIG.appId;
 
 // --- FUNÇÕES UTILITÁRIAS & AUXILIARES ---
-// Funções puras e reutilizáveis que auxiliam em tarefas comuns, como manipulação de dados.
 
 /**
  * Desserializa os dados de um personagem vindos do Firestore.
- * Converte strings JSON em objetos e garante valores padrão para todas as propriedades.
  * @param {object} data - Os dados brutos do documento do Firestore.
- * @returns {object} - O objeto de personagem totalmente hidratado e seguro para uso.
+ * @returns {object} - O objeto de personagem totalmente hidratado.
  */
 const deserializeCharacter = (data) => {
   const deserialized = {...data };
@@ -48,8 +44,6 @@ const deserializeCharacter = (data) => {
   deserialized.mainAttributes = parseJsonField(data.mainAttributes, { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 });
   deserialized.attributes = parseJsonField(data.attributes,);
   deserialized.wallet = parseJsonField(data.wallet, { zeni: 0 });
-
-  // Garante que todos os itens em listas tenham o estado 'isCollapsed'
   deserialized.inventory = parseJsonField(data.inventory,).map(ensureCollapsedState);
   deserialized.advantages = parseJsonField(data.advantages,).map(ensureCollapsedState);
   deserialized.disadvantages = parseJsonField(data.disadvantages,).map(ensureCollapsedState);
@@ -57,7 +51,6 @@ const deserializeCharacter = (data) => {
   deserialized.specializations = parseJsonField(data.specializations,).map(ensureCollapsedState);
   deserialized.equippedItems = parseJsonField(data.equippedItems,).map(ensureCollapsedState);
   
-  // Tratamento especial para 'history' e 'notes' que podem ser strings antigas
   let historyData = parseJsonField(data.history,);
   if (typeof data.history === 'string' &&!Array.isArray(historyData)) {
       historyData =;
@@ -70,7 +63,6 @@ const deserializeCharacter = (data) => {
   }
   deserialized.notes = notesData.map(ensureCollapsedState);
   
-  // Garante valores padrão para campos de primeiro nível e estados de colapso de seções
   const sectionCollapseKeys =;
   sectionCollapseKeys.forEach(key => {
     deserialized[key] = data[key]?? false;
@@ -86,9 +78,9 @@ const deserializeCharacter = (data) => {
 };
 
 /**
- * Serializa os campos de um personagem que são objetos/arrays para strings JSON antes de salvar no Firestore.
+ * Serializa os campos de um personagem para strings JSON antes de salvar no Firestore.
  * @param {object} characterData - O objeto de personagem.
- * @returns {object} - Uma cópia do objeto de personagem com os campos relevantes convertidos para string.
+ * @returns {object} - Uma cópia do objeto de personagem pronta para ser salva.
  */
 const serializeCharacterForSave = (characterData) => {
     const dataToSave = {...characterData };
@@ -103,7 +95,6 @@ const serializeCharacterForSave = (characterData) => {
         }
     });
     
-    // Remove propriedades que não devem ser persistidas
     delete dataToSave.deleted;
     delete dataToSave.basicAttributes;
     delete dataToSave.magicAttributes;
@@ -112,7 +103,6 @@ const serializeCharacterForSave = (characterData) => {
 };
 
 // --- COMPONENTES DE UI REUTILIZÁVEIS ---
-// Componentes React que lidam com a apresentação e podem ser usados em várias partes da aplicação.
 
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
@@ -191,7 +181,6 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 
 
 // --- CUSTOM REACT HOOKS (LÓGICA CENTRAL) ---
-// Hooks personalizados que encapsulam a lógica de negócios complexa, mantendo o componente App limpo.
 
 /**
  * Gerencia a autenticação Firebase, estado do usuário e papel (Mestre/Jogador).
@@ -282,7 +271,6 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
   const [character, setCharacter] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Efeito para carregar o personagem selecionado em tempo real
   useEffect(() => {
     if (!db ||!user ||!isAuthReady ||!selectedCharId) {
       setCharacter(null);
@@ -299,7 +287,6 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
             setCharacter(deserializeCharacter(docSnap.data()));
           } else {
             setCharacter(null);
-            // Lógica para limpar URL e estado será tratada no componente principal
           }
           setIsLoading(false);
         }, (error) => {
@@ -317,7 +304,6 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
     return () => unsubscribe();
   },);
 
-  // Efeito para salvar o personagem automaticamente
   useEffect(() => {
     if (!db ||!user ||!isAuthReady ||!character ||!selectedCharId) return;
 
@@ -348,21 +334,21 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
 const useListManager = (setCharacter) => {
   const addItem = useCallback((listName, newItemTemplate) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: [...(prev[listName] ||), newItemTemplate]
     }));
   }, [setCharacter]);
 
   const removeItem = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).filter(item => item.id!== itemId)
     }));
   }, [setCharacter]);
 
   const updateItem = useCallback((listName, itemId, field, value) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, [field]: value } : item
       )
@@ -371,7 +357,7 @@ const useListManager = (setCharacter) => {
 
   const toggleItemCollapsed = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, isCollapsed:!item.isCollapsed } : item
       )
@@ -392,22 +378,17 @@ const useListManager = (setCharacter) => {
 
 
 // --- COMPONENTE PRINCIPAL DA APLICAÇÃO (App) ---
-// Orquestra os hooks e componentes para renderizar a UI e gerenciar o estado da aplicação.
 const App = () => {
-  // Estado para o modal
   const = useState({ isVisible: false, message: '', type: 'info', onConfirm: () => {}, onCancel: () => {} });
   const setModal = useCallback((modalConfig) => {
-    setModalState(prev => ({...prev,...modalConfig, onConfirm: () => {}, onCancel: () => {},...modalConfig }));
+    setModalState(prev => ({...prev, onConfirm: () => {}, onCancel: () => {},...modalConfig }));
   },);
 
-  // Hooks de lógica central
   const { auth, db, user, isMaster, isAuthReady, handleGoogleSignIn, handleSignOut } = useFirebaseAuth(setModal);
   
-  // Estado para seleção de personagem
   const = useState(null);
   const [ownerUid, setOwnerUid] = useState(null);
 
-  // Efeito para ler charId/ownerUid da URL na carga inicial
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSelectedCharId(params.get('charId'));
@@ -417,12 +398,10 @@ const App = () => {
   const { character, setCharacter, isLoading: isCharacterLoading } = useCharacterPersistence(db, user, isMaster, isAuthReady, selectedCharId, ownerUid, setModal);
   const listManager = useListManager(setCharacter);
   
-  // Estado para lista de personagens
   const [charactersList, setCharactersList] = useState();
   const [isListLoading, setIsListLoading] = useState(false);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
 
-  // Função para buscar a lista de personagens
   const fetchCharactersList = useCallback(async (viewAll = false) => {
     if (!db ||!user) return;
     setIsListLoading(true);
@@ -452,14 +431,13 @@ const App = () => {
     }
   }, [db, user, isMaster, setModal]);
 
-  // Carrega a lista de personagens quando o usuário é autenticado
   useEffect(() => {
     if (user && db && isAuthReady) {
       fetchCharactersList(viewingAllCharacters);
     }
-  },); // removido viewingAllCharacters para evitar recarga em toggle
+  },);
 
-  // --- Manipuladores de Eventos (Handlers) ---
+  // --- Handlers ---
 
   const handleSelectCharacter = (charId, charOwnerUid) => {
     setSelectedCharId(charId);
@@ -482,7 +460,7 @@ const App = () => {
       onConfirm: async (name) => {
         if (name && db && user) {
           const newCharId = crypto.randomUUID();
-          const newCharacterData = { /*... objeto do personagem padrão... */
+          const newCharacterData = {
             id: newCharId, ownerUid: user.uid, name, photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '',
             level: 0, xp: 100, mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
             attributes:, inventory:, wallet: { zeni: 0 }, advantages:, disadvantages:, abilities:, specializations:, equippedItems:, history:, notes:,
@@ -574,16 +552,13 @@ const App = () => {
 
 | 0;
       const newZeni = operation === 'add'
-       ? currentZeni + zeniAmount
+      ? currentZeni + zeniAmount
         : Math.max(0, currentZeni - zeniAmount);
       return {...prev, wallet: {...prev.wallet, zeni: newZeni } };
     });
     setZeniAmount(0);
   };
   
-  // O restante dos handlers (export, import, etc.) permanece similar, mas simplificado.
-  //...
-
   // --- Renderização (JSX) ---
   const isLoading = isAuthReady === false |
 
@@ -592,36 +567,30 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
-      <style>{`/*... Estilos... */`}</style>
+      <style>{`/* Estilos omitidos para brevidade */`}</style>
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
         <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">Ficha StoryCraft</h1>
         
-        {/* Bloco de Autenticação */}
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-          {/*... JSX para login/logout... */}
+          {/* JSX para login/logout omitido */}
         </section>
 
         {user &&!selectedCharId && (
-          // Seção da Lista de Personagens
           <section>
-            {/*... JSX para lista de personagens, botões de criar, ver todos, etc.... */}
+            {/* JSX para lista de personagens omitido */}
           </section>
         )}
 
         {user && selectedCharId && character && (
-          // Seção da Ficha do Personagem
           <>
-            {/*... JSX para toda a ficha do personagem... */}
-            {/* Exemplo de uso do listManager: */}
+            {/* JSX para a ficha do personagem omitido */}
             <button onClick={() => listManager.addItem('inventory', { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false })}>
-              Adicionar Item
+              Adicionar Item (Exemplo)
             </button>
-            {/*... O restante do JSX da ficha... */}
           </>
         )}
 
-        {/* Modal e Indicador de Carregamento */}
-        {modal.isVisible && <CustomModal {...modal} onClose={() => setModalState(p => ({...p, isVisible: false}))} />}
+        {modal.isVisible && <CustomModal {...modal} onClose={() => setModalState(p => ({...p, isVisible: false }))} />}
         {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
       </div>
     </div>
