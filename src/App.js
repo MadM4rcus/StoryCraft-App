@@ -17,14 +17,8 @@ const APP_ID = FIREBASE_CONFIG.appId;
 
 // --- FUNÇÕES UTILITÁRIAS & AUXILIARES ---
 
-/**
- * Desserializa os dados de um personagem vindos do Firestore.
- * @param {object} data - Os dados brutos do documento do Firestore.
- * @returns {object} - O objeto de personagem totalmente hidratado.
- */
 const deserializeCharacter = (data) => {
   const deserialized = {...data };
-
   const parseJsonField = (field, defaultValue =) => {
     if (typeof field === 'string') {
       try {
@@ -77,11 +71,6 @@ const deserializeCharacter = (data) => {
   return deserialized;
 };
 
-/**
- * Serializa os campos de um personagem para strings JSON antes de salvar no Firestore.
- * @param {object} characterData - O objeto de personagem.
- * @returns {object} - Uma cópia do objeto de personagem pronta para ser salva.
- */
 const serializeCharacterForSave = (characterData) => {
     const dataToSave = {...characterData };
     const fieldsToStringify = [
@@ -179,12 +168,8 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
     );
 };
 
-
 // --- CUSTOM REACT HOOKS (LÓGICA CENTRAL) ---
 
-/**
- * Gerencia a autenticação Firebase, estado do usuário e papel (Mestre/Jogador).
- */
 const useFirebaseAuth = (setModal) => {
   const [auth, setAuth] = useState(null);
   const = useState(null);
@@ -264,9 +249,6 @@ const useFirebaseAuth = (setModal) => {
   return { auth, db, user, isMaster, isAuthReady, handleGoogleSignIn, handleSignOut };
 };
 
-/**
- * Gerencia o carregamento e salvamento automático de um personagem no Firestore.
- */
 const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId, ownerUid, setModal) => {
   const [character, setCharacter] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -328,27 +310,24 @@ const useCharacterPersistence = (db, user, isMaster, isAuthReady, selectedCharId
   return { character, setCharacter, isLoading };
 };
 
-/**
- * Gerenciador genérico para operações em listas (adicionar, remover, atualizar, etc.).
- */
 const useListManager = (setCharacter) => {
   const addItem = useCallback((listName, newItemTemplate) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: [...(prev[listName] ||), newItemTemplate]
     }));
   }, [setCharacter]);
 
   const removeItem = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).filter(item => item.id!== itemId)
     }));
   }, [setCharacter]);
 
   const updateItem = useCallback((listName, itemId, field, value) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, [field]: value } : item
       )
@@ -357,7 +336,7 @@ const useListManager = (setCharacter) => {
 
   const toggleItemCollapsed = useCallback((listName, itemId) => {
     setCharacter(prev => ({
-     ...prev,
+    ...prev,
       [listName]: (prev[listName] ||).map(item =>
         item.id === itemId? {...item, isCollapsed:!item.isCollapsed } : item
       )
@@ -375,7 +354,6 @@ const useListManager = (setCharacter) => {
 
   return { addItem, removeItem, updateItem, toggleItemCollapsed, reorderList };
 };
-
 
 // --- COMPONENTE PRINCIPAL DA APLICAÇÃO (App) ---
 const App = () => {
@@ -558,7 +536,11 @@ const App = () => {
     });
     setZeniAmount(0);
   };
-  
+
+  const toggleSection = (sectionKey) => {
+    setCharacter(prev => prev? {...prev, [sectionKey]:!prev[sectionKey] } : prev);
+  };
+
   // --- Renderização (JSX) ---
   const isLoading = isAuthReady === false |
 
@@ -567,26 +549,92 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
-      <style>{`/* Estilos omitidos para brevidade */`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+      `}</style>
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
         <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">Ficha StoryCraft</h1>
         
         <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-          {/* JSX para login/logout omitido */}
+          <h2 className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isUserStatusCollapsed')}>
+            Status do Usuário <span>{character?.isUserStatusCollapsed? '▼' : '▲'}</span>
+          </h2>
+          {(!character ||!character.isUserStatusCollapsed) && (
+            <div className="text-center">
+              {isAuthReady? (
+                user? (
+                  <>
+                    <p className="text-lg text-gray-200">Logado como: <span className="font-semibold text-purple-300">{user.displayName |
+
+| 'Usuário Google'}</span>{isMaster && <span className="text-yellow-400 ml-2">(Mestre)</span>}</p>
+                    <p className="text-sm text-gray-400 mb-2">{user.email}</p>
+                    <button onClick={handleSignOut} className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105" disabled={isLoading}>Sair</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg text-gray-400 mb-4">Você não está logado.</p>
+                    <button onClick={handleGoogleSignIn} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105" disabled={isLoading}>Login com Google</button>
+                  </>
+                )
+              ) : (<p className="text-lg text-gray-400">Inicializando...</p>)}
+            </div>
+          )}
         </section>
 
         {user &&!selectedCharId && (
           <section>
-            {/* JSX para lista de personagens omitido */}
+            {/* Lista de Personagens */}
           </section>
         )}
 
         {user && selectedCharId && character && (
           <>
-            {/* JSX para a ficha do personagem omitido */}
-            <button onClick={() => listManager.addItem('inventory', { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false })}>
-              Adicionar Item (Exemplo)
-            </button>
+            <div className="mb-4">
+              <button onClick={handleBackToList} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">← Voltar</button>
+            </div>
+            {/* Seção de Informações do Personagem */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isCharacterInfoCollapsed')}>
+                Informações do Personagem <span>{character.isCharacterInfoCollapsed? '▼' : '▲'}</span>
+              </h2>
+              {!character.isCharacterInfoCollapsed && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input name="name" value={character.name} onChange={handleSimpleChange} placeholder="Nome" className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md" />
+                  {/* Adicione outros campos de informação aqui, usando handleSimpleChange */}
+                </div>
+              )}
+            </section>
+            
+            {/* Seção de Atributos */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+                <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">Atributos</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {character.attributes.map(attr => (
+                        <div key={attr.id} className="p-2 bg-gray-600 rounded-md">
+                            <input type="text" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full bg-gray-700 p-1 rounded-md mb-1" />
+                            <input type="number" value={attr.total} readOnly className="w-full bg-gray-800 p-1 rounded-md text-center font-bold" />
+                        </div>
+                    ))}
+                </div>
+                <button onClick={() => listManager.addItem('attributes', { id: crypto.randomUUID(), name: 'Novo Atributo', base: 0, perm: 0, cond: 0, arma: 0, total: 0 })} className="mt-4 bg-green-600 p-2 rounded-md">+</button>
+            </section>
+
+            {/* Exemplo para Inventário */}
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+                <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">Inventário</h2>
+                {character.inventory.map(item => (
+                    <div key={item.id} className="mb-2">
+                        <input type="text" value={item.name} onChange={(e) => listManager.updateItem('inventory', item.id, 'name', e.target.value)} className="w-full bg-gray-600 p-1 rounded-md" />
+                        <button onClick={() => listManager.removeItem('inventory', item.id)} className="text-red-500 ml-2">X</button>
+                    </div>
+                ))}
+                <button onClick={() => listManager.addItem('inventory', { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false })} className="mt-4 bg-green-600 p-2 rounded-md">+</button>
+            </section>
+            {/* Repita o padrão para outras seções como vantagens, habilidades, etc. */}
           </>
         )}
 
