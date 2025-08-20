@@ -745,23 +745,35 @@ const App = () => {
     }
   }, [db, user, isAuthReady, appId]);
 
-  // Função para carregar a lista de personagens
+  // Função para carregar a lista de personagens (CORRIGIDA)
   const fetchCharactersList = useCallback(async () => {
     if (!db || !user || !isAuthReady) return;
     setIsLoading(true);
     try {
       let allChars = [];
       if (isMaster && viewingAllCharacters) {
-        const usersSnapshot = await getDocs(collection(db, `artifacts/${appId}/users`));
-        for (const userDoc of usersSnapshot.docs) {
-          const charSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${userDoc.id}/characterSheets`));
-          charSnapshot.docs.forEach(doc => {
-            if (!doc.data().deleted) allChars.push({ id: doc.id, ownerUid: userDoc.id, ...doc.data() });
-          });
-        }
+        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+        const usersSnapshot = await getDocs(usersCollectionRef);
+        
+        const promises = usersSnapshot.docs.map(async (userDoc) => {
+          const userUid = userDoc.id;
+          const userCharacterSheetsRef = collection(db, `artifacts/${appId}/users/${userUid}/characterSheets`);
+          const charSnapshot = await getDocs(userCharacterSheetsRef);
+          return charSnapshot.docs
+            .filter(doc => !doc.data().deleted)
+            .map(doc => ({ id: doc.id, ownerUid: userUid, ...doc.data() }));
+        });
+
+        const charactersByOwner = await Promise.all(promises);
+        allChars = charactersByOwner.flat();
+
       } else {
-        const querySnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`)));
-        allChars = querySnapshot.docs.map(doc => !doc.data().deleted ? { id: doc.id, ownerUid: user.uid, ...doc.data() } : null).filter(Boolean);
+        const charactersCollectionRef = collection(db, `artifacts/${appId}/users/${user.uid}/characterSheets`);
+        const q = query(charactersCollectionRef);
+        const querySnapshot = await getDocs(q);
+        allChars = querySnapshot.docs
+            .filter(doc => !doc.data().deleted)
+            .map(doc => ({ id: doc.id, ownerUid: user.uid, ...doc.data() }));
       }
       setCharactersList(allChars);
     } catch (error) {
