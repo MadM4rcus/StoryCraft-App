@@ -11,18 +11,36 @@ import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getD
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
 
+  // Foca no input quando o modal de prompt abre
+  useEffect(() => {
+    if (type === 'prompt') {
+      const inputElement = document.getElementById('prompt-input');
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }
+  }, [type]);
+
   const handleConfirm = () => {
+    // Para prompts, apenas passa o valor. A função onConfirm é responsável por fechar o modal.
     if (type === 'prompt') {
       onConfirm(inputValue);
     } else {
       onConfirm();
-      onClose();
+      onClose(); // Para outros tipos, o modal fecha automaticamente na confirmação.
     }
   };
 
   const handleCancel = () => {
     onCancel();
     onClose();
+  };
+  
+  // Permite confirmar com a tecla Enter
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+        handleConfirm();
+    }
   };
 
   const confirmButtonText = useMemo(() => {
@@ -39,9 +57,11 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
         <p className="text-lg text-gray-100 mb-4 text-center">{message}</p>
         {type === 'prompt' && (
           <input
+            id="prompt-input"
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-purple-500 focus:border-purple-500"
             placeholder="Digite aqui..."
           />
@@ -93,7 +113,6 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 
 // ============================================================================
 // --- Componentes Visuais (UI) ---
-// Seu amigo pode focar em editar os componentes abaixo com segurança.
 // ============================================================================
 
 // Seção de Status do Usuário (Login/Logout)
@@ -138,7 +157,7 @@ const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignO
 );
 
 // Seção da Lista de Personagens
-const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacters, user, handleCreateNewCharacter, fetchCharactersList, setViewingAllCharacters, handleSelectCharacter, handleDeleteCharacter }) => (
+const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacters, user, handleCreateNewCharacter, handleImportJsonClick, fetchCharactersList, setViewingAllCharacters, handleSelectCharacter, handleDeleteCharacter }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
       {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
@@ -147,8 +166,12 @@ const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacte
       <button onClick={handleCreateNewCharacter} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75" disabled={isLoading}>
         Criar Novo Personagem
       </button>
+      {/* BOTÃO DE IMPORTAR ADICIONADO AQUI */}
+      <button onClick={handleImportJsonClick} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75" disabled={isLoading}>
+        Importar Ficha (JSON)
+      </button>
       {isMaster && (
-        <button onClick={() => { setViewingAllCharacters(!viewingAllCharacters); fetchCharactersList(); }} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75" disabled={isLoading}>
+        <button onClick={() => { setViewingAllCharacters(!viewingAllCharacters); fetchCharactersList(); }} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled={isLoading}>
           {viewingAllCharacters ? 'Ver Minhas Fichas' : 'Ver Todas as Fichas'}
         </button>
       )}
@@ -646,8 +669,19 @@ const ActionButtons = ({ character, user, isMaster, isLoading, handleExportJson,
 
 // ============================================================================
 // --- Componente Principal (Cérebro da Aplicação) ---
-// Toda a lógica de estados, efeitos e funções está aqui.
 // ============================================================================
+
+// Objeto com o estado inicial de uma ficha de personagem, para reuso.
+const initialCharState = {
+  name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100,
+  mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+  attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
+  specializations: [], equippedItems: [], history: [], notes: [],
+  isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
+  isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false,
+  isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false,
+  isHistoryCollapsed: false, isNotesCollapsed: false
+};
 
 const App = () => {
   // Configuração do Firebase
@@ -683,7 +717,6 @@ const App = () => {
   const fileInputRef = useRef(null);
 
   // --- Funções e Efeitos (Lógica) ---
-  // A maior parte da lógica original foi mantida aqui, sem alterações.
   
   // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
@@ -745,7 +778,7 @@ const App = () => {
     }
   }, [db, user, isAuthReady, appId]);
 
-  // Função para carregar a lista de personagens (CORRIGIDA)
+  // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
     if (!db || !user || !isAuthReady) return;
     setIsLoading(true);
@@ -901,8 +934,6 @@ const App = () => {
   }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]);
 
   // --- Funções de Manipulação (Handlers) ---
-  // Todas as funções handle... originais continuam aqui.
-  // Elas serão passadas como props para os componentes visuais.
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1016,8 +1047,8 @@ const App = () => {
 
   const handleReset = () => {
     setModal({ isVisible: true, message: 'Tem certeza que deseja resetar a ficha?', type: 'confirm', onConfirm: () => {
-        const initialCharState = { name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100, mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 }, attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false, isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false, isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false, isHistoryCollapsed: false, isNotesCollapsed: false };
-        setCharacter(prev => ({...initialCharState, id: prev.id, ownerUid: prev.ownerUid }));
+        // Mantém o ID, nome e dono, mas reseta o resto
+        setCharacter(prev => ({...initialCharState, id: prev.id, ownerUid: prev.ownerUid, name: prev.name }));
     }, onCancel: () => {} });
   };
 
@@ -1033,6 +1064,8 @@ const App = () => {
   };
   
   const handleImportJsonClick = () => fileInputRef.current.click();
+
+  // LÓGICA DE IMPORTAÇÃO CORRIGIDA
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -1040,42 +1073,64 @@ const App = () => {
     reader.onload = (e) => {
         try {
             const importedData = JSON.parse(e.target.result);
-            if (!importedData.name || !importedData.mainAttributes) throw new Error("JSON inválido.");
-            setModal({ isVisible: true, message: 'Importar esta ficha? Os dados atuais serão substituídos e um novo personagem será criado.', type: 'confirm', onConfirm: async () => {
-                const newCharId = crypto.randomUUID();
-                const newCharacterData = { ...character, ...importedData, id: newCharId, ownerUid: user.uid };
-                const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
-                
-                const dataToSave = { ...newCharacterData };
-                Object.keys(dataToSave).forEach(key => {
-                    if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) {
-                        dataToSave[key] = JSON.stringify(dataToSave[key]);
-                    }
-                });
-                await setDoc(characterDocRef, dataToSave);
-                
-                setSelectedCharIdState(newCharId);
-                setOwnerUidState(user.uid);
-                window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
-                fetchCharactersList();
-            }, onCancel: () => {} });
+            if (!importedData.name || !importedData.mainAttributes) throw new Error("JSON inválido ou ficha incompatível.");
+            
+            setModal({
+              isVisible: true,
+              message: 'Um novo personagem será criado com os dados do arquivo. Deseja continuar?',
+              type: 'confirm',
+              onConfirm: async () => {
+                setModal({ isVisible: false });
+                setIsLoading(true);
+                try {
+                  const newCharId = crypto.randomUUID();
+                  // Usa o estado inicial para garantir uma ficha limpa, mesclando com os dados importados
+                  const newCharacterData = { ...initialCharState, ...importedData, id: newCharId, ownerUid: user.uid };
+                  
+                  const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
+                  const dataToSave = { ...newCharacterData };
+                  Object.keys(dataToSave).forEach(key => {
+                      if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) {
+                          dataToSave[key] = JSON.stringify(dataToSave[key]);
+                      }
+                  });
+                  await setDoc(characterDocRef, dataToSave);
+                  
+                  handleSelectCharacter(newCharId, user.uid);
+                  fetchCharactersList();
+                } catch (error) {
+                   setModal({ isVisible: true, message: `Erro ao importar: ${error.message}`, type: 'info' });
+                } finally {
+                   setIsLoading(false);
+                }
+              },
+              onCancel: () => setModal({ isVisible: false })
+            });
         } catch (error) {
-            setModal({ isVisible: true, message: `Erro ao importar: ${error.message}`, type: 'info' });
+            setModal({ isVisible: true, message: `Erro ao ler arquivo: ${error.message}`, type: 'info' });
         }
     };
     reader.readAsText(file);
+    event.target.value = null; // Reseta o input para permitir selecionar o mesmo arquivo novamente
   };
 
+  // LÓGICA DE CRIAÇÃO DE PERSONAGEM CORRIGIDA
   const handleCreateNewCharacter = () => {
-    setModal({ isVisible: true, message: 'Nome do novo personagem:', type: 'prompt', onConfirm: async (name) => {
-        if (!name) return;
+    setModal({
+      isVisible: true,
+      message: 'Nome do novo personagem:',
+      type: 'prompt',
+      onConfirm: async (name) => {
+        setModal({ isVisible: false }); // Fecha o modal imediatamente para evitar cliques duplos
+        if (!name) return; // Cancela a operação se o nome estiver vazio
+
         setIsLoading(true);
         try {
             const newCharId = crypto.randomUUID();
-            const initialCharState = { id: newCharId, ownerUid: user.uid, name, photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100, mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 }, attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [], specializations: [], equippedItems: [], history: [], notes: [], isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false, isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false, isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false, isHistoryCollapsed: false, isNotesCollapsed: false };
+            const newCharacterData = { ...initialCharState, id: newCharId, ownerUid: user.uid, name };
             
             const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
-            const dataToSave = { ...initialCharState };
+            const dataToSave = { ...newCharacterData };
             Object.keys(dataToSave).forEach(key => {
                 if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) {
                     dataToSave[key] = JSON.stringify(dataToSave[key]);
@@ -1083,16 +1138,18 @@ const App = () => {
             });
             await setDoc(characterDocRef, dataToSave);
 
-            setSelectedCharIdState(newCharId);
-            setOwnerUidState(user.uid);
-            window.history.pushState({}, '', `?charId=${newCharId}&ownerUid=${user.uid}`);
+            handleSelectCharacter(newCharId, user.uid);
             fetchCharactersList();
         } catch (error) {
             setModal({ isVisible: true, message: `Erro ao criar: ${error.message}`, type: 'info' });
         } finally {
             setIsLoading(false);
         }
-    }, onCancel: () => {} });
+      },
+      onCancel: () => {
+        setModal({ isVisible: false });
+      }
+    });
   };
 
   const handleSelectCharacter = (charId, ownerUid) => {
@@ -1147,12 +1204,11 @@ const App = () => {
     if (user.uid !== character.ownerUid && !isMaster) return;
     setModal({ isVisible: true, message: 'Insira a nova URL da imagem:', type: 'prompt', onConfirm: (newUrl) => {
         setCharacter(prev => ({ ...prev, photoUrl: newUrl }));
-    }, onCancel: () => {} });
+        setModal({ isVisible: false });
+    }, onCancel: () => { setModal({ isVisible: false }); } });
   };
 
   // --- Renderização Principal ---
-  // A parte visual do App agora é muito mais limpa, delegando
-  // a renderização para os componentes visuais.
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"] { -moz-appearance: textfield; }`}</style>
@@ -1179,6 +1235,7 @@ const App = () => {
                 viewingAllCharacters={viewingAllCharacters}
                 user={user}
                 handleCreateNewCharacter={handleCreateNewCharacter}
+                handleImportJsonClick={handleImportJsonClick} // Prop para o novo botão
                 fetchCharactersList={fetchCharactersList}
                 setViewingAllCharacters={setViewingAllCharacters}
                 handleSelectCharacter={handleSelectCharacter}
@@ -1201,7 +1258,6 @@ const App = () => {
                 <StoryAndNotesSection character={character} user={user} isMaster={isMaster} addHistoryBlock={addHistoryBlock} removeHistoryBlock={removeHistoryBlock} updateHistoryBlock={updateHistoryBlock} addNoteBlock={addNoteBlock} removeNoteBlock={removeNoteBlock} updateNoteBlock={updateNoteBlock} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
                 
                 <ActionButtons character={character} user={user} isMaster={isMaster} isLoading={isLoading} handleExportJson={handleExportJson} handleImportJsonClick={handleImportJsonClick} handleReset={handleReset} />
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
             </>
         )}
 
@@ -1209,6 +1265,9 @@ const App = () => {
             <p className="text-center text-gray-400 text-lg mt-8">Faça login para começar a criar e gerenciar suas fichas!</p>
         )}
       </div>
+
+      {/* INPUT DE ARQUIVO MOVIDO PARA FORA, PARA ESTAR SEMPRE DISPONÍVEL */}
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
 
       {modal.isVisible && <CustomModal message={modal.message} onConfirm={modal.onConfirm} onCancel={modal.onCancel} type={modal.type} onClose={() => setModal({ ...modal, isVisible: false })} />}
       {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
