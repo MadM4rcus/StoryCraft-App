@@ -157,7 +157,7 @@ const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignO
 );
 
 // Seção da Lista de Personagens
-const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacters, user, handleCreateNewCharacter, handleImportJsonClick, fetchCharactersList, setViewingAllCharacters, handleSelectCharacter, handleDeleteCharacter }) => (
+const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacters, user, handleCreateNewCharacter, handleImportJsonClick, setViewingAllCharacters, handleSelectCharacter, handleDeleteCharacter }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
       {viewingAllCharacters ? 'Todas as Fichas de Personagem' : 'Meus Personagens'}
@@ -166,12 +166,12 @@ const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacte
       <button onClick={handleCreateNewCharacter} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75" disabled={isLoading}>
         Criar Novo Personagem
       </button>
-      {/* BOTÃO DE IMPORTAR ADICIONADO AQUI */}
       <button onClick={handleImportJsonClick} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75" disabled={isLoading}>
         Importar Ficha (JSON)
       </button>
       {isMaster && (
-        <button onClick={() => { setViewingAllCharacters(!viewingAllCharacters); fetchCharactersList(); }} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled={isLoading}>
+        // BOTÃO CORRIGIDO: Apenas atualiza o estado. O useEffect cuidará de recarregar a lista.
+        <button onClick={() => setViewingAllCharacters(!viewingAllCharacters)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled={isLoading}>
           {viewingAllCharacters ? 'Ver Minhas Fichas' : 'Ver Todas as Fichas'}
         </button>
       )}
@@ -1235,8 +1235,7 @@ const App = () => {
                 viewingAllCharacters={viewingAllCharacters}
                 user={user}
                 handleCreateNewCharacter={handleCreateNewCharacter}
-                handleImportJsonClick={handleImportJsonClick} // Prop para o novo botão
-                fetchCharactersList={fetchCharactersList}
+                handleImportJsonClick={handleImportJsonClick}
                 setViewingAllCharacters={setViewingAllCharacters}
                 handleSelectCharacter={handleSelectCharacter}
                 handleDeleteCharacter={handleDeleteCharacter}
