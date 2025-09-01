@@ -11,7 +11,6 @@ import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getD
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
 
-  // Foca no input quando o modal de prompt abre
   useEffect(() => {
     if (type === 'prompt') {
       const inputElement = document.getElementById('prompt-input');
@@ -22,12 +21,11 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   }, [type]);
 
   const handleConfirm = () => {
-    // Para prompts, apenas passa o valor. A função onConfirm é responsável por fechar o modal.
     if (type === 'prompt') {
       onConfirm(inputValue);
     } else {
       onConfirm();
-      onClose(); // Para outros tipos, o modal fecha automaticamente na confirmação.
+      onClose();
     }
   };
 
@@ -36,7 +34,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
     onClose();
   };
   
-  // Permite confirmar com a tecla Enter
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
         handleConfirm();
@@ -87,7 +84,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   );
 };
 
-// Componente auxiliar para textarea com redimensionamento automático
 const AutoResizingTextarea = ({ value, onChange, placeholder, className, disabled }) => {
     const textareaRef = useRef(null);
 
@@ -115,7 +111,6 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 // --- Componentes Visuais (UI) ---
 // ============================================================================
 
-// Seção de Status do Usuário (Login/Logout)
 const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignOut, handleGoogleSignIn, toggleSection, isCollapsed }) => (
   <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isUserStatusCollapsed')}>
@@ -156,7 +151,6 @@ const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignO
   </section>
 );
 
-// Seção da Lista de Personagens
 const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacters, user, handleCreateNewCharacter, handleImportJsonClick, setViewingAllCharacters, handleSelectCharacter, handleDeleteCharacter }) => (
   <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2">
@@ -170,7 +164,6 @@ const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacte
         Importar Ficha (JSON)
       </button>
       {isMaster && (
-        // BOTÃO CORRIGIDO: Apenas atualiza o estado. O useEffect cuidará de recarregar a lista.
         <button onClick={() => setViewingAllCharacters(!viewingAllCharacters)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled={isLoading}>
           {viewingAllCharacters ? 'Ver Minhas Fichas' : 'Ver Todas as Fichas'}
         </button>
@@ -205,7 +198,6 @@ const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacte
   </section>
 );
 
-// Seção de Informações do Personagem
 const CharacterInfoSection = ({ character, user, isMaster, handleChange, handlePhotoUrlClick, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isCharacterInfoCollapsed')}>
@@ -242,8 +234,6 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
     </section>
 );
 
-
-// Seção de Atributos Principais (HP, MP, etc.)
 const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isMainAttributesCollapsed')}>
@@ -252,7 +242,6 @@ const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeC
         </h2>
         {!character.isMainAttributesCollapsed && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* HP & MP */}
                 {['hp', 'mp'].map(attr => (
                     <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                         <label className="text-lg font-medium text-gray-300 mb-1 uppercase">{attr}:</label>
@@ -263,7 +252,6 @@ const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeC
                         </div>
                     </div>
                 ))}
-                {/* Outros Atributos */}
                 {['initiative', 'fa', 'fm', 'fd'].map(attr => (
                     <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                         <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">{attr === 'fa' ? 'FA' : attr === 'fm' ? 'FM' : attr === 'fd' ? 'FD' : 'Iniciativa'}:</label>
@@ -275,7 +263,112 @@ const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeC
     </section>
 );
 
-// Seção de Atributos Dinâmicos
+const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, toggleSection }) => {
+    const attributeNames = useMemo(() => (character.attributes || []).map(attr => attr.name).filter(Boolean), [character.attributes]);
+
+    return (
+        <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isQuickActionsCollapsed')}>
+                Ações Rápidas e Buffs
+                <span>{character.isQuickActionsCollapsed ? '▼' : '▲'}</span>
+            </h2>
+            {!character.isQuickActionsCollapsed && (
+                <>
+                    <div className="space-y-3 mb-4">
+                        <h3 className="text-xl font-semibold text-purple-300 mb-2">Buffs Ativáveis</h3>
+                        {(character.buffs || []).length > 0 ? character.buffs.map(buff => (
+                            <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
+                                    <input
+                                        type="text"
+                                        placeholder="Nome do Buff"
+                                        value={buff.name}
+                                        onChange={(e) => handleBuffChange(buff.id, 'name', e.target.value)}
+                                        className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
+                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                    />
+                                    <select
+                                        value={buff.type}
+                                        onChange={(e) => handleBuffChange(buff.id, 'type', e.target.value)}
+                                        className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                    >
+                                        <option value="attribute">Modificar Atributo</option>
+                                        <option value="dice">Adicionar Valor/Dado</option>
+                                    </select>
+                                    
+                                    {buff.type === 'attribute' ? (
+                                        <select
+                                            value={buff.target}
+                                            onChange={(e) => handleBuffChange(buff.id, 'target', e.target.value)}
+                                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                            disabled={user.uid !== character.ownerUid && !isMaster}
+                                        >
+                                            <option value="">Selecione um Atributo</option>
+                                            {attributeNames.map(name => <option key={name} value={name}>{name}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="+1d6"
+                                            value={buff.target}
+                                            onChange={(e) => handleBuffChange(buff.id, 'target', e.target.value)}
+                                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                            disabled={user.uid !== character.ownerUid && !isMaster}
+                                        />
+                                    )}
+
+                                    <input
+                                        type="number"
+                                        placeholder="Valor (+/-)"
+                                        value={buff.value === 0 ? '' : buff.value}
+                                        onChange={(e) => handleBuffChange(buff.id, 'value', e.target.value)}
+                                        className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 items-center">
+                                     <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Custo"
+                                            value={buff.costValue === 0 ? '' : buff.costValue}
+                                            onChange={(e) => handleBuffChange(buff.id, 'costValue', e.target.value)}
+                                            className="w-16 p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                            disabled={user.uid !== character.ownerUid && !isMaster}
+                                        />
+                                        <select
+                                            value={buff.costType}
+                                            onChange={(e) => handleBuffChange(buff.id, 'costType', e.target.value)}
+                                            className="p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                            disabled={user.uid !== character.ownerUid && !isMaster}
+                                        >
+                                            <option value="">N/A</option>
+                                            <option value="HP">HP</option>
+                                            <option value="MP">MP</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center justify-center sm:col-span-2">
+                                        {(user.uid === character.ownerUid || isMaster) && (
+                                            <button onClick={() => handleRemoveBuff(buff.id)} className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white text-lg font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out" aria-label="Remover Buff">X</button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )) : <p className="text-gray-400 italic">Nenhum buff criado. Adicione um para começar.</p>}
+                    </div>
+
+                    {(user.uid === character.ownerUid || isMaster) && (
+                        <div className="flex justify-center mt-4">
+                            <button onClick={handleAddBuff} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center" aria-label="Adicionar Buff">+</button>
+                        </div>
+                    )}
+                </>
+            )}
+        </section>
+    );
+};
+
 const AttributesSection = ({ character, user, isMaster, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAttributesCollapsed')}>
@@ -285,7 +378,7 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
         {!character.isAttributesCollapsed && (
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {character.attributes.map((attr, index) => (
+                    {(character.attributes || []).map((attr, index) => (
                         <div key={attr.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative" draggable onDragStart={(e) => handleDragStart(e, index, 'attributes')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index, 'attributes')}>
                             <div className="flex flex-col sm:flex-row items-center gap-3">
                                 <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={user.uid !== character.ownerUid && !isMaster} />
@@ -308,7 +401,7 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
                         </div>
                     ))}
                 </div>
-                {(user.uid === character.ownerUid || isMaster) && (
+                {(user.uid === character.ownerUid && !isMaster) && (
                     <div className="flex justify-center mt-4">
                         <button onClick={handleAddAttribute} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center" aria-label="Adicionar Atributo">+</button>
                     </div>
@@ -318,10 +411,8 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
     </section>
 );
 
-// Seção de Inventário e Carteira
 const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection }) => (
     <>
-        {/* Inventário */}
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isInventoryCollapsed')}>
                 Inventário
@@ -330,7 +421,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
             {!character.isInventoryCollapsed && (
                 <>
                     <ul className="space-y-2">
-                        {character.inventory.length === 0 ? (
+                        {(character.inventory || []).length === 0 ? (
                             <li className="text-gray-400 italic">Nenhum item no inventário.</li>
                         ) : (
                             character.inventory.map((item) => (
@@ -361,10 +452,9 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                 </>
             )}
         </section>
-        {/* Carteira */}
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isWalletCollapsed')}>
-                Zeni: {character.wallet.zeni}
+                Zeni: {character.wallet?.zeni || 0}
                 <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
             </h2>
             {!character.isWalletCollapsed && (
@@ -378,7 +468,6 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
     </>
 );
 
-// Seção de Vantagens e Desvantagens
 const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isPerksCollapsed')}>
@@ -391,7 +480,7 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
                     <div key={type}>
                         <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b border-purple-500 pb-1 capitalize">{type === 'advantages' ? 'Vantagens' : 'Desvantagens'}</h3>
                         <ul className="space-y-2">
-                            {character[type].length === 0 ? (
+                            {(character[type] || []).length === 0 ? (
                                 <li className="text-gray-400 italic">Nenhuma {type === 'advantages' ? 'vantagem' : 'desvantagem'}.</li>
                             ) : (
                                 character[type].map(perk => (
@@ -436,10 +525,8 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
     </section>
 );
 
-// Seção de Habilidades, Especializações e Itens Equipados
 const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemoveAbility, handleAbilityChange, handleAddSpecialization, handleRemoveSpecialization, handleSpecializationChange, handleAddEquippedItem, handleRemoveEquippedItem, handleEquippedItemChange, toggleItemCollapsed, toggleSection }) => (
     <>
-        {/* Habilidades */}
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAbilitiesCollapsed')}>
                 Habilidades
@@ -448,7 +535,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             {!character.isAbilitiesCollapsed && (
                 <>
                     <ul className="space-y-2">
-                        {character.abilities.map(ability => (
+                        {(character.abilities || []).map(ability => (
                             <li key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
@@ -476,7 +563,6 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             )}
         </section>
 
-        {/* Especializações */}
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isSpecializationsCollapsed')}>
                 Especializações (Perícias)
@@ -485,7 +571,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             {!character.isSpecializationsCollapsed && (
                  <>
                     <ul className="space-y-2">
-                        {character.specializations.map(spec => (
+                        {(character.specializations || []).map(spec => (
                             <li key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
@@ -516,7 +602,6 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             )}
         </section>
 
-        {/* Itens Equipados */}
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isEquippedItemsCollapsed')}>
                 Itens Equipados
@@ -525,7 +610,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             {!character.isEquippedItemsCollapsed && (
                 <>
                     <ul className="space-y-2">
-                        {character.equippedItems.map(item => (
+                        {(character.equippedItems || []).map(item => (
                             <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
@@ -556,7 +641,6 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
     </>
 );
 
-// Seção de História e Anotações
 const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, removeHistoryBlock, updateHistoryBlock, addNoteBlock, removeNoteBlock, updateNoteBlock, handleDragStart, handleDragOver, handleDrop, toggleSection }) => {
     const truncateText = (text, maxLines = 2) => {
         if (!text) return '';
@@ -581,7 +665,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                         <button onClick={() => updateFunc(block.id, 'isCollapsed', true)} className="mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-xs font-bold rounded-md self-end">Ocultar</button>
                     </>
                 )
-            ) : ( // Image Block
+            ) : ( 
                 block.isCollapsed ? (
                     <div className="cursor-pointer text-center py-2" onClick={() => updateFunc(block.id, 'isCollapsed', false)}>
                         <p className="text-lg font-semibold">Mostrar Imagem</p>
@@ -609,7 +693,6 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
 
     return (
         <>
-            {/* História */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isHistoryCollapsed')}>
                     História do Personagem
@@ -618,7 +701,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                 {!character.isHistoryCollapsed && (
                     <>
                         <div className="space-y-4 mb-4">
-                            {character.history.length === 0 ? <p className="text-gray-400 italic">Nenhum bloco de história adicionado.</p> : character.history.map((block, index) => renderBlock(block, index, 'history', removeHistoryBlock, updateHistoryBlock))}
+                            {(character.history || []).length === 0 ? <p className="text-gray-400 italic">Nenhum bloco de história adicionado.</p> : character.history.map((block, index) => renderBlock(block, index, 'history', removeHistoryBlock, updateHistoryBlock))}
                         </div>
                         {(user.uid === character.ownerUid || isMaster) && (
                             <div className="flex flex-wrap gap-4 mt-4 justify-center">
@@ -629,7 +712,6 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                     </>
                 )}
             </section>
-            {/* Anotações */}
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isNotesCollapsed')}>
                     Anotações
@@ -638,7 +720,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                 {!character.isNotesCollapsed && (
                     <>
                         <div className="space-y-4 mb-4">
-                            {character.notes.length === 0 ? <p className="text-gray-400 italic">Nenhum bloco de anotação adicionado.</p> : character.notes.map((block, index) => renderBlock(block, index, 'notes', removeNoteBlock, updateNoteBlock))}
+                            {(character.notes || []).length === 0 ? <p className="text-gray-400 italic">Nenhum bloco de anotação adicionado.</p> : character.notes.map((block, index) => renderBlock(block, index, 'notes', removeNoteBlock, updateNoteBlock))}
                         </div>
                          <div className="flex flex-wrap gap-4 mt-4 justify-center">
                             <button onClick={() => addNoteBlock('text')} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 font-bold rounded-lg">Adicionar Texto</button>
@@ -651,7 +733,6 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
     );
 };
 
-// Seção de Botões de Ação (Importar/Exportar/Resetar)
 const ActionButtons = ({ character, user, isMaster, isLoading, handleExportJson, handleImportJsonClick, handleReset }) => (
     <div className="flex flex-wrap justify-center gap-4 mt-8">
         <button onClick={handleExportJson} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg" disabled={isLoading || !user || !character}>
@@ -666,25 +747,22 @@ const ActionButtons = ({ character, user, isMaster, isLoading, handleExportJson,
     </div>
 );
 
-
 // ============================================================================
 // --- Componente Principal (Cérebro da Aplicação) ---
 // ============================================================================
 
-// Objeto com o estado inicial de uma ficha de personagem, para reuso.
 const initialCharState = {
   name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100,
   mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
   attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
-  specializations: [], equippedItems: [], history: [], notes: [],
+  specializations: [], equippedItems: [], history: [], notes: [], buffs: [],
   isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
   isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false,
   isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false,
-  isHistoryCollapsed: false, isNotesCollapsed: false
+  isHistoryCollapsed: false, isNotesCollapsed: false, isQuickActionsCollapsed: false,
 };
 
 const App = () => {
-  // Configuração do Firebase
   const firebaseConfig = useMemo(() => ({
     apiKey: "AIzaSyDfsK4K4vhOmSSGeVHOlLnJuNlHGNha4LU",
     authDomain: "storycraft-a5f7e.firebaseapp.com",
@@ -696,29 +774,21 @@ const App = () => {
   }), []);
   const appId = firebaseConfig.appId;
 
-  // Estados para Firebase
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isMaster, setIsMaster] = useState(false);
-
-  // Estados para gerenciamento de personagens
   const [character, setCharacter] = useState(null);
   const [charactersList, setCharactersList] = useState([]);
   const [selectedCharIdState, setSelectedCharIdState] = useState(null);
   const [ownerUidState, setOwnerUidState] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
-
-  // Estados da UI
   const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
   const [isLoading, setIsLoading] = useState(false);
   const [zeniAmount, setZeniAmount] = useState(0);
   const fileInputRef = useRef(null);
 
-  // --- Funções e Efeitos (Lógica) ---
-  
-  // Inicializa Firebase e configura o listener de autenticação
   useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
@@ -730,11 +800,9 @@ const App = () => {
       const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         setUser(currentUser);
         setIsAuthReady(true);
-
         if (currentUser) {
             const userDocRef = doc(firestoreInstance, `artifacts/${appId}/users/${currentUser.uid}`);
             const userDocSnap = await getDoc(userDocRef);
-
             if (!userDocSnap.exists()) {
                 await setDoc(userDocRef, { isMaster: false, displayName: currentUser.displayName, email: currentUser.email });
             }
@@ -755,14 +823,12 @@ const App = () => {
     }
   }, [firebaseConfig, appId]);
 
-  // Efeito para inicializar a partir da URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSelectedCharIdState(params.get('charId'));
     setOwnerUidState(params.get('ownerUid'));
   }, []);
 
-  // Efeito para carregar o papel do usuário (mestre/jogador)
   useEffect(() => {
     if (db && user && isAuthReady) {
       const userRoleDocRef = doc(db, `artifacts/${appId}/users/${user.uid}`);
@@ -778,7 +844,6 @@ const App = () => {
     }
   }, [db, user, isAuthReady, appId]);
 
-  // Função para carregar a lista de personagens
   const fetchCharactersList = useCallback(async () => {
     if (!db || !user || !isAuthReady) return;
     setIsLoading(true);
@@ -821,9 +886,8 @@ const App = () => {
     if (user && db && isAuthReady) {
       fetchCharactersList();
     }
-  }, [user, db, isAuthReady, fetchCharactersList]);
+  }, [user, db, isAuthReady, viewingAllCharacters, fetchCharactersList]);
 
-  // Listener em tempo real para o personagem selecionado
   useEffect(() => {
     if (!db || !user || !isAuthReady || !selectedCharIdState) {
         if (!selectedCharIdState) setCharacter(null);
@@ -860,17 +924,16 @@ const App = () => {
             if (docSnap.exists() && !docSnap.data().deleted) {
                 const data = docSnap.data();
                 const deserializedData = { ...data };
-                // Deserialização de todos os campos JSON
                 Object.keys(deserializedData).forEach(key => {
                     if (typeof deserializedData[key] === 'string') {
                         try {
                             const parsed = JSON.parse(deserializedData[key]);
                             deserializedData[key] = parsed;
-                        } catch (e) { /* Não é JSON, ignora */ }
+                        } catch (e) { /* Ignora */ }
                     }
                 });
-                // Garante valores padrão para estruturas complexas
-                deserializedData.mainAttributes = deserializedData.mainAttributes || { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 };
+                
+                deserializedData.mainAttributes = deserializedData.mainAttributes || initialCharState.mainAttributes;
                 deserializedData.attributes = deserializedData.attributes || [];
                 deserializedData.inventory = deserializedData.inventory || [];
                 deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
@@ -881,6 +944,7 @@ const App = () => {
                 deserializedData.equippedItems = deserializedData.equippedItems || [];
                 deserializedData.history = deserializedData.history || [];
                 deserializedData.notes = deserializedData.notes || [];
+                deserializedData.buffs = deserializedData.buffs || [];
                 setCharacter(deserializedData);
             } else {
                 setCharacter(null);
@@ -904,10 +968,8 @@ const App = () => {
             if (unsubscribe) unsubscribe();
         });
     };
-}, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]);
+  }, [db, user, isAuthReady, selectedCharIdState, ownerUidState, appId, isMaster, fetchCharactersList]);
 
-
-  // Salva a ficha no Firestore
   useEffect(() => {
     if (!db || !user || !isAuthReady || !character || !selectedCharIdState) return;
     
@@ -918,7 +980,6 @@ const App = () => {
       try {
         const characterDocRef = doc(db, `artifacts/${appId}/users/${targetUidForSave}/characterSheets/${selectedCharIdState}`);
         const dataToSave = { ...character };
-        // Serializa todos os campos que são objetos ou arrays
         Object.keys(dataToSave).forEach(key => {
             if (typeof dataToSave[key] === 'object' && dataToSave[key] !== null) {
                 dataToSave[key] = JSON.stringify(dataToSave[key]);
@@ -932,8 +993,6 @@ const App = () => {
 
     return () => clearTimeout(handler);
   }, [character, db, user, isAuthReady, selectedCharIdState, appId, isMaster]);
-
-  // --- Funções de Manipulação (Handlers) ---
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -954,11 +1013,11 @@ const App = () => {
   };
 
   const handleAddAttribute = () => setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 }] }));
-  const handleRemoveAttribute = (id) => setCharacter(prev => ({ ...prev, attributes: prev.attributes.filter(attr => attr.id !== id) }));
+  const handleRemoveAttribute = (id) => setCharacter(prev => ({ ...prev, attributes: (prev.attributes || []).filter(attr => attr.id !== id) }));
   const handleAttributeChange = (id, field, value) => {
     setCharacter(prev => ({
       ...prev,
-      attributes: prev.attributes.map(attr => {
+      attributes: (prev.attributes || []).map(attr => {
         if (attr.id === id) {
           const updatedAttr = { ...attr, [field]: field === 'name' ? value : parseInt(value, 10) || 0 };
           updatedAttr.total = (updatedAttr.base || 0) + (updatedAttr.perm || 0) + (updatedAttr.cond || 0) + (updatedAttr.arma || 0);
@@ -971,29 +1030,29 @@ const App = () => {
   
   const toggleItemCollapsed = (listName, id) => setCharacter(prev => ({ ...prev, [listName]: (prev[listName] || []).map(item => item.id === id ? { ...item, isCollapsed: !item.isCollapsed } : item) }));
   const handleAddItem = () => setCharacter(prev => ({ ...prev, inventory: [...(prev.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false }] }));
-  const handleInventoryItemChange = (id, field, value) => setCharacter(prev => ({ ...prev, inventory: prev.inventory.map(item => item.id === id ? { ...item, [field]: value } : item) }));
-  const handleRemoveItem = (id) => setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(item => item.id !== id) }));
+  const handleInventoryItemChange = (id, field, value) => setCharacter(prev => ({ ...prev, inventory: (prev.inventory || []).map(item => item.id === id ? { ...item, [field]: value } : item) }));
+  const handleRemoveItem = (id) => setCharacter(prev => ({ ...prev, inventory: (prev.inventory || []).filter(item => item.id !== id) }));
   
   const handleZeniChange = (e) => setZeniAmount(parseInt(e.target.value, 10) || 0);
-  const handleAddZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: (prev.wallet.zeni || 0) + zeniAmount } })); setZeniAmount(0); };
-  const handleRemoveZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: Math.max(0, (prev.wallet.zeni || 0) - zeniAmount) } })); setZeniAmount(0); };
+  const handleAddZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: ((prev.wallet || {}).zeni || 0) + zeniAmount } })); setZeniAmount(0); };
+  const handleRemoveZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: Math.max(0, ((prev.wallet || {}).zeni || 0) - zeniAmount) } })); setZeniAmount(0); };
   
   const handleAddPerk = (type) => setCharacter(prev => ({ ...prev, [type]: [...(prev[type] || []), { id: crypto.randomUUID(), name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0, isCollapsed: false }] }));
-  const handlePerkChange = (type, id, field, value) => setCharacter(prev => ({ ...prev, [type]: prev[type].map(p => p.id === id ? { ...p, [field]: field === 'value' ? parseInt(value, 10) || 0 : value } : p) }));
-  const handleRemovePerk = (type, id) => setCharacter(prev => ({ ...prev, [type]: prev[type].filter(p => p.id !== id) }));
-  const handlePerkOriginChange = (type, id, originType) => setCharacter(prev => ({ ...prev, [type]: prev[type].map(p => p.id === id ? { ...p, origin: { ...p.origin, [originType]: !p.origin[originType] } } : p) }));
+  const handlePerkChange = (type, id, field, value) => setCharacter(prev => ({ ...prev, [type]: (prev[type] || []).map(p => p.id === id ? { ...p, [field]: field === 'value' ? parseInt(value, 10) || 0 : value } : p) }));
+  const handleRemovePerk = (type, id) => setCharacter(prev => ({ ...prev, [type]: (prev[type] || []).filter(p => p.id !== id) }));
+  const handlePerkOriginChange = (type, id, originType) => setCharacter(prev => ({ ...prev, [type]: (prev[type] || []).map(p => p.id === id ? { ...p, origin: { ...p.origin, [originType]: !p.origin[originType] } } : p) }));
   
   const handleAddAbility = () => setCharacter(prev => ({ ...prev, abilities: [...(prev.abilities || []), { id: crypto.randomUUID(), title: '', description: '', isCollapsed: false }] }));
-  const handleAbilityChange = (id, field, value) => setCharacter(prev => ({ ...prev, abilities: prev.abilities.map(a => a.id === id ? { ...a, [field]: value } : a) }));
-  const handleRemoveAbility = (id) => setCharacter(prev => ({ ...prev, abilities: prev.abilities.filter(a => a.id !== id) }));
+  const handleAbilityChange = (id, field, value) => setCharacter(prev => ({ ...prev, abilities: (prev.abilities || []).map(a => a.id === id ? { ...a, [field]: value } : a) }));
+  const handleRemoveAbility = (id) => setCharacter(prev => ({ ...prev, abilities: (prev.abilities || []).filter(a => a.id !== id) }));
   
   const handleAddSpecialization = () => setCharacter(prev => ({ ...prev, specializations: [...(prev.specializations || []), { id: crypto.randomUUID(), name: '', modifier: 0, bonus: 0, isCollapsed: false }] }));
-  const handleSpecializationChange = (id, field, value) => setCharacter(prev => ({ ...prev, specializations: prev.specializations.map(s => s.id === id ? { ...s, [field]: field === 'name' ? value : parseInt(value, 10) || 0 } : s) }));
-  const handleRemoveSpecialization = (id) => setCharacter(prev => ({ ...prev, specializations: prev.specializations.filter(s => s.id !== id) }));
+  const handleSpecializationChange = (id, field, value) => setCharacter(prev => ({ ...prev, specializations: (prev.specializations || []).map(s => s.id === id ? { ...s, [field]: field === 'name' ? value : parseInt(value, 10) || 0 } : s) }));
+  const handleRemoveSpecialization = (id) => setCharacter(prev => ({ ...prev, specializations: (prev.specializations || []).filter(s => s.id !== id) }));
 
   const handleAddEquippedItem = () => setCharacter(prev => ({ ...prev, equippedItems: [...(prev.equippedItems || []), { id: crypto.randomUUID(), name: '', description: '', attributes: '', isCollapsed: false }] }));
-  const handleEquippedItemChange = (id, field, value) => setCharacter(prev => ({ ...prev, equippedItems: prev.equippedItems.map(i => i.id === id ? { ...i, [field]: value } : i) }));
-  const handleRemoveEquippedItem = (id) => setCharacter(prev => ({ ...prev, equippedItems: prev.equippedItems.filter(i => i.id !== id) }));
+  const handleEquippedItemChange = (id, field, value) => setCharacter(prev => ({ ...prev, equippedItems: (prev.equippedItems || []).map(i => i.id === id ? { ...i, [field]: value } : i) }));
+  const handleRemoveEquippedItem = (id) => setCharacter(prev => ({ ...prev, equippedItems: (prev.equippedItems || []).filter(i => i.id !== id) }));
   
   const addHistoryBlock = (type) => {
     const newBlock = type === 'text'
@@ -1009,8 +1068,8 @@ const App = () => {
         setCharacter(prev => ({ ...prev, history: [...(prev.history || []), newBlock] }));
     }
   };
-  const updateHistoryBlock = (id, field, value) => setCharacter(prev => ({ ...prev, history: prev.history.map(b => b.id === id ? { ...b, [field]: value } : b) }));
-  const removeHistoryBlock = (id) => setCharacter(prev => ({ ...prev, history: prev.history.filter(b => b.id !== id) }));
+  const updateHistoryBlock = (id, field, value) => setCharacter(prev => ({ ...prev, history: (prev.history || []).map(b => b.id === id ? { ...b, [field]: value } : b) }));
+  const removeHistoryBlock = (id) => setCharacter(prev => ({ ...prev, history: (prev.history || []).filter(b => b.id !== id) }));
   
   const addNoteBlock = (type) => {
     const newBlock = type === 'text'
@@ -1026,8 +1085,33 @@ const App = () => {
         setCharacter(prev => ({ ...prev, notes: [...(prev.notes || []), newBlock] }));
     }
   };
-  const updateNoteBlock = (id, field, value) => setCharacter(prev => ({ ...prev, notes: prev.notes.map(b => b.id === id ? { ...b, [field]: value } : b) }));
-  const removeNoteBlock = (id) => setCharacter(prev => ({ ...prev, notes: prev.notes.filter(b => b.id !== id) }));
+  const updateNoteBlock = (id, field, value) => setCharacter(prev => ({ ...prev, notes: (prev.notes || []).map(b => b.id === id ? { ...b, [field]: value } : b) }));
+  const removeNoteBlock = (id) => setCharacter(prev => ({ ...prev, notes: (prev.notes || []).filter(b => b.id !== id) }));
+
+  const handleAddBuff = () => {
+      const newBuff = {
+          id: crypto.randomUUID(), name: '', type: 'attribute', target: '', value: 0, costValue: 0, costType: '', isActive: false,
+      };
+      setCharacter(prev => ({ ...prev, buffs: [...(prev.buffs || []), newBuff] }));
+  };
+  const handleRemoveBuff = (id) => {
+      setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).filter(b => b.id !== id) }));
+  };
+  const handleBuffChange = (id, field, value) => {
+      setCharacter(prev => ({
+          ...prev,
+          buffs: (prev.buffs || []).map(buff => {
+              if (buff.id === id) {
+                  const updatedBuff = { ...buff, [field]: ['value', 'costValue'].includes(field) ? parseInt(value, 10) || 0 : value };
+                  if (field === 'type') {
+                      updatedBuff.target = '';
+                  }
+                  return updatedBuff;
+              }
+              return buff;
+          })
+      }));
+  };
 
   const draggedItemRef = useRef(null);
   const handleDragStart = (e, index, listName) => { draggedItemRef.current = { index, listName }; e.dataTransfer.effectAllowed = "move"; };
@@ -1037,7 +1121,8 @@ const App = () => {
     const { index: draggedIndex, listName: draggedListName } = draggedItemRef.current;
     if (draggedIndex === null || draggedListName !== targetListName) return;
     setCharacter(prev => {
-        const newList = [...prev[targetListName]];
+        const list = prev[targetListName] || [];
+        const newList = [...list];
         const [reorderedItem] = newList.splice(draggedIndex, 1);
         newList.splice(dropIndex, 0, reorderedItem);
         return { ...prev, [targetListName]: newList };
@@ -1047,7 +1132,6 @@ const App = () => {
 
   const handleReset = () => {
     setModal({ isVisible: true, message: 'Tem certeza que deseja resetar a ficha?', type: 'confirm', onConfirm: () => {
-        // Mantém o ID, nome e dono, mas reseta o resto
         setCharacter(prev => ({...initialCharState, id: prev.id, ownerUid: prev.ownerUid, name: prev.name }));
     }, onCancel: () => {} });
   };
@@ -1065,7 +1149,6 @@ const App = () => {
   
   const handleImportJsonClick = () => fileInputRef.current.click();
 
-  // LÓGICA DE IMPORTAÇÃO CORRIGIDA
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -1084,7 +1167,6 @@ const App = () => {
                 setIsLoading(true);
                 try {
                   const newCharId = crypto.randomUUID();
-                  // Usa o estado inicial para garantir uma ficha limpa, mesclando com os dados importados
                   const newCharacterData = { ...initialCharState, ...importedData, id: newCharId, ownerUid: user.uid };
                   
                   const characterDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/characterSheets/${newCharId}`);
@@ -1111,18 +1193,17 @@ const App = () => {
         }
     };
     reader.readAsText(file);
-    event.target.value = null; // Reseta o input para permitir selecionar o mesmo arquivo novamente
+    event.target.value = null;
   };
 
-  // LÓGICA DE CRIAÇÃO DE PERSONAGEM CORRIGIDA
   const handleCreateNewCharacter = () => {
     setModal({
       isVisible: true,
       message: 'Nome do novo personagem:',
       type: 'prompt',
       onConfirm: async (name) => {
-        setModal({ isVisible: false }); // Fecha o modal imediatamente para evitar cliques duplos
-        if (!name) return; // Cancela a operação se o nome estiver vazio
+        setModal({ isVisible: false });
+        if (!name) return;
 
         setIsLoading(true);
         try {
@@ -1201,14 +1282,13 @@ const App = () => {
   const toggleSection = (sectionKey) => setCharacter(prev => prev ? { ...prev, [sectionKey]: !prev[sectionKey] } : prev);
   
   const handlePhotoUrlClick = () => {
-    if (user.uid !== character.ownerUid && !isMaster) return;
+    if (!character || (user.uid !== character.ownerUid && !isMaster)) return;
     setModal({ isVisible: true, message: 'Insira a nova URL da imagem:', type: 'prompt', onConfirm: (newUrl) => {
         setCharacter(prev => ({ ...prev, photoUrl: newUrl }));
         setModal({ isVisible: false });
     }, onCancel: () => { setModal({ isVisible: false }); } });
   };
 
-  // --- Renderização Principal ---
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"] { -moz-appearance: textfield; }`}</style>
@@ -1250,6 +1330,7 @@ const App = () => {
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
                 <MainAttributesSection character={character} user={user} isMaster={isMaster} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
+                <QuickActionsSection character={character} user={user} isMaster={isMaster} handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} toggleSection={toggleSection} />
                 <AttributesSection character={character} user={user} isMaster={isMaster} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
                 <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
@@ -1265,9 +1346,7 @@ const App = () => {
         )}
       </div>
 
-      {/* INPUT DE ARQUIVO MOVIDO PARA FORA, PARA ESTAR SEMPRE DISPONÍVEL */}
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-
       {modal.isVisible && <CustomModal message={modal.message} onConfirm={modal.onConfirm} onCancel={modal.onCancel} type={modal.type} onClose={() => setModal({ ...modal, isVisible: false })} />}
       {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
     </div>
