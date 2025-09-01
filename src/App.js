@@ -265,6 +265,9 @@ const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeC
 
 const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, toggleSection }) => {
     const attributeNames = useMemo(() => (character.attributes || []).map(attr => attr.name).filter(Boolean), [character.attributes]);
+    
+    const collapsedBuffs = useMemo(() => (character.buffs || []).filter(b => b.isCollapsed), [character.buffs]);
+    const expandedBuffs = useMemo(() => (character.buffs || []).filter(b => !b.isCollapsed), [character.buffs]);
 
     return (
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -274,13 +277,15 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
             </h2>
             {!character.isQuickActionsCollapsed && (
                 <>
-                    <div className="space-y-3 mb-4">
+                    <div className="mb-4">
                         <h3 className="text-xl font-semibold text-purple-300 mb-2">Buffs Ativáveis</h3>
-                        {(character.buffs || []).length > 0 ? character.buffs.map(buff => (
-                            <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500">
-                                <div className="flex justify-between items-center">
+                        
+                        {/* Grid para buffs minimizados */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            {collapsedBuffs.map(buff => (
+                                <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center">
                                     <span className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleBuffCollapsed(buff.id)}>
-                                        {buff.name || 'Buff Sem Nome'} {buff.isCollapsed ? '...' : ''}
+                                        {buff.name || 'Buff Sem Nome'}
                                     </span>
                                     <div className="flex items-center gap-4 ml-4">
                                         <label className="flex items-center cursor-pointer">
@@ -295,8 +300,30 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                         )}
                                     </div>
                                 </div>
+                            ))}
+                        </div>
 
-                                {!buff.isCollapsed && (
+                        {/* Lista para buffs expandidos */}
+                        <div className="space-y-3">
+                            {expandedBuffs.map(buff => (
+                                <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleBuffCollapsed(buff.id)}>
+                                            {buff.name || 'Buff Sem Nome'}
+                                        </span>
+                                        <div className="flex items-center gap-4 ml-4">
+                                            <label className="flex items-center cursor-pointer">
+                                                <div className="relative">
+                                                    <input type="checkbox" checked={buff.isActive} onChange={() => handleToggleBuffActive(buff.id)} className="sr-only" disabled={user.uid !== character.ownerUid && !isMaster}/>
+                                                    <div className={`block w-14 h-8 rounded-full ${buff.isActive ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${buff.isActive ? 'transform translate-x-6' : ''}`}></div>
+                                                </div>
+                                            </label>
+                                            {(user.uid === character.ownerUid || isMaster) && (
+                                                <button onClick={() => handleRemoveBuff(buff.id)} className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white text-lg font-bold rounded-full flex items-center justify-center flex-shrink-0" aria-label="Remover Buff">X</button>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="mt-3 pt-3 border-t border-gray-500">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-center">
                                             <input
@@ -316,7 +343,6 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                 <option value="attribute">Modificar Atributo</option>
                                                 <option value="dice">Adicionar Valor/Dado</option>
                                             </select>
-                                            
                                             {buff.type === 'attribute' ? (
                                                 <select
                                                     value={buff.target}
@@ -369,9 +395,11 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                             </div>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        )) : <p className="text-gray-400 italic">Nenhum buff criado. Adicione um para começar.</p>}
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {(character.buffs || []).length === 0 && <p className="text-gray-400 italic">Nenhum buff criado. Adicione um para começar.</p>}
                     </div>
 
                     {(user.uid === character.ownerUid || isMaster) && (
@@ -417,7 +445,7 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
                         </div>
                     ))}
                 </div>
-                {(user.uid === character.ownerUid && !isMaster) && (
+                {(user.uid === character.ownerUid || isMaster) && (
                     <div className="flex justify-center mt-4">
                         <button onClick={handleAddAttribute} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 flex items-center justify-center" aria-label="Adicionar Atributo">+</button>
                     </div>
