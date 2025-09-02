@@ -77,7 +77,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButt
       onConfirm(inputValue);
     } else {
       onConfirm();
-      if (onClose) onClose();
     }
   };
 
@@ -391,9 +390,7 @@ const ActionsAndBuffsSection = ({
     handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, 
     handleOpenActionModal,
     allAttributes,
-    handleAddFormulaAction, handleRemoveFormulaAction, handleFormulaActionChange,
-    handleAddActionComponent, handleRemoveActionComponent, handleActionComponentChange,
-    handleExecuteFormulaAction,
+    handleAddCustomAction, handleRemoveCustomAction, handleCustomActionChange, handleExecuteCustomAction, handleToggleCustomActionCollapsed,
     toggleSection 
 }) => {
     
@@ -412,94 +409,75 @@ const ActionsAndBuffsSection = ({
                         <button onClick={() => handleOpenActionModal('heal')} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Curar</button>
                         <button onClick={() => handleOpenActionModal('damage')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md">Receber Dano</button>
                     </div>
-
+                    
                     <div className="mb-6">
-                        <h3 className="text-xl font-semibold text-purple-300 mb-2">Construtor de Ações Rápidas</h3>
-                        <div className="space-y-4">
-                            {(character.formulaActions || []).map(action => (
-                                <div key={action.id} className="p-4 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative">
-                                    <div className="flex justify-between items-start gap-2 mb-3">
-                                        <input
-                                            type="text"
-                                            placeholder="Nome da Ação"
-                                            value={action.name}
-                                            onChange={(e) => handleFormulaActionChange(action.id, 'name', e.target.value)}
-                                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
-                                            disabled={user.uid !== character.ownerUid && !isMaster}
-                                        />
-                                        <button onClick={() => handleExecuteFormulaAction(action.id)} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap">Usar</button>
-                                         {(user.uid === character.ownerUid || isMaster) && (
-                                            <button onClick={() => handleRemoveFormulaAction(action.id)} className="w-10 h-10 bg-red-600 text-white text-lg rounded-md flex items-center justify-center font-bold">X</button>
-                                        )}
+                        <h3 className="text-xl font-semibold text-purple-300 mb-2">Ações Personalizadas</h3>
+                        <div className="space-y-3">
+                            {(character.customActions || []).map(action => (
+                                <div key={action.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500">
+                                    <div className="flex justify-between items-center cursor-pointer" onClick={() => handleToggleCustomActionCollapsed(action.id)}>
+                                        <h4 className="font-semibold text-lg text-white">{action.name || 'Ação Sem Nome'}</h4>
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleExecuteCustomAction(action.id); }} 
+                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm"
+                                            >
+                                                Usar
+                                            </button>
+                                            <span>{action.isCollapsed ? '▼' : '▲'}</span>
+                                        </div>
                                     </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-300 block mb-2">Fórmula:</label>
-                                            <div className="space-y-2 mb-3">
-                                                {(action.components || []).map(comp => (
-                                                    <div key={comp.id} className="flex items-center gap-2">
-                                                        {comp.type === 'dice' ? (
-                                                            <input
-                                                                type="text"
-                                                                placeholder="1d6 ou 10"
-                                                                value={comp.value}
-                                                                onChange={(e) => handleActionComponentChange(action.id, comp.id, 'value', e.target.value)}
-                                                                className="flex-grow p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                                            />
-                                                        ) : (
-                                                            <select
-                                                                value={comp.value}
-                                                                onChange={(e) => handleActionComponentChange(action.id, comp.id, 'value', e.target.value)}
-                                                                className="flex-grow p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                                            >
-                                                                <option value="">Selecione Atributo</option>
-                                                                {allAttributes.map(attr => <option key={attr} value={attr}>{attr}</option>)}
-                                                            </select>
-                                                        )}
-                                                        {(user.uid === character.ownerUid || isMaster) && (
-                                                        <button onClick={() => handleRemoveActionComponent(action.id, comp.id)} className="w-6 h-6 bg-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold flex-shrink-0">-</button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                             {(user.uid === character.ownerUid || isMaster) && (
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleAddActionComponent(action.id, 'dice')} className="px-2 py-1 text-xs bg-indigo-600 rounded-md">+ Dado/Nº</button>
-                                                    <button onClick={() => handleAddActionComponent(action.id, 'attribute')} className="px-2 py-1 text-xs bg-indigo-600 rounded-md">+ Atributo</button>
+                                    {!action.isCollapsed && (
+                                        <div className="mt-3 pt-3 border-t border-gray-500">
+                                            <div className="flex-grow">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nome da Ação"
+                                                    value={action.name}
+                                                    onChange={(e) => handleCustomActionChange(action.id, 'name', e.target.value)}
+                                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold mb-2"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                />
+                                                <AutoResizingTextarea
+                                                    placeholder="Texto de Saída. Use {NOME} para o nome do personagem."
+                                                    value={action.outputText}
+                                                    onChange={(e) => handleCustomActionChange(action.id, 'outputText', e.target.value)}
+                                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                />
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Custo"
+                                                        value={action.costValue === 0 ? '' : action.costValue}
+                                                        onChange={(e) => handleCustomActionChange(action.id, 'costValue', e.target.value)}
+                                                        className="w-20 p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    />
+                                                    <select
+                                                        value={action.costType}
+                                                        onChange={(e) => handleCustomActionChange(action.id, 'costType', e.target.value)}
+                                                        className="p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                                        disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    >
+                                                        <option value="">Nenhum</option>
+                                                        <option value="HP">HP</option>
+                                                        <option value="MP">MP</option>
+                                                    </select>
+                                                    {(user.uid === character.ownerUid || isMaster) && (
+                                                        <button onClick={() => handleRemoveCustomAction(action.id)} className="ml-auto px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md">Remover</button>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label htmlFor={`multiplier-${action.id}`} className="text-sm font-medium text-gray-300 block mb-2">Multiplicador:</label>
-                                             <input
-                                                id={`multiplier-${action.id}`}
-                                                type="number"
-                                                value={action.multiplier === 1 ? '' : action.multiplier}
-                                                onChange={(e) => handleFormulaActionChange(action.id, 'multiplier', e.target.value)}
-                                                className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-3"
-                                                placeholder="1"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                            />
-                                            <label htmlFor={`discordText-${action.id}`} className="text-sm font-medium text-gray-300 block mb-2">Texto para Discord:</label>
-                                            <AutoResizingTextarea
-                                                id={`discordText-${action.id}`}
-                                                placeholder="{NOME} usa sua ação..."
-                                                value={action.discordText}
-                                                onChange={(e) => handleFormulaActionChange(action.id, 'discordText', e.target.value)}
-                                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                            />
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
+                        {(character.customActions || []).length === 0 && <p className="text-gray-400 italic">Nenhuma ação personalizada criada.</p>}
                         {(user.uid === character.ownerUid || isMaster) && (
                             <div className="flex justify-center mt-4">
-                                <button onClick={handleAddFormulaAction} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">+ Adicionar Ação Rápida</button>
+                                <button onClick={handleAddCustomAction} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">+ Adicionar Ação</button>
                             </div>
                         )}
                     </div>
@@ -1051,7 +1029,7 @@ const initialCharState = {
   name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100,
   mainAttributes: { hp: { current: 0, max: 0, temp: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
   attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
-  specializations: [], equippedItems: [], history: [], notes: [], buffs: [], formulaActions: [],
+  specializations: [], equippedItems: [], history: [], notes: [], buffs: [], customActions: [],
   isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
   isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false,
   isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false,
@@ -1116,7 +1094,7 @@ const App = () => {
       return () => unsubscribe();
     } catch (error) {
       console.error("Erro ao inicializar Firebase:", error);
-      setModal({ isVisible: true, message: `Erro ao inicializar: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+      setModal({ isVisible: true, message: `Erro ao inicializar: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
     }
   }, [firebaseConfig, appId]);
 
@@ -1173,7 +1151,7 @@ const App = () => {
       setCharactersList(allChars);
     } catch (error) {
       console.error("Erro ao carregar lista de personagens:", error);
-      setModal({ isVisible: true, message: `Erro ao carregar personagens: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+      setModal({ isVisible: true, message: `Erro ao carregar personagens: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
     } finally {
       setIsLoading(false);
     }
@@ -1230,7 +1208,6 @@ const App = () => {
                     }
                 });
                 
-                // Merge with initial state to ensure all keys exist
                 const fullCharacter = { ...initialCharState, ...deserializedData };
 
                 setCharacter(fullCharacter);
@@ -1457,154 +1434,36 @@ const App = () => {
         }
         return { ...prev, mainAttributes: newMain };
     });
-    setModal({ isVisible: true, message, type: 'info', onClose: () => setModal({isVisible: false}) });
-  };
-  
-  // --- Formula Action Handlers ---
-  const allAttributes = useMemo(() => {
-    const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
-    const dynamicAttrs = (character?.attributes || []).map(attr => attr.name).filter(Boolean);
-    return [...mainAttrs, ...dynamicAttrs];
-  }, [character?.attributes]);
-
-  const handleAddFormulaAction = () => {
-    const newAction = {
-      id: crypto.randomUUID(),
-      name: 'Nova Ação',
-      components: [{ id: crypto.randomUUID(), type: 'dice', value: '1d6' }],
-      multiplier: 1,
-      discordText: '{NOME} usa Nova Ação.',
-    };
-    setCharacter(prev => ({ ...prev, formulaActions: [...(prev.formulaActions || []), newAction] }));
+    setModal({ isVisible: true, message, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
   };
 
-  const handleRemoveFormulaAction = (actionId) => {
-    setCharacter(prev => ({ ...prev, formulaActions: (prev.formulaActions || []).filter(a => a.id !== actionId) }));
+  const handleAddCustomAction = () => {
+      const newAction = {
+          id: crypto.randomUUID(), name: '', outputText: '', costValue: 0, costType: ''
+      };
+      setCharacter(prev => ({ ...prev, customActions: [...(prev.customActions || []), newAction] }));
   };
-  
-  const handleFormulaActionChange = (actionId, field, value) => {
-    setCharacter(prev => ({
-        ...prev,
-        formulaActions: (prev.formulaActions || []).map(a => 
-            a.id === actionId ? { ...a, [field]: field === 'multiplier' ? (parseInt(value, 10) || 1) : value } : a
-        )
-    }));
+  const handleRemoveCustomAction = (id) => {
+      setCharacter(prev => ({ ...prev, customActions: (prev.customActions || []).filter(a => a.id !== id) }));
   };
-
-  const handleAddActionComponent = (actionId, type) => {
-    const newComponent = { id: crypto.randomUUID(), type, value: type === 'dice' ? '1d6' : '' };
-    setCharacter(prev => ({
-        ...prev,
-        formulaActions: (prev.formulaActions || []).map(a => 
-            a.id === actionId ? { ...a, components: [...(a.components || []), newComponent] } : a
-        )
-    }));
+  const handleCustomActionChange = (id, field, value) => {
+      setCharacter(prev => ({
+          ...prev,
+          customActions: (prev.customActions || []).map(action => {
+              if (action.id === id) {
+                  return { ...action, [field]: field === 'costValue' ? parseInt(value, 10) || 0 : value };
+              }
+              return action;
+          })
+      }));
   };
 
-  const handleRemoveActionComponent = (actionId, componentId) => {
-     setCharacter(prev => ({
-        ...prev,
-        formulaActions: (prev.formulaActions || []).map(a => 
-            a.id === actionId ? { ...a, components: (a.components || []).filter(c => c.id !== componentId) } : a
-        )
-    }));
-  };
+  const handleExecuteCustomAction = (id) => {
+      const action = character.customActions.find(a => a.id === id);
+      if (!action) return;
 
-  const handleActionComponentChange = (actionId, componentId, field, value) => {
-     setCharacter(prev => ({
-        ...prev,
-        formulaActions: (prev.formulaActions || []).map(a => 
-            a.id === actionId 
-            ? { ...a, components: (a.components || []).map(c => c.id === componentId ? { ...c, [field]: value } : c) } 
-            : a
-        )
-    }));
-  };
-
-  const handleExecuteFormulaAction = async (actionId) => {
-    const action = character.formulaActions.find(a => a.id === actionId);
-    if (!action) return;
-
-    try {
-        const multiplier = action.multiplier || 1;
-        let totalCost = { HP: 0, MP: 0 };
-        const activeBuffs = (character.buffs || []).filter(b => b.isActive);
-        activeBuffs.forEach(buff => {
-            if(buff.costType && buff.costValue > 0) {
-                totalCost[buff.costType] += buff.costValue * multiplier;
-            }
-        });
-
-        if (character.mainAttributes.hp.current < totalCost.HP || character.mainAttributes.mp.current < totalCost.MP) {
-            setModal({ isVisible: true, message: 'Custo de HP/MP insuficiente!', type: 'info', onClose: () => setModal({ isVisible: false }) });
-            return;
-        }
-
-        let tempCharacter = { ...character };
-        if(totalCost.HP > 0) tempCharacter.mainAttributes.hp.current -= totalCost.HP;
-        if(totalCost.MP > 0) tempCharacter.mainAttributes.mp.current -= totalCost.MP;
-        
-        let formulaForDiscord = '';
-        let totalResult = 0;
-        let details = [];
-
-        for (let i = 0; i < multiplier; i++) {
-            for (const comp of action.components) {
-                if (comp.type === 'dice') {
-                    const match = comp.value.match(/(\d+)d(\d+)/i);
-                    if (match) {
-                        const numDice = parseInt(match[1], 10);
-                        const numSides = parseInt(match[2], 10);
-                        let rollTotal = 0;
-                        for (let d = 0; d < numDice; d++) {
-                            rollTotal += Math.floor(Math.random() * numSides) + 1;
-                        }
-                        totalResult += rollTotal;
-                        details.push(`${comp.value}: ${rollTotal}`);
-                        formulaForDiscord += `+${comp.value}`;
-                    } else {
-                        const num = parseInt(comp.value, 10) || 0;
-                        totalResult += num;
-                        details.push(`${num}`);
-                        formulaForDiscord += `+${num}`;
-                    }
-                } else { // attribute
-                    const attrName = comp.value;
-                    let attrValue = 0;
-                     if (['Iniciativa', 'FA', 'FM', 'FD'].includes(attrName)) {
-                         attrValue = (character.mainAttributes[attrName.toLowerCase()] || 0) + (mainAttributeModifiers[attrName] || 0);
-                     } else {
-                         const dynamicAttr = character.attributes.find(a => a.name === attrName);
-                         if(dynamicAttr) {
-                            attrValue = (dynamicAttr.base || 0) + (dynamicAttr.perm || 0) + (dynamicAttr.arma || 0) + (dynamicAttributeModifiers[attrName] || 0);
-                         }
-                     }
-                    totalResult += attrValue;
-                    details.push(`${attrName}: ${attrValue}`);
-                    formulaForDiscord += `+${attrValue}`;
-                }
-            }
-        }
-        
-        setCharacter(tempCharacter);
-        
-        const discordText = (action.discordText || '').replace('{NOME}', character.name || 'Personagem');
-        const discordCommand = `r${formulaForDiscord.substring(1)} "${discordText}"`;
-        
-        const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${details.join(' + ')}`;
-        
-        setModal({ 
-            isVisible: true, 
-            message: resultMessage, 
-            type: 'info', 
-            onClose: () => setModal({ isVisible: false }),
-            showCopyButton: true,
-            copyText: discordCommand
-        });
-
-    } catch (error) {
-       setModal({ isVisible: true, message: `Erro ao executar ação: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
-    }
+      const output = (action.outputText || '').replace(/\{NOME\}/g, character.name || 'O Personagem');
+      setModal({ isVisible: true, message: output, type: 'info', onClose: () => setModal({ isVisible: false }) });
   };
 
 
@@ -1677,7 +1536,7 @@ const App = () => {
                   handleSelectCharacter(newCharId, user.uid);
                   fetchCharactersList();
                 } catch (error) {
-                   setModal({ isVisible: true, message: `Erro ao importar: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+                   setModal({ isVisible: true, message: `Erro ao importar: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
                 } finally {
                    setIsLoading(false);
                 }
@@ -1685,7 +1544,7 @@ const App = () => {
               onCancel: () => setModal({ isVisible: false })
             });
         } catch (error) {
-            setModal({ isVisible: true, message: `Erro ao ler arquivo: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+            setModal({ isVisible: true, message: `Erro ao ler arquivo: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
         }
     };
     reader.readAsText(file);
@@ -1718,7 +1577,7 @@ const App = () => {
             handleSelectCharacter(newCharId, user.uid);
             fetchCharactersList();
         } catch (error) {
-            setModal({ isVisible: true, message: `Erro ao criar: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+            setModal({ isVisible: true, message: `Erro ao criar: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
         } finally {
             setIsLoading(false);
         }
@@ -1752,7 +1611,7 @@ const App = () => {
             await deleteDoc(doc(db, `artifacts/${appId}/users/${ownerUid}/characterSheets/${charId}`));
             handleBackToList();
         } catch (error) {
-            setModal({ isVisible: true, message: `Erro ao excluir: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+            setModal({ isVisible: true, message: `Erro ao excluir: ${error.message}`, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
         } finally {
             setIsLoading(false);
         }
@@ -1858,13 +1717,7 @@ const App = () => {
                     handleToggleBuffActive={handleToggleBuffActive} handleToggleBuffCollapsed={handleToggleBuffCollapsed} 
                     handleOpenActionModal={handleOpenActionModal}
                     allAttributes={allAttributes}
-                    handleAddFormulaAction={handleAddFormulaAction}
-                    handleRemoveFormulaAction={handleRemoveFormulaAction}
-                    handleFormulaActionChange={handleFormulaActionChange}
-                    handleAddActionComponent={handleAddActionComponent}
-                    handleRemoveActionComponent={handleRemoveActionComponent}
-                    handleActionComponentChange={handleActionComponentChange}
-                    handleExecuteFormulaAction={handleExecuteFormulaAction}
+                    handleAddCustomAction={handleAddCustomAction} handleRemoveCustomAction={handleRemoveCustomAction} handleCustomActionChange={handleCustomActionChange} handleExecuteCustomAction={handleExecuteCustomAction} handleToggleCustomActionCollapsed={handleToggleCustomActionCollapsed}
                     toggleSection={toggleSection} 
                 />
                 <AttributesSection character={character} user={user} isMaster={isMaster} dynamicAttributeModifiers={dynamicAttributeModifiers} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
