@@ -1544,7 +1544,6 @@ const App = () => {
         if(totalCost.HP > 0) tempCharacter.mainAttributes.hp.current -= totalCost.HP;
         if(totalCost.MP > 0) tempCharacter.mainAttributes.mp.current -= totalCost.MP;
         
-        let finalFormula = '';
         let formulaForDiscord = '';
         let totalResult = 0;
         let details = [];
@@ -1892,4 +1891,3 @@ const App = () => {
 };
 
 export default App;
-
