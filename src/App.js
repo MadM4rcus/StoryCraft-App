@@ -111,6 +111,29 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 // --- Componentes Visuais (UI) ---
 // ============================================================================
 
+const FloatingNavMenu = () => (
+  <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
+    <a href="#info" title="Voltar ao Topo" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      ⬆️
+    </a>
+    <a href="#attributes" title="Atributos" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      👤
+    </a>
+    <a href="#actions" title="Ações Rápidas" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      ⚔️
+    </a>
+    <a href="#inventory" title="Inventário" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      🎒
+    </a>
+    <a href="#skills" title="Habilidades" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      ✨
+    </a>
+    <a href="#story" title="História" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      📜
+    </a>
+  </div>
+);
+
 const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignOut, handleGoogleSignIn, toggleSection, isCollapsed }) => (
   <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
     <h2 className="text-xl font-bold text-yellow-300 mb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isUserStatusCollapsed')}>
@@ -199,7 +222,7 @@ const CharacterList = ({ charactersList, isLoading, isMaster, viewingAllCharacte
 );
 
 const CharacterInfoSection = ({ character, user, isMaster, handleChange, handlePhotoUrlClick, toggleSection }) => (
-    <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+    <section id="info" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isCharacterInfoCollapsed')}>
             Informações do Personagem
             <span>{character.isCharacterInfoCollapsed ? '▼' : '▲'}</span>
@@ -270,7 +293,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
     const expandedBuffs = useMemo(() => (character.buffs || []).filter(b => !b.isCollapsed), [character.buffs]);
 
     return (
-        <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+        <section id="actions" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isQuickActionsCollapsed')}>
                 Ações Rápidas e Buffs
                 <span>{character.isQuickActionsCollapsed ? '▼' : '▲'}</span>
@@ -412,7 +435,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
 };
 
 const AttributesSection = ({ character, user, isMaster, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection }) => (
-    <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+    <section id="attributes" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAttributesCollapsed')}>
             Atributos
             <span>{character.isAttributesCollapsed ? '▼' : '▲'}</span>
@@ -454,7 +477,7 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
 );
 
 const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection }) => (
-    <>
+    <div id="inventory">
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isInventoryCollapsed')}>
                 Inventário
@@ -507,11 +530,11 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                 </div>
             )}
         </section>
-    </>
+    </div>
 );
 
 const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection }) => (
-    <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+    <section id="skills" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isPerksCollapsed')}>
             Vantagens e Desvantagens
             <span>{character.isPerksCollapsed ? '▼' : '▲'}</span>
@@ -760,7 +783,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
     );
 
     return (
-        <>
+        <div id="story">
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isHistoryCollapsed')}>
                     História do Personagem
@@ -797,7 +820,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                     </>
                 )}
             </section>
-        </>
+        </div>
     );
 };
 
@@ -1097,7 +1120,7 @@ const App = () => {
   };
   
   const toggleItemCollapsed = (listName, id) => setCharacter(prev => ({ ...prev, [listName]: (prev[listName] || []).map(item => item.id === id ? { ...item, isCollapsed: !item.isCollapsed } : item) }));
-  const handleAddItem = () => setCharacter(prev => ({ ...prev, inventory: [...(prev.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: false }] }));
+  const handleAddItem = () => setCharacter(prev => ({ ...prev, inventory: [...(prev.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: true }] }));
   const handleInventoryItemChange = (id, field, value) => setCharacter(prev => ({ ...prev, inventory: (prev.inventory || []).map(item => item.id === id ? { ...item, [field]: value } : item) }));
   const handleRemoveItem = (id) => setCharacter(prev => ({ ...prev, inventory: (prev.inventory || []).filter(item => item.id !== id) }));
   
@@ -1365,7 +1388,13 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"] { -moz-appearance: textfield; }`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; }
+        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+      `}</style>
       
       <div className="max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
         <h1 className="text-4xl font-extrabold text-center text-purple-400 mb-8 tracking-wide">Ficha StoryCraft</h1>
@@ -1398,6 +1427,7 @@ const App = () => {
 
         {user && selectedCharIdState && character && (
             <>
+                <FloatingNavMenu />
                 <div className="mb-4">
                     <button onClick={handleBackToList} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg">← Voltar para a Lista</button>
                 </div>
