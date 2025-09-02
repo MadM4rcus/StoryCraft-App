@@ -7,6 +7,57 @@ import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getD
 // --- Componentes Auxiliares ---
 // ============================================================================
 
+// Modal para Curar/Causar Dano
+const ActionModal = ({ title, onConfirm, onClose }) => {
+    const [amount, setAmount] = useState('');
+    const [target, setTarget] = useState('HP');
+
+    const handleConfirm = () => {
+        const numericAmount = parseInt(amount, 10);
+        if (!isNaN(numericAmount) && numericAmount > 0) {
+            onConfirm(numericAmount, target);
+            onClose();
+        } else {
+            alert('Por favor, insira um valor numérico válido.');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+                <h3 className="text-xl text-yellow-300 font-bold mb-4 text-center">{title}</h3>
+                <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-lg focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Valor"
+                    autoFocus
+                />
+                <div className="flex justify-center gap-4 mb-6">
+                    <label className="flex items-center gap-2 text-white">
+                        <input type="radio" name="target" value="HP" checked={target === 'HP'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
+                        HP
+                    </label>
+                    <label className="flex items-center gap-2 text-white">
+                        <input type="radio" name="target" value="HP Temporário" checked={target === 'HP Temporário'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
+                        HP Temp
+                    </label>
+                    <label className="flex items-center gap-2 text-white">
+                        <input type="radio" name="target" value="MP" checked={target === 'MP'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
+                        MP
+                    </label>
+                </div>
+                <div className="flex justify-around gap-4">
+                    <button onClick={handleConfirm} className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Confirmar</button>
+                    <button onClick={onClose} className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
@@ -267,20 +318,23 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* HP & MP com HP Temporário */}
                 <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP:</label>
+                     <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP:</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid} />
-                        {(mainAttributeModifiers['HP Temporária'] || 0) > 0 && <span className="text-green-400 font-bold text-lg">+{mainAttributeModifiers['HP Temporária']}</span>}
+                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
                         <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
+                </div>
+                 <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP Temp:</label>
+                    <input type="number" name="temp" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
                 </div>
                 <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                     <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP:</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid} />
+                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
                         <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
                     </div>
                 </div>
                 
@@ -310,9 +364,9 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
     </section>
 );
 
-const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, toggleSection }) => {
+const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, handleOpenActionModal, toggleSection }) => {
     const allAttributeNames = useMemo(() => {
-        const mainAttrs = ['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'];
+        const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
         const dynamicAttrs = (character.attributes || []).map(attr => attr.name).filter(Boolean);
         return [...mainAttrs, ...dynamicAttrs];
     }, [character.attributes]);
@@ -328,6 +382,11 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
             </h2>
             {!character.isQuickActionsCollapsed && (
                 <>
+                    <div className="flex flex-wrap gap-4 mb-4">
+                        <button onClick={() => handleOpenActionModal('heal')} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Curar</button>
+                        <button onClick={() => handleOpenActionModal('damage')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md">Receber Dano</button>
+                    </div>
+
                     <div className="mb-4">
                         <h3 className="text-xl font-semibold text-purple-300 mb-2">Buffs Ativáveis</h3>
                         
@@ -886,7 +945,7 @@ const ActionButtons = ({ character, user, isMaster, isLoading, handleExportJson,
 
 const initialCharState = {
   name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100,
-  mainAttributes: { hp: { current: 0, max: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
+  mainAttributes: { hp: { current: 0, max: 0, temp: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
   attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
   specializations: [], equippedItems: [], history: [], notes: [], buffs: [],
   isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
@@ -918,6 +977,7 @@ const App = () => {
   const [ownerUidState, setOwnerUidState] = useState(null);
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
   const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
+  const [actionModal, setActionModal] = useState({ isVisible: false, type: '', title: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [zeniAmount, setZeniAmount] = useState(0);
   const fileInputRef = useRef(null);
@@ -1066,7 +1126,11 @@ const App = () => {
                     }
                 });
                 
-                deserializedData.mainAttributes = deserializedData.mainAttributes || initialCharState.mainAttributes;
+                deserializedData.mainAttributes = { ...initialCharState.mainAttributes, ...deserializedData.mainAttributes };
+                if (!deserializedData.mainAttributes.hp.temp) {
+                    deserializedData.mainAttributes.hp.temp = 0;
+                }
+                
                 deserializedData.attributes = deserializedData.attributes || [];
                 deserializedData.inventory = deserializedData.inventory || [];
                 deserializedData.wallet = deserializedData.wallet || { zeni: 0 };
@@ -1249,6 +1313,62 @@ const App = () => {
   const handleToggleBuffCollapsed = (id) => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).map(buff => buff.id === id ? { ...buff, isCollapsed: !buff.isCollapsed } : buff)}));
   };
+
+  const handleOpenActionModal = (type) => {
+    const title = type === 'heal' ? 'Curar / Restaurar' : 'Receber Dano / Perder';
+    setActionModal({ isVisible: true, type, title });
+  };
+  
+  const handleConfirmAction = (amount, target) => {
+    let message = '';
+    const charName = character.name || 'Personagem';
+  
+    setCharacter(prev => {
+        const newMain = { ...prev.mainAttributes };
+        if (actionModal.type === 'heal') {
+            switch(target) {
+                case 'HP':
+                    newMain.hp.current = Math.min(newMain.hp.max, newMain.hp.current + amount);
+                    message = `${charName} recuperou ${amount} de HP.`;
+                    break;
+                case 'HP Temporário':
+                    newMain.hp.temp = (newMain.hp.temp || 0) + amount;
+                    message = `${charName} recebeu ${amount} de HP Temporário.`;
+                    break;
+                case 'MP':
+                    newMain.mp.current = Math.min(newMain.mp.max, newMain.mp.current + amount);
+                    message = `${charName} recuperou ${amount} de MP.`;
+                    break;
+                default: break;
+            }
+        } else { // damage
+            switch(target) {
+                case 'HP':
+                    let remainingDamage = amount;
+                    const damageToTemp = Math.min(remainingDamage, newMain.hp.temp || 0);
+                    newMain.hp.temp -= damageToTemp;
+                    remainingDamage -= damageToTemp;
+                    if (remainingDamage > 0) {
+                        newMain.hp.current -= remainingDamage;
+                    }
+                    message = `${charName} perdeu ${amount} de HP.`;
+                    break;
+                case 'HP Temporário':
+                    newMain.hp.temp = Math.max(0, (newMain.hp.temp || 0) - amount);
+                    message = `${charName} perdeu ${amount} de HP Temporário.`;
+                    break;
+                case 'MP':
+                    newMain.mp.current = Math.max(0, newMain.mp.current - amount);
+                    message = `${charName} perdeu ${amount} de MP.`;
+                    break;
+                default: break;
+            }
+        }
+        return { ...prev, mainAttributes: newMain };
+    });
+    setModal({ isVisible: true, message, type: 'info', onConfirm: () => setModal({isVisible: false}) });
+  };
+
 
   const draggedItemRef = useRef(null);
   const handleDragStart = (e, index, listName) => { draggedItemRef.current = { index, listName }; e.dataTransfer.effectAllowed = "move"; };
@@ -1434,7 +1554,7 @@ const App = () => {
     character.buffs.forEach(buff => {
         if (buff.isActive && buff.type === 'attribute' && buff.target) {
             const value = buff.value || 0;
-            if (['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
+            if (['Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
                 mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
             } else {
                 dynamicMods[buff.target] = (dynamicMods[buff.target] || 0) + value;
@@ -1492,7 +1612,7 @@ const App = () => {
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
                 <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
-                <QuickActionsSection character={character} user={user} isMaster={isMaster} handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} handleToggleBuffActive={handleToggleBuffActive} handleToggleBuffCollapsed={handleToggleBuffCollapsed} toggleSection={toggleSection} />
+                <QuickActionsSection character={character} user={user} isMaster={isMaster} handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} handleToggleBuffActive={handleToggleBuffActive} handleToggleBuffCollapsed={handleToggleBuffCollapsed} handleOpenActionModal={handleOpenActionModal} toggleSection={toggleSection} />
                 <AttributesSection character={character} user={user} isMaster={isMaster} dynamicAttributeModifiers={dynamicAttributeModifiers} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
                 <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
@@ -1510,6 +1630,7 @@ const App = () => {
 
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
       {modal.isVisible && <CustomModal message={modal.message} onConfirm={modal.onConfirm} onCancel={modal.onCancel} type={modal.type} onClose={() => setModal({ ...modal, isVisible: false })} />}
+      {actionModal.isVisible && <ActionModal title={actionModal.title} onConfirm={handleConfirmAction} onClose={() => setActionModal({ isVisible: false, type: '', title: '' })} />}
       {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
     </div>
   );
