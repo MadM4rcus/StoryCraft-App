@@ -433,13 +433,13 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                 value={buff.name}
                                                 onChange={(e) => handleBuffChange(buff.id, 'name', e.target.value)}
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
+                                                disabled={!isMaster}
                                             />
                                             <select
                                                 value={buff.type}
                                                 onChange={(e) => handleBuffChange(buff.id, 'type', e.target.value)}
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
+                                                disabled={!isMaster}
                                             >
                                                 <option value="attribute">Modificar Atributo</option>
                                                 <option value="dice">Adicionar Valor/Dado</option>
@@ -449,7 +449,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                     value={buff.target}
                                                     onChange={(e) => handleBuffChange(buff.id, 'target', e.target.value)}
                                                     className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    disabled={!isMaster}
                                                 >
                                                     <option value="">Selecione um Atributo</option>
                                                     {allAttributeNames.map(name => <option key={name} value={name}>{name}</option>)}
@@ -461,7 +461,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                     value={buff.target}
                                                     onChange={(e) => handleBuffChange(buff.id, 'target', e.target.value)}
                                                     className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    disabled={!isMaster}
                                                 />
                                             )}
                                         </div>
@@ -472,7 +472,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                 value={buff.value === 0 ? '' : buff.value}
                                                 onChange={(e) => handleBuffChange(buff.id, 'value', e.target.value)}
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
+                                                disabled={!isMaster}
                                             />
                                             <div className="flex items-center gap-2">
                                                 <input
@@ -481,13 +481,13 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                     value={buff.costValue === 0 ? '' : buff.costValue}
                                                     onChange={(e) => handleBuffChange(buff.id, 'costValue', e.target.value)}
                                                     className="w-16 p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    disabled={!isMaster}
                                                 />
                                                 <select
                                                     value={buff.costType}
                                                     onChange={(e) => handleBuffChange(buff.id, 'costType', e.target.value)}
                                                     className="p-2 bg-gray-700 border border-gray-500 rounded-md text-white"
-                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                    disabled={!isMaster}
                                                 >
                                                     <option value="">N/A</option>
                                                     <option value="HP">HP</option>
