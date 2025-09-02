@@ -257,7 +257,7 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
     </section>
 );
 
-const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
+const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isMainAttributesCollapsed')}>
             Atributos Principais
@@ -265,29 +265,57 @@ const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeC
         </h2>
         {!character.isMainAttributesCollapsed && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {['hp', 'mp'].map(attr => (
-                    <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                        <label className="text-lg font-medium text-gray-300 mb-1 uppercase">{attr}:</label>
-                        <div className="flex items-center gap-2">
-                            <input type="number" name="current" data-attribute={attr} value={character.mainAttributes[attr].current === 0 ? '' : character.mainAttributes[attr].current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid} />
-                            <span className="text-gray-300">/</span>
-                            <input type="number" name="max" data-attribute={attr} value={character.mainAttributes[attr].max === 0 ? '' : character.mainAttributes[attr].max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                {/* HP & MP com HP Temporário */}
+                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP:</label>
+                    <div className="flex items-center gap-2">
+                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid} />
+                        {(mainAttributeModifiers['HP Temporária'] || 0) > 0 && <span className="text-green-400 font-bold text-lg">+{mainAttributeModifiers['HP Temporária']}</span>}
+                        <span className="text-gray-300">/</span>
+                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                    </div>
+                </div>
+                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP:</label>
+                    <div className="flex items-center gap-2">
+                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid} />
+                        <span className="text-gray-300">/</span>
+                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                    </div>
+                </div>
+                
+                {/* Outros Atributos com totais calculados */}
+                {[
+                    { key: 'initiative', label: 'Iniciativa', modifierKey: 'Iniciativa' },
+                    { key: 'fa', label: 'FA', modifierKey: 'FA' },
+                    { key: 'fm', label: 'FM', modifierKey: 'FM' },
+                    { key: 'fd', label: 'FD', modifierKey: 'FD' }
+                ].map(({ key, label, modifierKey }) => {
+                    const baseValue = character.mainAttributes[key] || 0;
+                    const modifier = mainAttributeModifiers[modifierKey] || 0;
+                    const total = baseValue + modifier;
+                    return (
+                        <div key={key} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                            <label htmlFor={key} className="capitalize text-lg font-medium text-gray-300 mb-1">{label}:</label>
+                            <div className="flex items-center gap-2">
+                                <input type="number" id={key} name={key} value={baseValue === 0 ? '' : baseValue} onChange={handleSingleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                <span className="text-gray-300">=</span>
+                                <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{total}</span>
+                            </div>
                         </div>
-                    </div>
-                ))}
-                {['initiative', 'fa', 'fm', 'fd'].map(attr => (
-                    <div key={attr} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                        <label htmlFor={attr} className="capitalize text-lg font-medium text-gray-300 mb-1">{attr === 'fa' ? 'FA' : attr === 'fm' ? 'FM' : attr === 'fd' ? 'FD' : 'Iniciativa'}:</label>
-                        <input type="number" id={attr} name={attr} value={character.mainAttributes[attr] === 0 ? '' : character.mainAttributes[attr]} onChange={handleSingleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         )}
     </section>
 );
 
 const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, toggleSection }) => {
-    const attributeNames = useMemo(() => (character.attributes || []).map(attr => attr.name).filter(Boolean), [character.attributes]);
+    const allAttributeNames = useMemo(() => {
+        const mainAttrs = ['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'];
+        const dynamicAttrs = (character.attributes || []).map(attr => attr.name).filter(Boolean);
+        return [...mainAttrs, ...dynamicAttrs];
+    }, [character.attributes]);
     
     const collapsedBuffs = useMemo(() => (character.buffs || []).filter(b => b.isCollapsed), [character.buffs]);
     const expandedBuffs = useMemo(() => (character.buffs || []).filter(b => !b.isCollapsed), [character.buffs]);
@@ -372,7 +400,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                                                     disabled={user.uid !== character.ownerUid && !isMaster}
                                                 >
                                                     <option value="">Selecione um Atributo</option>
-                                                    {attributeNames.map(name => <option key={name} value={name}>{name}</option>)}
+                                                    {allAttributeNames.map(name => <option key={name} value={name}>{name}</option>)}
                                                 </select>
                                             ) : (
                                                 <input
@@ -434,7 +462,7 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
     );
 };
 
-const AttributesSection = ({ character, user, isMaster, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection }) => (
+const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifiers, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection }) => (
     <section id="attributes" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAttributesCollapsed')}>
             Atributos
@@ -443,28 +471,42 @@ const AttributesSection = ({ character, user, isMaster, handleAddAttribute, hand
         {!character.isAttributesCollapsed && (
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(character.attributes || []).map((attr, index) => (
-                        <div key={attr.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative" draggable onDragStart={(e) => handleDragStart(e, index, 'attributes')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index, 'attributes')}>
-                            <div className="flex flex-col sm:flex-row items-center gap-3">
-                                <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
-                                    {['base', 'perm', 'cond', 'arma'].map(field => (
-                                        <div key={field} className="flex flex-col items-center">
-                                            <span className="text-gray-400 text-xs text-center capitalize">{field === 'perm' ? 'Perm.' : field === 'cond' ? 'Cond.' : field}</span>
-                                            <input type="number" value={attr[field] === 0 ? '' : attr[field]} onChange={(e) => handleAttributeChange(attr.id, field, e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-white text-center" disabled={user.uid !== character.ownerUid && !isMaster} />
+                    {(character.attributes || []).map((attr, index) => {
+                        const tempValue = dynamicAttributeModifiers[attr.name] || 0;
+                        const totalValue = (attr.base || 0) + (attr.perm || 0) + tempValue + (attr.arma || 0);
+                        return (
+                            <div key={attr.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative" draggable onDragStart={(e) => handleDragStart(e, index, 'attributes')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index, 'attributes')}>
+                                <div className="flex flex-col sm:flex-row items-center gap-3">
+                                    <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
+                                        {['base', 'perm', 'temp', 'arma'].map(field => {
+                                            const isTempField = field === 'temp';
+                                            return (
+                                                <div key={field} className="flex flex-col items-center">
+                                                    <span className="text-gray-400 text-xs text-center capitalize">{field}</span>
+                                                    <input 
+                                                      type="number" 
+                                                      value={isTempField ? (tempValue === 0 ? '' : tempValue) : (attr[field] === 0 ? '' : attr[field])} 
+                                                      onChange={isTempField ? undefined : (e) => handleAttributeChange(attr.id, field, e.target.value)} 
+                                                      className={`w-12 p-1 border rounded-md text-white text-center ${isTempField ? 'bg-gray-800 border-gray-600 cursor-not-allowed' : 'bg-gray-700 border-gray-500'}`} 
+                                                      readOnly={isTempField}
+                                                      disabled={!isTempField && user.uid !== character.ownerUid && !isMaster}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-gray-400 text-xs text-center">Total</span>
+                                            <input type="number" value={totalValue === 0 ? '' : totalValue} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" />
                                         </div>
-                                    ))}
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-gray-400 text-xs text-center">Total</span>
-                                        <input type="number" value={attr.total === 0 ? '' : attr.total} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" />
                                     </div>
                                 </div>
+                                {(user.uid === character.ownerUid || isMaster) && (
+                                    <button onClick={() => handleRemoveAttribute(attr.id)} className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out" aria-label="Remover Atributo">X</button>
+                                )}
                             </div>
-                            {(user.uid === character.ownerUid || isMaster) && (
-                                <button onClick={() => handleRemoveAttribute(attr.id)} className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out" aria-label="Remover Atributo">X</button>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
                 {(user.uid === character.ownerUid || isMaster) && (
                     <div className="flex justify-center mt-4">
@@ -1103,16 +1145,14 @@ const App = () => {
     setCharacter(prev => ({ ...prev, mainAttributes: { ...prev.mainAttributes, [name]: parseInt(value, 10) || 0 } }));
   };
 
-  const handleAddAttribute = () => setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, cond: 0, arma: 0, total: 0 }] }));
+  const handleAddAttribute = () => setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, temp: 0, arma: 0 }] }));
   const handleRemoveAttribute = (id) => setCharacter(prev => ({ ...prev, attributes: (prev.attributes || []).filter(attr => attr.id !== id) }));
   const handleAttributeChange = (id, field, value) => {
     setCharacter(prev => ({
       ...prev,
       attributes: (prev.attributes || []).map(attr => {
         if (attr.id === id) {
-          const updatedAttr = { ...attr, [field]: field === 'name' ? value : parseInt(value, 10) || 0 };
-          updatedAttr.total = (updatedAttr.base || 0) + (updatedAttr.perm || 0) + (updatedAttr.cond || 0) + (updatedAttr.arma || 0);
-          return updatedAttr;
+          return { ...attr, [field]: field === 'name' ? value : parseInt(value, 10) || 0 };
         }
         return attr;
       })
@@ -1386,6 +1426,24 @@ const App = () => {
     }, onCancel: () => { setModal({ isVisible: false }); } });
   };
 
+  const { mainAttributeModifiers, dynamicAttributeModifiers } = useMemo(() => {
+    const mainMods = {};
+    const dynamicMods = {};
+    if (!character?.buffs) return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
+    
+    character.buffs.forEach(buff => {
+        if (buff.isActive && buff.type === 'attribute' && buff.target) {
+            const value = buff.value || 0;
+            if (['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
+                mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
+            } else {
+                dynamicMods[buff.target] = (dynamicMods[buff.target] || 0) + value;
+            }
+        }
+    });
+    return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
+  }, [character?.buffs]);
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
       <style>{`
@@ -1433,9 +1491,9 @@ const App = () => {
                 </div>
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
-                <MainAttributesSection character={character} user={user} isMaster={isMaster} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
+                <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
                 <QuickActionsSection character={character} user={user} isMaster={isMaster} handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} handleToggleBuffActive={handleToggleBuffActive} handleToggleBuffCollapsed={handleToggleBuffCollapsed} toggleSection={toggleSection} />
-                <AttributesSection character={character} user={user} isMaster={isMaster} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
+                <AttributesSection character={character} user={user} isMaster={isMaster} dynamicAttributeModifiers={dynamicAttributeModifiers} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
                 <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
