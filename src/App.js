@@ -116,20 +116,20 @@ const FloatingNavMenu = () => (
     <a href="#info" title="Voltar ao Topo" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⬆️
     </a>
-    <a href="#attributes" title="Atributos" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      👤
-    </a>
     <a href="#actions" title="Ações Rápidas" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⚔️
     </a>
-    <a href="#inventory" title="Inventário" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      🎒
+    <a href="#perks" title="Vantagens" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      🌟
     </a>
     <a href="#skills" title="Habilidades" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ✨
     </a>
     <a href="#story" title="História" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       📜
+    </a>
+    <a href="#notes" title="Anotações" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      📝
     </a>
   </div>
 );
@@ -534,7 +534,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
 );
 
 const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection }) => (
-    <section id="skills" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+    <section id="perks" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isPerksCollapsed')}>
             Vantagens e Desvantagens
             <span>{character.isPerksCollapsed ? '▼' : '▲'}</span>
@@ -601,7 +601,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
     const expandedEquippedItems = useMemo(() => (character.equippedItems || []).filter(item => !item.isCollapsed), [character.equippedItems]);
 
     return (
-    <>
+    <div id="skills">
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAbilitiesCollapsed')}>
                 Habilidades
@@ -728,7 +728,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
                 </>
             )}
         </section>
-    </>
+    </div>
 );
 };
 
@@ -783,8 +783,8 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
     );
 
     return (
-        <div id="story">
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+        <div>
+            <section id="story" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isHistoryCollapsed')}>
                     História do Personagem
                     <span>{character.isHistoryCollapsed ? '▼' : '▲'}</span>
@@ -803,7 +803,7 @@ const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, remo
                     </>
                 )}
             </section>
-            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+            <section id="notes" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isNotesCollapsed')}>
                     Anotações
                     <span>{character.isNotesCollapsed ? '▼' : '▲'}</span>
