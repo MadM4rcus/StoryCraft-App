@@ -280,7 +280,6 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                     <div className="mb-4">
                         <h3 className="text-xl font-semibold text-purple-300 mb-2">Buffs Ativáveis</h3>
                         
-                        {/* Grid para buffs minimizados */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             {collapsedBuffs.map(buff => (
                                 <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center">
@@ -303,7 +302,6 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
                             ))}
                         </div>
 
-                        {/* Lista para buffs expandidos */}
                         <div className="space-y-3">
                             {expandedBuffs.map(buff => (
                                 <div key={buff.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500">
@@ -569,7 +567,17 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
     </section>
 );
 
-const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemoveAbility, handleAbilityChange, handleAddSpecialization, handleRemoveSpecialization, handleSpecializationChange, handleAddEquippedItem, handleRemoveEquippedItem, handleEquippedItemChange, toggleItemCollapsed, toggleSection }) => (
+const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemoveAbility, handleAbilityChange, handleAddSpecialization, handleRemoveSpecialization, handleSpecializationChange, handleAddEquippedItem, handleRemoveEquippedItem, handleEquippedItemChange, toggleItemCollapsed, toggleSection }) => {
+    const collapsedAbilities = useMemo(() => (character.abilities || []).filter(item => item.isCollapsed), [character.abilities]);
+    const expandedAbilities = useMemo(() => (character.abilities || []).filter(item => !item.isCollapsed), [character.abilities]);
+    
+    const collapsedSpecializations = useMemo(() => (character.specializations || []).filter(item => item.isCollapsed), [character.specializations]);
+    const expandedSpecializations = useMemo(() => (character.specializations || []).filter(item => !item.isCollapsed), [character.specializations]);
+
+    const collapsedEquippedItems = useMemo(() => (character.equippedItems || []).filter(item => item.isCollapsed), [character.equippedItems]);
+    const expandedEquippedItems = useMemo(() => (character.equippedItems || []).filter(item => !item.isCollapsed), [character.equippedItems]);
+
+    return (
     <>
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAbilitiesCollapsed')}>
@@ -578,26 +586,31 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isAbilitiesCollapsed && (
                 <>
-                    <ul className="space-y-2">
-                        {(character.abilities || []).map(ability => (
-                            <li key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        {collapsedAbilities.map(ability => (
+                            <div key={ability.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
+                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{ability.title || 'Habilidade Sem Título'}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-2">
+                        {expandedAbilities.map(ability => (
+                            <div key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
-                                        {ability.title || 'Habilidade Sem Título'} {ability.isCollapsed ? '...' : ''}
+                                        {ability.title || 'Habilidade Sem Título'}
                                     </span>
                                     {(user.uid === character.ownerUid || isMaster) && (
                                         <button onClick={() => handleRemoveAbility(ability.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                     )}
                                 </div>
-                                {!ability.isCollapsed && (
-                                    <>
-                                        <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                        <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    </>
-                                )}
-                            </li>
+                                <>
+                                    <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                </>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     {(user.uid === character.ownerUid || isMaster) && (
                         <div className="flex justify-end mt-4">
                             <button onClick={handleAddAbility} className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label="Adicionar Habilidade">+</button>
@@ -614,29 +627,34 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isSpecializationsCollapsed && (
                  <>
-                    <ul className="space-y-2">
-                        {(character.specializations || []).map(spec => (
-                            <li key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                         {collapsedSpecializations.map(spec => (
+                            <div key={spec.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
+                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{spec.name || 'Especialização Sem Nome'}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-2">
+                        {expandedSpecializations.map(spec => (
+                            <div key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
-                                        {spec.name || 'Especialização Sem Nome'} {spec.isCollapsed ? '...' : ''}
+                                        {spec.name || 'Especialização Sem Nome'}
                                     </span>
                                     {(user.uid === character.ownerUid || isMaster) && (
                                         <button onClick={() => handleRemoveSpecialization(spec.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                     )}
                                 </div>
-                                {!spec.isCollapsed && (
-                                    <>
-                                        <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                        <div className="flex gap-4 text-sm">
-                                            <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
-                                            <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
-                                        </div>
-                                    </>
-                                )}
-                            </li>
+                                <>
+                                    <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <div className="flex gap-4 text-sm">
+                                        <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
+                                        <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
+                                    </div>
+                                </>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     {(user.uid === character.ownerUid || isMaster) && (
                         <div className="flex justify-end mt-4">
                             <button onClick={handleAddSpecialization} className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label="Adicionar Especialização">+</button>
@@ -653,27 +671,32 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isEquippedItemsCollapsed && (
                 <>
-                    <ul className="space-y-2">
-                        {(character.equippedItems || []).map(item => (
-                            <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        {collapsedEquippedItems.map(item => (
+                             <div key={item.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
+                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{item.name || 'Item Sem Nome'}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-2">
+                        {expandedEquippedItems.map(item => (
+                            <div key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
-                                        {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
+                                        {item.name || 'Item Sem Nome'}
                                     </span>
                                     {(user.uid === character.ownerUid || isMaster) && (
                                         <button onClick={() => handleRemoveEquippedItem(item.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                     )}
                                 </div>
-                                {!item.isCollapsed && (
-                                    <>
-                                        <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                        <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                        <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    </>
-                                )}
-                            </li>
+                                <>
+                                    <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                </>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     {(user.uid === character.ownerUid || isMaster) && (
                         <div className="flex justify-end mt-4">
                             <button onClick={handleAddEquippedItem} className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label="Adicionar Item Equipado">+</button>
@@ -684,6 +707,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
         </section>
     </>
 );
+};
 
 const StoryAndNotesSection = ({ character, user, isMaster, addHistoryBlock, removeHistoryBlock, updateHistoryBlock, addNoteBlock, removeNoteBlock, updateNoteBlock, handleDragStart, handleDragOver, handleDrop, toggleSection }) => {
     const truncateText = (text, maxLines = 2) => {
