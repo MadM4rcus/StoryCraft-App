@@ -7,57 +7,6 @@ import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, getD
 // --- Componentes Auxiliares ---
 // ============================================================================
 
-// Modal para Curar/Causar Dano
-const ActionModal = ({ title, onConfirm, onClose }) => {
-    const [amount, setAmount] = useState('');
-    const [target, setTarget] = useState('HP');
-
-    const handleConfirm = () => {
-        const numericAmount = parseInt(amount, 10);
-        if (!isNaN(numericAmount) && numericAmount > 0) {
-            onConfirm(numericAmount, target);
-            onClose();
-        } else {
-            alert('Por favor, insira um valor numérico válido.');
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
-                <h3 className="text-xl text-yellow-300 font-bold mb-4 text-center">{title}</h3>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-lg focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="Valor"
-                    autoFocus
-                />
-                <div className="flex justify-center gap-4 mb-6">
-                    <label className="flex items-center gap-2 text-white">
-                        <input type="radio" name="target" value="HP" checked={target === 'HP'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
-                        HP
-                    </label>
-                    <label className="flex items-center gap-2 text-white">
-                        <input type="radio" name="target" value="HP Temporário" checked={target === 'HP Temporário'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
-                        HP Temp
-                    </label>
-                    <label className="flex items-center gap-2 text-white">
-                        <input type="radio" name="target" value="MP" checked={target === 'MP'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
-                        MP
-                    </label>
-                </div>
-                <div className="flex justify-around gap-4">
-                    <button onClick={handleConfirm} className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Confirmar</button>
-                    <button onClick={onClose} className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
 // Componente Modal para prompts e confirmações personalizadas
 const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
@@ -161,29 +110,6 @@ const AutoResizingTextarea = ({ value, onChange, placeholder, className, disable
 // ============================================================================
 // --- Componentes Visuais (UI) ---
 // ============================================================================
-
-const FloatingNavMenu = () => (
-  <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
-    <a href="#info" title="Voltar ao Topo" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      ⬆️
-    </a>
-    <a href="#actions" title="Ações Rápidas" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      ⚔️
-    </a>
-    <a href="#perks" title="Vantagens" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      🌟
-    </a>
-    <a href="#skills" title="Habilidades" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      ✨
-    </a>
-    <a href="#story" title="História" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      📜
-    </a>
-    <a href="#notes" title="Anotações" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      📝
-    </a>
-  </div>
-);
 
 const UserStatusSection = ({ isAuthReady, user, isMaster, isLoading, handleSignOut, handleGoogleSignIn, toggleSection, isCollapsed }) => (
   <section className="mb-8 p-4 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -308,7 +234,7 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
     </section>
 );
 
-const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
+const MainAttributesSection = ({ character, user, isMaster, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
     <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isMainAttributesCollapsed')}>
             Atributos Principais
@@ -316,57 +242,50 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
         </h2>
         {!character.isMainAttributesCollapsed && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* HP & MP com HP Temporário */}
-                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                     <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP:</label>
-                    <div className="flex items-center gap-2">
-                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                        <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                {/* HP */}
+                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md sm:col-span-2 lg:col-span-1">
+                     <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP</label>
+                    <div className="flex items-center justify-center flex-wrap gap-2">
+                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        <span className="text-gray-300 text-xl">/</span>
+                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        <div className="flex items-center gap-1 ml-2">
+                           <span className="text-green-400 font-bold text-lg">+</span>
+                           <input type="number" name="temp" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-16 p-2 text-center bg-green-900 bg-opacity-50 border border-green-700 rounded-md text-green-300 text-xl font-bold" disabled={!isMaster} placeholder="Temp" />
+                        </div>
                     </div>
                 </div>
-                 <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP Temp:</label>
-                    <input type="number" name="temp" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                </div>
+                {/* MP */}
                 <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP:</label>
+                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                        <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        <span className="text-gray-300 text-xl">/</span>
+                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-16 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
                     </div>
                 </div>
                 
-                {/* Outros Atributos com totais calculados */}
+                {/* Other Attributes */}
                 {[
-                    { key: 'initiative', label: 'Iniciativa', modifierKey: 'Iniciativa' },
-                    { key: 'fa', label: 'FA', modifierKey: 'FA' },
-                    { key: 'fm', label: 'FM', modifierKey: 'FM' },
-                    { key: 'fd', label: 'FD', modifierKey: 'FD' }
-                ].map(({ key, label, modifierKey }) => {
-                    const baseValue = character.mainAttributes[key] || 0;
-                    const modifier = mainAttributeModifiers[modifierKey] || 0;
-                    const total = baseValue + modifier;
-                    return (
+                    { key: 'initiative', label: 'Iniciativa' },
+                    { key: 'fa', label: 'FA' },
+                    { key: 'fm', label: 'FM' },
+                    { key: 'fd', label: 'FD' }
+                ].map(({ key, label }) => (
                         <div key={key} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                             <label htmlFor={key} className="capitalize text-lg font-medium text-gray-300 mb-1">{label}:</label>
-                            <div className="flex items-center gap-2">
-                                <input type="number" id={key} name={key} value={baseValue === 0 ? '' : baseValue} onChange={handleSingleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                <span className="text-gray-300">=</span>
-                                <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{total}</span>
-                            </div>
+                            <input type="number" id={key} name={key} value={(character.mainAttributes[key] || 0) === 0 ? '' : character.mainAttributes[key]} onChange={handleSingleMainAttributeChange} className="w-20 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
                         </div>
-                    );
-                })}
+                    )
+                )}
             </div>
         )}
     </section>
 );
 
-const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, handleOpenActionModal, toggleSection }) => {
+const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, toggleSection }) => {
     const allAttributeNames = useMemo(() => {
-        const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
+        const mainAttrs = ['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'];
         const dynamicAttrs = (character.attributes || []).map(attr => attr.name).filter(Boolean);
         return [...mainAttrs, ...dynamicAttrs];
     }, [character.attributes]);
@@ -382,11 +301,6 @@ const QuickActionsSection = ({ character, user, isMaster, handleAddBuff, handleR
             </h2>
             {!character.isQuickActionsCollapsed && (
                 <>
-                    <div className="flex flex-wrap gap-4 mb-4">
-                        <button onClick={() => handleOpenActionModal('heal')} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Curar</button>
-                        <button onClick={() => handleOpenActionModal('damage')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md">Receber Dano</button>
-                    </div>
-
                     <div className="mb-4">
                         <h3 className="text-xl font-semibold text-purple-300 mb-2">Buffs Ativáveis</h3>
                         
@@ -536,7 +450,7 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
                         return (
                             <div key={attr.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative" draggable onDragStart={(e) => handleDragStart(e, index, 'attributes')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index, 'attributes')}>
                                 <div className="flex flex-col sm:flex-row items-center gap-3">
-                                    <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={!isMaster} />
                                     <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
                                         {['base', 'perm', 'temp', 'arma'].map(field => {
                                             const isTempField = field === 'temp';
@@ -549,7 +463,7 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
                                                       onChange={isTempField ? undefined : (e) => handleAttributeChange(attr.id, field, e.target.value)} 
                                                       className={`w-12 p-1 border rounded-md text-white text-center ${isTempField ? 'bg-gray-800 border-gray-600 cursor-not-allowed' : 'bg-gray-700 border-gray-500'}`} 
                                                       readOnly={isTempField}
-                                                      disabled={!isTempField && user.uid !== character.ownerUid && !isMaster}
+                                                      disabled={!isTempField && !isMaster}
                                                     />
                                                 </div>
                                             );
@@ -602,8 +516,8 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                                     </div>
                                     {!item.isCollapsed && (
                                         <>
-                                            <input type="text" value={item.name} onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2" placeholder="Nome do Item" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                            <AutoResizingTextarea value={item.description} onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)} placeholder="Descrição do item" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                            <input type="text" value={item.name} onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2" placeholder="Nome do Item" disabled={!isMaster} />
+                                            <AutoResizingTextarea value={item.description} onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)} placeholder="Descrição do item" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={!isMaster} />
                                         </>
                                     )}
                                 </li>
@@ -625,9 +539,9 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
             </h2>
             {!character.isWalletCollapsed && (
                 <div className="flex items-center gap-2 w-full">
-                    <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    <button onClick={handleAddZeni} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Adicionar</button>
-                    <button onClick={handleRemoveZeni} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Remover</button>
+                    <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={!isMaster} />
+                    <button onClick={handleAddZeni} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg" disabled={!isMaster}>Adicionar</button>
+                    <button onClick={handleRemoveZeni} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg" disabled={!isMaster}>Remover</button>
                 </div>
             )}
         </section>
@@ -662,14 +576,14 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
                                         {!perk.isCollapsed && (
                                             <>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <input type="text" value={perk.name} onChange={(e) => handlePerkChange(type, perk.id, 'name', e.target.value)} className="font-semibold text-lg flex-grow p-1 bg-gray-700 border border-gray-500 rounded-md" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                                    <input type="number" value={perk.value === 0 ? '' : perk.value} onChange={(e) => handlePerkChange(type, perk.id, 'value', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-center" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                                    <input type="text" value={perk.name} onChange={(e) => handlePerkChange(type, perk.id, 'name', e.target.value)} className="font-semibold text-lg flex-grow p-1 bg-gray-700 border border-gray-500 rounded-md" placeholder="Nome" disabled={!isMaster} />
+                                                    <input type="number" value={perk.value === 0 ? '' : perk.value} onChange={(e) => handlePerkChange(type, perk.id, 'value', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md text-center" placeholder="Valor" disabled={!isMaster} />
                                                 </div>
-                                                <AutoResizingTextarea value={perk.description} onChange={(e) => handlePerkChange(type, perk.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                                <AutoResizingTextarea value={perk.description} onChange={(e) => handlePerkChange(type, perk.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={!isMaster} />
                                                 <div className="flex gap-3 text-sm text-gray-400 mt-2">
                                                     {['class', 'race', 'manual'].map(originType => (
                                                         <label key={originType} className="flex items-center gap-1">
-                                                            <input type="checkbox" checked={perk.origin[originType]} onChange={() => handlePerkOriginChange(type, perk.id, originType)} className="form-checkbox text-purple-500 rounded" disabled={user.uid !== character.ownerUid && !isMaster} /> {originType.charAt(0).toUpperCase() + originType.slice(1)}
+                                                            <input type="checkbox" checked={perk.origin[originType]} onChange={() => handlePerkOriginChange(type, perk.id, originType)} className="form-checkbox text-purple-500 rounded" disabled={!isMaster} /> {originType.charAt(0).toUpperCase() + originType.slice(1)}
                                                         </label>
                                                     ))}
                                                 </div>
@@ -729,8 +643,8 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
                                     )}
                                 </div>
                                 <>
-                                    <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={!isMaster} />
+                                    <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={!isMaster} />
                                 </>
                             </div>
                         ))}
@@ -770,10 +684,10 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
                                     )}
                                 </div>
                                 <>
-                                    <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={!isMaster} />
                                     <div className="flex gap-4 text-sm">
-                                        <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
-                                        <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
+                                        <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={!isMaster} /></label>
+                                        <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={!isMaster} /></label>
                                     </div>
                                 </>
                             </div>
@@ -814,9 +728,9 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
                                     )}
                                 </div>
                                 <>
-                                    <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={!isMaster} />
+                                    <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={!isMaster} />
+                                    <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={!isMaster} />
                                 </>
                             </div>
                         ))}
@@ -1554,7 +1468,7 @@ const App = () => {
     character.buffs.forEach(buff => {
         if (buff.isActive && buff.type === 'attribute' && buff.target) {
             const value = buff.value || 0;
-            if (['Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
+            if (['HP Temporária', 'Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
                 mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
             } else {
                 dynamicMods[buff.target] = (dynamicMods[buff.target] || 0) + value;
