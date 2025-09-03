@@ -334,60 +334,81 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
     </section>
 );
 
-const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => (
-    <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-        <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isMainAttributesCollapsed')}>
-            Atributos Principais
-            <span>{character.isMainAttributesCollapsed ? '▼' : '▲'}</span>
-        </h2>
-        {!character.isMainAttributesCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* HP Unificado e Bloqueado */}
-                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                     <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP</label>
-                    <div className="flex items-center gap-1">
-                        <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
-                        <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
-                         <span className="text-blue-400 font-bold text-xl ml-1">+</span>
-                        <input type="number" name="temp" title="HP Temporário" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-blue-400 rounded-md text-blue-300 text-xl font-bold" disabled={!isMaster} />
-                    </div>
-                </div>
-                {/* MP Bloqueado */}
-                <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                    <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP</label>
-                    <div className="flex items-center gap-2">
-                        <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
-                        <span className="text-gray-300">/</span>
-                        <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
-                    </div>
-                </div>
-                
-                {/* Outros Atributos com totais calculados */}
-                {[
-                    { key: 'initiative', label: 'Iniciativa', modifierKey: 'Iniciativa' },
-                    { key: 'fa', label: 'FA', modifierKey: 'FA' },
-                    { key: 'fm', label: 'FM', modifierKey: 'FM' },
-                    { key: 'fd', label: 'FD', modifierKey: 'FD' }
-                ].map(({ key, label, modifierKey }) => {
-                    const baseValue = character.mainAttributes[key] || 0;
-                    const modifier = mainAttributeModifiers[modifierKey] || 0;
-                    const total = baseValue + modifier;
-                    return (
-                        <div key={key} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
-                            <label htmlFor={key} className="capitalize text-lg font-medium text-gray-300 mb-1">{label}:</label>
-                            <div className="flex items-center gap-2">
-                                <input type="number" id={key} name={key} value={baseValue === 0 ? '' : baseValue} onChange={handleSingleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                <span className="text-gray-300">=</span>
-                                <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{total}</span>
-                            </div>
+const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, dynamicAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => {
+
+    const dexterityValue = useMemo(() => {
+        const dexterityAttr = character.attributes.find(attr => attr.name.toLowerCase() === 'destreza');
+        if (!dexterityAttr) return 0;
+        const tempValue = dynamicAttributeModifiers['Destreza'] || 0;
+        return (dexterityAttr.base || 0) + (dexterityAttr.perm || 0) + tempValue + (dexterityAttr.arma || 0);
+    }, [character.attributes, dynamicAttributeModifiers]);
+
+    const initiativeTotal = dexterityValue + (mainAttributeModifiers['Iniciativa'] || 0);
+    
+    return (
+        <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isMainAttributesCollapsed')}>
+                Atributos Principais
+                <span>{character.isMainAttributesCollapsed ? '▼' : '▲'}</span>
+            </h2>
+            {!character.isMainAttributesCollapsed && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* HP Unificado e Bloqueado */}
+                    <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                         <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP</label>
+                        <div className="flex items-center gap-1">
+                            <input type="number" name="current" data-attribute="hp" value={character.mainAttributes.hp.current === 0 ? '' : character.mainAttributes.hp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                            <span className="text-gray-300">/</span>
+                            <input type="number" name="max" data-attribute="hp" value={character.mainAttributes.hp.max === 0 ? '' : character.mainAttributes.hp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                             <span className="text-blue-400 font-bold text-xl ml-1">+</span>
+                            <input type="number" name="temp" title="HP Temporário" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-blue-400 rounded-md text-blue-300 text-xl font-bold" disabled={!isMaster} />
                         </div>
-                    );
-                })}
-            </div>
-        )}
-    </section>
-);
+                    </div>
+                    {/* MP Bloqueado */}
+                    <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                        <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP</label>
+                        <div className="flex items-center gap-2">
+                            <input type="number" name="current" data-attribute="mp" value={character.mainAttributes.mp.current === 0 ? '' : character.mainAttributes.mp.current} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                            <span className="text-gray-300">/</span>
+                            <input type="number" name="max" data-attribute="mp" value={character.mainAttributes.mp.max === 0 ? '' : character.mainAttributes.mp.max} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={!isMaster} />
+                        </div>
+                    </div>
+                    
+                    {/* Iniciativa Calculada */}
+                    <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                        <label className="capitalize text-lg font-medium text-gray-300 mb-1">Iniciativa:</label>
+                        <div className="flex items-center gap-2">
+                            <span title="Valor base da Destreza" className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{dexterityValue}</span>
+                            <span className="text-gray-300">=</span>
+                            <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{initiativeTotal}</span>
+                        </div>
+                    </div>
+                    
+                    {/* Outros Atributos com totais calculados */}
+                    {[
+                        { key: 'fa', label: 'FA', modifierKey: 'FA' },
+                        { key: 'fm', label: 'FM', modifierKey: 'FM' },
+                        { key: 'fd', label: 'FD', modifierKey: 'FD' }
+                    ].map(({ key, label, modifierKey }) => {
+                        const baseValue = character.mainAttributes[key] || 0;
+                        const modifier = mainAttributeModifiers[modifierKey] || 0;
+                        const total = baseValue + modifier;
+                        return (
+                            <div key={key} className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
+                                <label htmlFor={key} className="capitalize text-lg font-medium text-gray-300 mb-1">{label}:</label>
+                                <div className="flex items-center gap-2">
+                                    <input type="number" id={key} name={key} value={baseValue === 0 ? '' : baseValue} onChange={handleSingleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-gray-500 rounded-md text-white text-xl font-bold" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    <span className="text-gray-300">=</span>
+                                    <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{total}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </section>
+    );
+}
 
 const DiscordIntegrationSection = ({ webhookUrl, handleChange, isMaster, ownerUid, userUid, toggleSection, isCollapsed }) => (
     <section id="discord" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -1723,7 +1744,7 @@ const App = () => {
             }
         }
         
-        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo.
+        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo e não mais os de atributo.
         activeBuffs.forEach(buff => {
             if (buff.type === 'dice' && buff.value) {
                 const match = buff.value.match(/(\d+)d(\d+)/i);
@@ -2037,7 +2058,7 @@ const App = () => {
                 </div>
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
-                <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
+                <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} dynamicAttributeModifiers={dynamicAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
                 <ActionsAndBuffsSection 
                     character={character} user={user} isMaster={isMaster} 
                     handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} 
@@ -2059,7 +2080,7 @@ const App = () => {
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <StoryAndNotesSection character={character} user={user} isMaster={isMaster} addHistoryBlock={addHistoryBlock} removeHistoryBlock={removeHistoryBlock} updateHistoryBlock={updateHistoryBlock} addNoteBlock={addNoteBlock} removeNoteBlock={removeNoteBlock} updateNoteBlock={updateNoteBlock} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
-                 <DiscordIntegrationSection
+                <DiscordIntegrationSection
                   webhookUrl={character.discordWebhookUrl || ''}
                   handleChange={handleChange}
                   isMaster={isMaster}
@@ -2086,3 +2107,4 @@ const App = () => {
 };
 
 export default App;
+
