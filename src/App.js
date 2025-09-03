@@ -1508,32 +1508,50 @@ const App = () => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).filter(b => b.id !== id) }));
   };
   const handleBuffChange = (id, field, value) => {
-    setCharacter(prev => ({
-        ...prev,
-        buffs: (prev.buffs || []).map(buff => {
-            if (buff.id === id) {
-                let updatedValue = value;
-                // --- INÍCIO DA CORREÇÃO ---
-                // Só converte para número se o campo for 'value' E o tipo for 'attribute',
-                // ou se o campo for 'costValue'.
-                if ((field === 'value' && buff.type === 'attribute') || field === 'costValue') {
-                    updatedValue = parseInt(value, 10) || 0;
-                }
-                // --- FIM DA CORREÇÃO ---
+      setCharacter(prev => ({
+          ...prev,
+          buffs: (prev.buffs || []).map(buff => {
+              if (buff.id === id) {
+                  // Cria uma cópia do buff para fazer as alterações
+                  const updatedBuff = { ...buff };
 
-                const updatedBuff = { ...buff, [field]: updatedValue };
+                  // --- INÍCIO DA LÓGICA CORRIGIDA ---
 
-                // Reseta o alvo se o tipo do buff for alterado
-                if (field === 'type') {
-                    updatedBuff.target = '';
-                    updatedBuff.value = buff.type === 'attribute' ? 0 : ''; // Reseta o valor para o tipo correto
-                }
-                return updatedBuff;
-            }
-            return buff;
-        })
-    }));
-};
+                  // 1. Atualiza o campo que foi modificado
+                  updatedBuff[field] = value;
+
+                  // 2. Aplica conversões ou lógicas específicas dependendo do campo alterado
+
+                  // Se o campo alterado foi o 'value', a conversão depende do TIPO do buff
+                  if (field === 'value') {
+                      if (buff.type === 'attribute') {
+                          // Se o buff for de atributo, o valor DEVE ser um número.
+                          updatedBuff.value = parseInt(value, 10) || 0;
+                      }
+                      // Se o tipo for 'dice', NENHUMA conversão é feita. O valor continua
+                      // sendo o texto digitado (ex: "1d6").
+                  }
+
+                  // O custo do buff ('costValue') será SEMPRE um número.
+                  if (field === 'costValue') {
+                      updatedBuff.costValue = parseInt(value, 10) || 0;
+                  }
+
+                  // Se o usuário mudou o TIPO do buff, resetamos os campos dependentes
+                  // para evitar dados inválidos (ex: um valor "1d6" num tipo "attribute").
+                  if (field === 'type') {
+                      updatedBuff.target = '';
+                      updatedBuff.value = value === 'attribute' ? 0 : '';
+                  }
+                  
+                  // --- FIM DA LÓGICA CORRIGIDA ---
+
+                  return updatedBuff;
+              }
+              return buff;
+          })
+      }));
+  };
   const handleToggleBuffActive = (id) => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).map(buff => buff.id === id ? { ...buff, isActive: !buff.isActive } : buff)}));
   };
