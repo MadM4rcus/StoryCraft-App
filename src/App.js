@@ -336,14 +336,19 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
 
 const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, dynamicAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => {
 
-    const dexterityValue = useMemo(() => {
-        const dexterityAttr = character.attributes.find(attr => attr.name.toLowerCase() === 'destreza');
-        if (!dexterityAttr) return 0;
-        const tempValue = dynamicAttributeModifiers['Destreza'] || 0;
-        return (dexterityAttr.base || 0) + (dexterityAttr.perm || 0) + tempValue + (dexterityAttr.arma || 0);
+    const initiativeBaseValue = useMemo(() => {
+        const initiativeKeywords = ['des', 'dex', 'agi'];
+        const initiativeAttr = character.attributes.find(attr => 
+            initiativeKeywords.some(keyword => attr.name.toLowerCase().includes(keyword))
+        );
+        
+        if (!initiativeAttr) return 0;
+        
+        const tempValue = dynamicAttributeModifiers[initiativeAttr.name] || 0;
+        return (initiativeAttr.base || 0) + (initiativeAttr.perm || 0) + tempValue + (initiativeAttr.arma || 0);
     }, [character.attributes, dynamicAttributeModifiers]);
 
-    const initiativeTotal = dexterityValue + (mainAttributeModifiers['Iniciativa'] || 0);
+    const initiativeTotal = initiativeBaseValue + (mainAttributeModifiers['Iniciativa'] || 0);
     
     return (
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -378,7 +383,7 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
                     <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                         <label className="capitalize text-lg font-medium text-gray-300 mb-1">Iniciativa:</label>
                         <div className="flex items-center gap-2">
-                            <span title="Valor base da Destreza" className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{dexterityValue}</span>
+                            <span title="Valor base do atributo de agilidade" className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-help">{initiativeBaseValue}</span>
                             <span className="text-gray-300">=</span>
                             <span className="w-14 p-2 text-center bg-gray-800 border border-gray-600 rounded-md text-white text-xl font-bold cursor-not-allowed">{initiativeTotal}</span>
                         </div>
@@ -1503,9 +1508,10 @@ const App = () => {
           ...prev,
           buffs: (prev.buffs || []).map(buff => {
               if (buff.id === id) {
-                  const updatedBuff = { ...buff, [field]: ['value', 'costValue'].includes(field) ? parseInt(value, 10) || 0 : value };
+                  const updatedBuff = { ...buff, [field]: (field === 'value' && buff.type==='attribute') || field === 'costValue' ? parseInt(value, 10) || 0 : value };
                   if (field === 'type') {
                       updatedBuff.target = '';
+                      updatedBuff.value = buff.type === 'attribute' ? 0 : '';
                   }
                   return updatedBuff;
               }
@@ -1730,7 +1736,14 @@ const App = () => {
                     const attrName = comp.value;
                     let attrValue = 0;
                      if (['Iniciativa', 'FA', 'FM', 'FD'].includes(attrName)) {
-                         attrValue = (tempCharacter.mainAttributes[attrName.toLowerCase()] || 0) + (mainAttributeModifiers[attrName] || 0);
+                         const initiativeBaseValue = useMemo(() => {
+                            const dexterityAttr = tempCharacter.attributes.find(attr => attr.name.toLowerCase() === 'destreza');
+                            if (!dexterityAttr) return 0;
+                            const tempValue = dynamicAttributeModifiers['Destreza'] || 0;
+                            return (dexterityAttr.base || 0) + (dexterityAttr.perm || 0) + tempValue + (dexterityAttr.arma || 0);
+                        }, [tempCharacter.attributes, dynamicAttributeModifiers]);
+
+                         attrValue = attrName === 'Iniciativa' ? initiativeBaseValue + (mainAttributeModifiers[attrName] || 0) : (tempCharacter.mainAttributes[attrName.toLowerCase()] || 0) + (mainAttributeModifiers[attrName] || 0);
                      } else {
                          const dynamicAttr = tempCharacter.attributes.find(a => a.name === attrName);
                          if(dynamicAttr) {
@@ -1744,7 +1757,7 @@ const App = () => {
             }
         }
         
-        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo e não mais os de atributo.
+        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo.
         activeBuffs.forEach(buff => {
             if (buff.type === 'dice' && buff.value) {
                 const match = buff.value.match(/(\d+)d(\d+)/i);
@@ -2058,7 +2071,7 @@ const App = () => {
                 </div>
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
-                <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} dynamicAttributeModifiers={dynamicAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
+                <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} dynamicAttributeModifiers={dynamicAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} handleChange={handleChange} toggleSection={toggleSection} />
                 <ActionsAndBuffsSection 
                     character={character} user={user} isMaster={isMaster} 
                     handleAddBuff={handleAddBuff} handleRemoveBuff={handleRemoveBuff} handleBuffChange={handleBuffChange} 
@@ -2107,4 +2120,3 @@ const App = () => {
 };
 
 export default App;
-
