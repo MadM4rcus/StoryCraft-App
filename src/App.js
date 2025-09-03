@@ -638,7 +638,7 @@ const ActionsAndBuffsSection = ({
                                                 disabled={user.uid !== character.ownerUid && !isMaster}
                                             >
                                                 <option value="attribute">Modificar Atributo</option>
-                                                {/* <option value="dice">Adicionar Valor/Dado</option> */}
+                                                <option value="dice">Adicionar Dado/Número</option>
                                             </select>
                                             {buff.type === 'attribute' && (
                                                 <select
@@ -653,14 +653,25 @@ const ActionsAndBuffsSection = ({
                                             )}
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 items-center">
-                                             <input
-                                                type="number"
-                                                placeholder="Valor (+/-)"
-                                                value={buff.value === 0 ? '' : buff.value}
-                                                onChange={(e) => handleBuffChange(buff.id, 'value', e.target.value)}
-                                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                            />
+                                            {buff.type === 'attribute' ? (
+                                                <input
+                                                    type="number"
+                                                    placeholder="Valor (+/-)"
+                                                    value={buff.value === 0 ? '' : buff.value}
+                                                    onChange={(e) => handleBuffChange(buff.id, 'value', e.target.value)}
+                                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                />
+                                            ) : (
+                                                 <input
+                                                    type="text"
+                                                    placeholder="1d6 ou 6"
+                                                    value={buff.value}
+                                                    onChange={(e) => handleBuffChange(buff.id, 'value', e.target.value)}
+                                                    className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-center"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                />
+                                            )}
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="number"
@@ -1712,12 +1723,26 @@ const App = () => {
             }
         }
         
-        // Adicionar buffs ativos ao cálculo e aos detalhes
+        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo.
         activeBuffs.forEach(buff => {
-            if (buff.type === 'attribute' && buff.value !== 0) {
-                totalResult += buff.value;
-                rollDetails.push(`${buff.name}(${buff.value > 0 ? '+' : ''}${buff.value})`);
-                rollFormulaForRoll20 += `${buff.value > 0 ? '+' : ''}${buff.value}`;
+            if (buff.type === 'dice' && buff.value) {
+                const match = buff.value.match(/(\d+)d(\d+)/i);
+                rollFormulaForRoll20 += `+${buff.value}`;
+                if (match) {
+                    const numDice = parseInt(match[1], 10);
+                    const numSides = parseInt(match[2], 10);
+                    let rolls = [];
+                    for (let d = 0; d < numDice; d++) {
+                        const roll = Math.floor(Math.random() * numSides) + 1;
+                        rolls.push(roll === numSides ? `**${roll}**` : roll);
+                        totalResult += roll;
+                    }
+                    rollDetails.push(`${buff.name}(${rolls.join('+')})`);
+                } else {
+                    const num = parseInt(buff.value, 10) || 0;
+                    totalResult += num;
+                    rollDetails.push(`${buff.name}(${num})`);
+                }
             }
         });
         
@@ -1954,7 +1979,7 @@ const App = () => {
     
     character.buffs.forEach(buff => {
         if (buff.isActive && buff.type === 'attribute' && buff.target) {
-            const value = buff.value || 0;
+            const value = parseInt(buff.value, 10) || 0;
             if (['Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
                 mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
             } else {
@@ -2061,3 +2086,4 @@ const App = () => {
 };
 
 export default App;
+
