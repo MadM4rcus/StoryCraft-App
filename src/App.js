@@ -394,11 +394,15 @@ const ActionsAndBuffsSection = ({
     handleAddFormulaAction, handleRemoveFormulaAction, handleFormulaActionChange,
     handleAddActionComponent, handleRemoveActionComponent, handleActionComponentChange,
     handleExecuteFormulaAction,
+    handleToggleCustomActionCollapsed,
     toggleSection 
 }) => {
     
     const collapsedBuffs = useMemo(() => (character.buffs || []).filter(b => b.isCollapsed), [character.buffs]);
     const expandedBuffs = useMemo(() => (character.buffs || []).filter(b => !b.isCollapsed), [character.buffs]);
+
+    const collapsedActions = useMemo(() => (character.formulaActions || []).filter(a => a.isCollapsed), [character.formulaActions]);
+    const expandedActions = useMemo(() => (character.formulaActions || []).filter(a => !a.isCollapsed), [character.formulaActions]);
 
     return (
         <section id="actions" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -415,18 +419,33 @@ const ActionsAndBuffsSection = ({
 
                     <div className="mb-6">
                         <h3 className="text-xl font-semibold text-purple-300 mb-2">Construtor de Ações Rápidas</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            {collapsedActions.map(action => (
+                                <div key={action.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center">
+                                    <span className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleCustomActionCollapsed(action.id)}>
+                                        {action.name || 'Ação Sem Nome'}
+                                    </span>
+                                    <button onClick={(e) => { e.stopPropagation(); handleExecuteFormulaAction(action.id); }} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap ml-4">Usar</button>
+                                </div>
+                            ))}
+                        </div>
+                        
                         <div className="space-y-4">
-                            {(character.formulaActions || []).map(action => (
+                            {expandedActions.map(action => (
                                 <div key={action.id} className="p-4 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative">
                                     <div className="flex justify-between items-start gap-2 mb-3">
-                                        <input
-                                            type="text"
-                                            placeholder="Nome da Ação"
-                                            value={action.name}
-                                            onChange={(e) => handleFormulaActionChange(action.id, 'name', e.target.value)}
-                                            className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
-                                            disabled={user.uid !== character.ownerUid && !isMaster}
-                                        />
+                                        <div className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleCustomActionCollapsed(action.id)}>
+                                            <input
+                                                type="text"
+                                                placeholder="Nome da Ação"
+                                                value={action.name}
+                                                onChange={(e) => handleFormulaActionChange(action.id, 'name', e.target.value)}
+                                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
+                                                disabled={user.uid !== character.ownerUid && !isMaster}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
                                         <button onClick={() => handleExecuteFormulaAction(action.id)} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap">Usar</button>
                                          {(user.uid === character.ownerUid || isMaster) && (
                                             <button onClick={() => handleRemoveFormulaAction(action.id)} className="w-10 h-10 bg-red-600 text-white text-lg rounded-md flex items-center justify-center font-bold">X</button>
@@ -497,6 +516,9 @@ const ActionsAndBuffsSection = ({
                                 </div>
                             ))}
                         </div>
+                        {((character.formulaActions || []).length === 0) && (
+                            <p className="text-gray-400 italic">Nenhuma ação rápida criada.</p>
+                        )}
                         {(user.uid === character.ownerUid || isMaster) && (
                             <div className="flex justify-center mt-4">
                                 <button onClick={handleAddFormulaAction} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">+ Adicionar Ação Rápida</button>
@@ -1404,6 +1426,10 @@ const App = () => {
   const handleToggleBuffCollapsed = (id) => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).map(buff => buff.id === id ? { ...buff, isCollapsed: !buff.isCollapsed } : buff)}));
   };
+  
+  const handleToggleCustomActionCollapsed = (id) => {
+      setCharacter(prev => ({ ...prev, formulaActions: (prev.formulaActions || []).map(action => action.id === id ? { ...action, isCollapsed: !action.isCollapsed } : action)}));
+  };
 
   const handleOpenActionModal = (type) => {
     const title = type === 'heal' ? 'Curar / Restaurar' : 'Receber Dano / Perder';
@@ -1474,6 +1500,7 @@ const App = () => {
       components: [{ id: crypto.randomUUID(), type: 'dice', value: '1d6' }],
       multiplier: 1,
       discordText: '{NOME} usa Nova Ação.',
+      isCollapsed: false,
     };
     setCharacter(prev => ({ ...prev, formulaActions: [...(prev.formulaActions || []), newAction] }));
   };
@@ -1865,6 +1892,7 @@ const App = () => {
                     handleRemoveActionComponent={handleRemoveActionComponent}
                     handleActionComponentChange={handleActionComponentChange}
                     handleExecuteFormulaAction={handleExecuteFormulaAction}
+                    handleToggleCustomActionCollapsed={handleToggleCustomActionCollapsed}
                     toggleSection={toggleSection} 
                 />
                 <AttributesSection character={character} user={user} isMaster={isMaster} dynamicAttributeModifiers={dynamicAttributeModifiers} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
@@ -1891,3 +1919,4 @@ const App = () => {
 };
 
 export default App;
+
