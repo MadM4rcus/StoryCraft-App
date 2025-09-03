@@ -512,6 +512,27 @@ const ActionsAndBuffsSection = ({
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
                                                 disabled={user.uid !== character.ownerUid && !isMaster}
                                             />
+                                             <label className="text-sm font-medium text-gray-300 block mb-2 mt-3">Custo da Ação:</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    placeholder="Custo"
+                                                    value={action.costValue === 0 ? '' : action.costValue}
+                                                    onChange={(e) => handleFormulaActionChange(action.id, 'costValue', e.target.value)}
+                                                    className="w-20 p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                />
+                                                <select
+                                                    value={action.costType}
+                                                    onChange={(e) => handleFormulaActionChange(action.id, 'costType', e.target.value)}
+                                                    className="p-1 bg-gray-700 border border-gray-500 rounded-md text-white"
+                                                    disabled={user.uid !== character.ownerUid && !isMaster}
+                                                >
+                                                    <option value="">N/A</option>
+                                                    <option value="HP">HP</option>
+                                                    <option value="MP">MP</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1510,6 +1531,8 @@ const App = () => {
       multiplier: 1,
       discordText: '{NOME} usa Nova Ação.',
       isCollapsed: false,
+      costValue: 0,
+      costType: '',
     };
     setCharacter(prev => ({ ...prev, formulaActions: [...(prev.formulaActions || []), newAction] }));
   };
@@ -1522,7 +1545,14 @@ const App = () => {
     setCharacter(prev => ({
         ...prev,
         formulaActions: (prev.formulaActions || []).map(a => 
-            a.id === actionId ? { ...a, [field]: field === 'multiplier' ? (parseInt(value, 10) || 1) : value } : a
+            a.id === actionId 
+            ? { ...a, 
+                [field]: 
+                    field === 'multiplier' 
+                    ? (parseInt(value, 10) || 1) 
+                    : (field === 'costValue' ? (parseInt(value, 10) || 0) : value) 
+              } 
+            : a
         )
     }));
   };
@@ -1564,6 +1594,13 @@ const App = () => {
     try {
         const multiplier = action.multiplier || 1;
         let totalCost = { HP: 0, MP: 0 };
+
+        // Custo da própria ação (não é multiplicado)
+        if (action.costType && action.costValue > 0) {
+            totalCost[action.costType] += action.costValue;
+        }
+
+        // Custo dos buffs ativos (é multiplicado, mantendo a lógica anterior)
         const activeBuffs = (character.buffs || []).filter(b => b.isActive);
         activeBuffs.forEach(buff => {
             if(buff.costType && buff.costValue > 0) {
@@ -1572,7 +1609,7 @@ const App = () => {
         });
 
         if (character.mainAttributes.hp.current < totalCost.HP || character.mainAttributes.mp.current < totalCost.MP) {
-            setModal({ isVisible: true, message: 'Custo de HP/MP insuficiente!', type: 'info', onClose: () => setModal({ isVisible: false }) });
+            setModal({ isVisible: true, message: `Custo de HP/MP insuficiente!\nNecessário: ${totalCost.HP > 0 ? `${totalCost.HP} HP` : ''} ${totalCost.MP > 0 ? `${totalCost.MP} MP` : ''}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
             return;
         }
 
@@ -1928,4 +1965,3 @@ const App = () => {
 };
 
 export default App;
-
