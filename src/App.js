@@ -71,14 +71,21 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
     }
   }, [type]);
 
-  const handleConfirm = () => {
+const handleConfirm = () => {
     if (type === 'prompt') {
-      onConfirm(inputValue);
+        if (onConfirm) {
+            onConfirm(inputValue);
+        }
     } else {
-      onConfirm();
+        if (onConfirm) {
+            onConfirm();
+        }
     }
-  };
-
+    // Chame onClose para todos os tipos, garantindo que o modal sempre feche.
+    if (onClose) {
+        onClose();
+    }
+};
   const handleCancel = () => {
     if (onCancel) onCancel();
     if (onClose) onClose();
