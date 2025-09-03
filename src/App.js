@@ -1508,20 +1508,32 @@ const App = () => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).filter(b => b.id !== id) }));
   };
   const handleBuffChange = (id, field, value) => {
-      setCharacter(prev => ({
-          ...prev,
-          buffs: (prev.buffs || []).map(buff => {
-              if (buff.id === id) {
-                  const updatedBuff = { ...buff, [field]: ['value', 'costValue'].includes(field) ? parseInt(value, 10) || 0 : value };
-                  if (field === 'type') {
-                      updatedBuff.target = '';
-                  }
-                  return updatedBuff;
-              }
-              return buff;
-          })
-      }));
-  };
+    setCharacter(prev => ({
+        ...prev,
+        buffs: (prev.buffs || []).map(buff => {
+            if (buff.id === id) {
+                let updatedValue = value;
+                // --- INÍCIO DA CORREÇÃO ---
+                // Só converte para número se o campo for 'value' E o tipo for 'attribute',
+                // ou se o campo for 'costValue'.
+                if ((field === 'value' && buff.type === 'attribute') || field === 'costValue') {
+                    updatedValue = parseInt(value, 10) || 0;
+                }
+                // --- FIM DA CORREÇÃO ---
+
+                const updatedBuff = { ...buff, [field]: updatedValue };
+
+                // Reseta o alvo se o tipo do buff for alterado
+                if (field === 'type') {
+                    updatedBuff.target = '';
+                    updatedBuff.value = buff.type === 'attribute' ? 0 : ''; // Reseta o valor para o tipo correto
+                }
+                return updatedBuff;
+            }
+            return buff;
+        })
+    }));
+};
   const handleToggleBuffActive = (id) => {
       setCharacter(prev => ({ ...prev, buffs: (prev.buffs || []).map(buff => buff.id === id ? { ...buff, isActive: !buff.isActive } : buff)}));
   };
