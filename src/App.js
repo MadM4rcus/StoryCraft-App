@@ -1224,7 +1224,6 @@ const App = () => {
           setCharactersList([]);
           setSelectedCharIdState(null);
           setOwnerUidState(null);
-          // window.history.pushState({}, '', window.location.pathname);
           setViewingAllCharacters(false);
           setIsMaster(false);
         }
@@ -1346,10 +1345,8 @@ const App = () => {
                     }
                 });
                 
-                // Merge with initial state to ensure all keys exist
                 let fullCharacter = { ...initialCharState, ...deserializedData };
 
-                // Data migration for formulaActions
                 if (fullCharacter.formulaActions && Array.isArray(fullCharacter.formulaActions)) {
                   fullCharacter.formulaActions = fullCharacter.formulaActions.map(action => ({
                     ...action,
@@ -1362,7 +1359,6 @@ const App = () => {
                 setCharacter(null);
                 setSelectedCharIdState(null);
                 setOwnerUidState(null);
-                // window.history.pushState({}, '', window.location.pathname);
                 fetchCharactersList();
             }
             setIsLoading(false);
@@ -1512,40 +1508,20 @@ const App = () => {
           ...prev,
           buffs: (prev.buffs || []).map(buff => {
               if (buff.id === id) {
-                  // Cria uma cópia do buff para fazer as alterações
                   const updatedBuff = { ...buff };
-
-                  // --- INÍCIO DA LÓGICA CORRIGIDA ---
-
-                  // 1. Atualiza o campo que foi modificado
                   updatedBuff[field] = value;
-
-                  // 2. Aplica conversões ou lógicas específicas dependendo do campo alterado
-
-                  // Se o campo alterado foi o 'value', a conversão depende do TIPO do buff
                   if (field === 'value') {
                       if (buff.type === 'attribute') {
-                          // Se o buff for de atributo, o valor DEVE ser um número.
                           updatedBuff.value = parseInt(value, 10) || 0;
                       }
-                      // Se o tipo for 'dice', NENHUMA conversão é feita. O valor continua
-                      // sendo o texto digitado (ex: "1d6").
                   }
-
-                  // O custo do buff ('costValue') será SEMPRE um número.
                   if (field === 'costValue') {
                       updatedBuff.costValue = parseInt(value, 10) || 0;
                   }
-
-                  // Se o usuário mudou o TIPO do buff, resetamos os campos dependentes
-                  // para evitar dados inválidos (ex: um valor "1d6" num tipo "attribute").
                   if (field === 'type') {
                       updatedBuff.target = '';
                       updatedBuff.value = value === 'attribute' ? 0 : '';
                   }
-                  
-                  // --- FIM DA LÓGICA CORRIGIDA ---
-
                   return updatedBuff;
               }
               return buff;
@@ -1636,7 +1612,6 @@ const App = () => {
     }
   };
   
-  // --- Formula Action Handlers ---
   const allAttributes = useMemo(() => {
     const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
     const dynamicAttrs = (character?.attributes || []).map(attr => attr.name).filter(Boolean);
@@ -1706,6 +1681,24 @@ const App = () => {
         )
     }));
   };
+  
+  const { mainAttributeModifiers, dynamicAttributeModifiers } = useMemo(() => {
+    const mainMods = {};
+    const dynamicMods = {};
+    if (!character?.buffs) return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
+    
+    character.buffs.forEach(buff => {
+        if (buff.isActive && buff.type === 'attribute' && buff.target) {
+            const value = parseInt(buff.value, 10) || 0;
+            if (['Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
+                mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
+            } else {
+                dynamicMods[buff.target] = (dynamicMods[buff.target] || 0) + value;
+            }
+        }
+    });
+    return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
+  }, [character?.buffs]);
 
   const handleExecuteFormulaAction = async (actionId) => {
     const action = character.formulaActions.find(a => a.id === actionId);
@@ -1716,14 +1709,14 @@ const App = () => {
         let totalCost = { HP: 0, MP: 0 };
         let costDetails = [];
 
-        // Custo da própria ação
         if (action.costType && action.costValue > 0) {
             totalCost[action.costType] += action.costValue;
             costDetails.push(`Ação: ${action.costValue} ${action.costType}`);
         }
 
-        // Custo dos buffs ativos
         const activeBuffs = (character.buffs || []).filter(b => b.isActive);
+        const activeBuffNames = activeBuffs.map(b => b.name).filter(Boolean);
+
         activeBuffs.forEach(buff => {
             if(buff.costType && buff.costValue > 0) {
                 const buffCost = buff.costValue * multiplier;
@@ -1783,7 +1776,6 @@ const App = () => {
             }
         }
         
-        // CORREÇÃO: Adicionar buffs de DADO/NÚMERO ao cálculo e não mais os de atributo.
         activeBuffs.forEach(buff => {
             if (buff.type === 'dice' && buff.value) {
                 const match = buff.value.match(/(\d+)d(\d+)/i);
@@ -1819,9 +1811,18 @@ const App = () => {
                 fields: [
                     { name: 'Detalhes da Rolagem', value: rollDetails.join(' + '), inline: false }
                 ],
-                color: 0x8b5cf6, // Cor roxa
+                color: 0x8b5cf6, 
                 footer: {}
             };
+
+            if (activeBuffNames.length > 0) {
+                embed.fields.push({
+                    name: 'Buffs Ativos',
+                    value: activeBuffNames.join(', '),
+                    inline: false
+                });
+            }
+
             if(costDetails.length > 0) {
                 embed.footer.text = `Custo Total: ${costDetails.join(' | ')}`;
             }
@@ -1837,7 +1838,12 @@ const App = () => {
             }
         } else {
             const roll20Command = `/r ${rollFormulaForRoll20.substring(1)} ${action.discordText || ''}`;
-            const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${rollDetails.join(' + ')}`;
+            let resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${rollDetails.join(' + ')}`;
+            
+            if (activeBuffNames.length > 0) {
+                resultMessage += `\n\n**Buffs Ativos:** ${activeBuffNames.join(', ')}`;
+            }
+
             setModal({ 
                 isVisible: true, 
                 message: resultMessage, 
@@ -1978,13 +1984,11 @@ const App = () => {
   const handleSelectCharacter = (charId, ownerUid) => {
     setSelectedCharIdState(charId);
     setOwnerUidState(ownerUid);
-    // window.history.pushState({}, '', `?charId=${charId}&ownerUid=${ownerUid}`);
   };
 
   const handleBackToList = () => {
     setSelectedCharIdState(null);
     setOwnerUidState(null);
-    // window.history.pushState({}, '', window.location.pathname);
     setCharacter(null);
     fetchCharactersList();
   };
@@ -2031,24 +2035,6 @@ const App = () => {
         setModal({ isVisible: false });
     }, onCancel: () => { setModal({ isVisible: false }); } });
   };
-
-  const { mainAttributeModifiers, dynamicAttributeModifiers } = useMemo(() => {
-    const mainMods = {};
-    const dynamicMods = {};
-    if (!character?.buffs) return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
-    
-    character.buffs.forEach(buff => {
-        if (buff.isActive && buff.type === 'attribute' && buff.target) {
-            const value = parseInt(buff.value, 10) || 0;
-            if (['Iniciativa', 'FA', 'FM', 'FD'].includes(buff.target)) {
-                mainMods[buff.target] = (mainMods[buff.target] || 0) + value;
-            } else {
-                dynamicMods[buff.target] = (dynamicMods[buff.target] || 0) + value;
-            }
-        }
-    });
-    return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
-  }, [character?.buffs]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
