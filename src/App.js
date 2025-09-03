@@ -190,9 +190,6 @@ const FloatingNavMenu = () => (
     <a href="#info" title="Voltar ao Topo" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⬆️
     </a>
-     <a href="#discord" title="Integração Discord" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
-      💬
-    </a>
     <a href="#actions" title="Ações Rápidas" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⚔️
     </a>
@@ -207,6 +204,9 @@ const FloatingNavMenu = () => (
     </a>
     <a href="#notes" title="Anotações" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       📝
+    </a>
+    <a href="#discord" title="Integração Discord" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      💬
     </a>
   </div>
 );
@@ -2012,15 +2012,6 @@ const App = () => {
                 </div>
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
-                <DiscordIntegrationSection
-                  webhookUrl={character.discordWebhookUrl || ''}
-                  handleChange={handleChange}
-                  isMaster={isMaster}
-                  ownerUid={character.ownerUid}
-                  userUid={user.uid}
-                  toggleSection={toggleSection}
-                  isCollapsed={character.isDiscordCollapsed}
-                />
                 <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
                 <ActionsAndBuffsSection 
                     character={character} user={user} isMaster={isMaster} 
@@ -2043,7 +2034,15 @@ const App = () => {
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <StoryAndNotesSection character={character} user={user} isMaster={isMaster} addHistoryBlock={addHistoryBlock} removeHistoryBlock={removeHistoryBlock} updateHistoryBlock={updateHistoryBlock} addNoteBlock={addNoteBlock} removeNoteBlock={removeNoteBlock} updateNoteBlock={updateNoteBlock} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
-                
+                 <DiscordIntegrationSection
+                  webhookUrl={character.discordWebhookUrl || ''}
+                  handleChange={handleChange}
+                  isMaster={isMaster}
+                  ownerUid={character.ownerUid}
+                  userUid={user.uid}
+                  toggleSection={toggleSection}
+                  isCollapsed={character.isDiscordCollapsed}
+                />
                 <ActionButtons character={character} user={user} isMaster={isMaster} isLoading={isLoading} handleExportJson={handleExportJson} handleImportJsonClick={handleImportJsonClick} handleReset={handleReset} />
             </>
         )}
