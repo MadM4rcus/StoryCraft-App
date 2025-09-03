@@ -59,9 +59,8 @@ const ActionModal = ({ title, onConfirm, onClose }) => {
 
 
 // Componente Modal para prompts e confirmações personalizadas
-const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButton, copyText }) => {
+const CustomModal = ({ message, onConfirm, onCancel, type, onClose }) => {
   const [inputValue, setInputValue] = useState('');
-  const [copySuccess, setCopySuccess] = useState('');
 
   useEffect(() => {
     if (type === 'prompt') {
@@ -78,6 +77,7 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButt
     } else {
       onConfirm();
     }
+    if (onClose) onClose();
   };
 
   const handleCancel = () => {
@@ -89,21 +89,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButt
     if (e.key === 'Enter' && type === 'prompt') {
         handleConfirm();
     }
-  };
-
-  const handleCopy = () => {
-    const textArea = document.createElement("textarea");
-    textArea.value = copyText;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        setCopySuccess('Copiado!');
-        setTimeout(() => setCopySuccess(''), 2000);
-    } catch (err) {
-        setCopySuccess('Falhou em copiar.');
-    }
-    document.body.removeChild(textArea);
   };
 
   const confirmButtonText = useMemo(() => {
@@ -118,13 +103,6 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButt
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700">
         <div className="text-lg text-gray-100 mb-4 text-center whitespace-pre-wrap">{message}</div>
-        {showCopyButton && (
-            <div className="my-4 p-2 bg-gray-900 rounded-md text-center">
-                <p className="text-gray-400 text-sm mb-1">Comando para Discord:</p>
-                <code className="text-purple-300 break-words">{copyText}</code>
-                <button onClick={handleCopy} className="ml-4 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-md">{copySuccess || 'Copiar'}</button>
-            </div>
-        )}
         {type === 'prompt' && (
           <input
             id="prompt-input"
@@ -388,14 +366,20 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
 const ActionsAndBuffsSection = ({ 
     character, user, isMaster, 
     handleAddBuff, handleRemoveBuff, handleBuffChange, handleToggleBuffActive, handleToggleBuffCollapsed, 
-    handleOpenActionModal,
-    allAttributes,
+    handleOpenActionModal, 
     handleAddCustomAction, handleRemoveCustomAction, handleCustomActionChange, handleExecuteCustomAction, handleToggleCustomActionCollapsed,
     toggleSection 
 }) => {
     
     const collapsedBuffs = useMemo(() => (character.buffs || []).filter(b => b.isCollapsed), [character.buffs]);
     const expandedBuffs = useMemo(() => (character.buffs || []).filter(b => !b.isCollapsed), [character.buffs]);
+    
+    const allAttributeNames = useMemo(() => {
+        const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
+        const dynamicAttrs = (character.attributes || []).map(attr => attr.name).filter(Boolean);
+        return [...mainAttrs, ...dynamicAttrs];
+    }, [character.attributes]);
+
 
     return (
         <section id="actions" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -552,7 +536,7 @@ const ActionsAndBuffsSection = ({
                                                     disabled={user.uid !== character.ownerUid && !isMaster}
                                                 >
                                                     <option value="">Selecione um Atributo</option>
-                                                    {allAttributes.map(name => <option key={name} value={name}>{name}</option>)}
+                                                    {allAttributeNames.map(name => <option key={name} value={name}>{name}</option>)}
                                                 </select>
                                             )}
                                         </div>
@@ -1439,10 +1423,15 @@ const App = () => {
 
   const handleAddCustomAction = () => {
       const newAction = {
-          id: crypto.randomUUID(), name: '', outputText: '', costValue: 0, costType: ''
+          id: crypto.randomUUID(), name: '', outputText: '', costValue: 0, costType: '', isCollapsed: false,
       };
       setCharacter(prev => ({ ...prev, customActions: [...(prev.customActions || []), newAction] }));
   };
+  
+  const handleToggleCustomActionCollapsed = (id) => {
+      setCharacter(prev => ({ ...prev, customActions: (prev.customActions || []).map(action => action.id === id ? { ...action, isCollapsed: !action.isCollapsed } : action)}));
+  };
+
   const handleRemoveCustomAction = (id) => {
       setCharacter(prev => ({ ...prev, customActions: (prev.customActions || []).filter(a => a.id !== id) }));
   };
@@ -1462,8 +1451,30 @@ const App = () => {
       const action = character.customActions.find(a => a.id === id);
       if (!action) return;
 
+      const cost = action.costValue || 0;
+      if (cost > 0) {
+          if (action.costType === 'HP' && character.mainAttributes.hp.current < cost) {
+              setModal({ isVisible: true, message: 'HP insuficiente!', type: 'info', onConfirm: () => setModal({ isVisible: false }) });
+              return;
+          }
+          if (action.costType === 'MP' && character.mainAttributes.mp.current < cost) {
+              setModal({ isVisible: true, message: 'MP insuficiente!', type: 'info', onConfirm: () => setModal({ isVisible: false }) });
+              return;
+          }
+
+          setCharacter(prev => {
+              const newMain = { ...prev.mainAttributes };
+              if (action.costType === 'HP') {
+                  newMain.hp.current = Math.max(0, newMain.hp.current - cost);
+              } else if (action.costType === 'MP') {
+                  newMain.mp.current = Math.max(0, newMain.mp.current - cost);
+              }
+              return { ...prev, mainAttributes: newMain };
+          });
+      }
+
       const output = (action.outputText || '').replace(/\{NOME\}/g, character.name || 'O Personagem');
-      setModal({ isVisible: true, message: output, type: 'info', onClose: () => setModal({ isVisible: false }) });
+      setModal({ isVisible: true, message: output, type: 'info', onConfirm: () => setModal({ isVisible: false }) });
   };
 
 
@@ -1662,6 +1673,12 @@ const App = () => {
     });
     return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
   }, [character?.buffs]);
+  
+  const allAttributes = useMemo(() => {
+    const mainAttrs = ['Iniciativa', 'FA', 'FM', 'FD'];
+    const dynamicAttrs = (character?.attributes || []).map(attr => attr.name).filter(Boolean);
+    return [...mainAttrs, ...dynamicAttrs];
+  }, [character?.attributes]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
@@ -1744,3 +1761,4 @@ const App = () => {
 };
 
 export default App;
+
