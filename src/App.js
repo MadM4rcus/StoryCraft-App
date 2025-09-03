@@ -121,7 +121,7 @@ const CustomModal = ({ message, onConfirm, onCancel, type, onClose, showCopyButt
         <div className="text-lg text-gray-100 mb-4 text-center whitespace-pre-wrap">{message}</div>
         {showCopyButton && (
             <div className="my-4 p-2 bg-gray-900 rounded-md text-center">
-                <p className="text-gray-400 text-sm mb-1">Comando para Discord:</p>
+                <p className="text-gray-400 text-sm mb-1">Comando para Discord/Roll20:</p>
                 <code className="text-purple-300 break-words">{copyText}</code>
                 <button onClick={handleCopy} className="ml-4 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-md">{copySuccess || 'Copiar'}</button>
             </div>
@@ -189,6 +189,9 @@ const FloatingNavMenu = () => (
   <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
     <a href="#info" title="Voltar ao Topo" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⬆️
+    </a>
+     <a href="#discord" title="Integração Discord" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
+      💬
     </a>
     <a href="#actions" title="Ações Rápidas" className="bg-gray-700 hover:bg-gray-600 text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform transform hover:scale-110 border-2 border-gray-500">
       ⚔️
@@ -381,6 +384,33 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
                         </div>
                     );
                 })}
+            </div>
+        )}
+    </section>
+);
+
+const DiscordIntegrationSection = ({ webhookUrl, handleChange, isMaster, ownerUid, userUid, toggleSection, isCollapsed }) => (
+    <section id="discord" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+        <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isDiscordCollapsed')}>
+            Integração com Discord
+            <span>{isCollapsed ? '▼' : '▲'}</span>
+        </h2>
+        {!isCollapsed && (
+            <div>
+                <label htmlFor="discordWebhookUrl" className="block text-sm font-medium text-gray-300 mb-1">URL do Webhook do Canal:</label>
+                <input
+                    type="text"
+                    id="discordWebhookUrl"
+                    name="discordWebhookUrl"
+                    value={webhookUrl}
+                    onChange={handleChange}
+                    className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
+                    placeholder="Cole a URL do Webhook do seu canal do Discord aqui"
+                    disabled={userUid !== ownerUid && !isMaster}
+                />
+                <p className="text-xs text-gray-400 mt-2">
+                    Com a URL do Webhook configurada, os comandos de rolagem serão enviados diretamente para o seu canal do Discord em vez de aparecerem num pop-up.
+                </p>
             </div>
         )}
     </section>
@@ -1096,10 +1126,11 @@ const initialCharState = {
   mainAttributes: { hp: { current: 0, max: 0, temp: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
   attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
   specializations: [], equippedItems: [], history: [], notes: [], buffs: [], formulaActions: [],
+  discordWebhookUrl: '',
   isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
   isAttributesCollapsed: false, isInventoryCollapsed: false, isWalletCollapsed: false, isPerksCollapsed: false,
   isAbilitiesCollapsed: false, isSpecializationsCollapsed: false, isEquippedItemsCollapsed: false,
-  isHistoryCollapsed: false, isNotesCollapsed: false, isQuickActionsCollapsed: false,
+  isHistoryCollapsed: false, isNotesCollapsed: false, isQuickActionsCollapsed: false, isDiscordCollapsed: false,
 };
 
 const App = () => {
@@ -1531,8 +1562,6 @@ const App = () => {
       multiplier: 1,
       discordText: '{NOME} usa Nova Ação.',
       isCollapsed: false,
-      costValue: 0,
-      costType: '',
     };
     setCharacter(prev => ({ ...prev, formulaActions: [...(prev.formulaActions || []), newAction] }));
   };
@@ -1664,16 +1693,28 @@ const App = () => {
         const discordText = (action.discordText || '').replace('{NOME}', character.name || 'Personagem');
         const discordCommand = `r${formulaForDiscord.substring(1)} "${discordText}"`;
         
-        const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${details.join(' + ')}`;
-        
-        setModal({ 
-            isVisible: true, 
-            message: resultMessage, 
-            type: 'info', 
-            onClose: () => setModal({ isVisible: false }),
-            showCopyButton: true,
-            copyText: discordCommand
-        });
+        if (character.discordWebhookUrl) {
+            try {
+                await fetch(character.discordWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: discordCommand })
+                });
+                setModal({ isVisible: true, message: 'Comando de rolagem enviado para o Discord!', type: 'info', onClose: () => setModal({ isVisible: false }) });
+            } catch (e) {
+                setModal({ isVisible: true, message: `Falha ao enviar para o Discord. Verifique a URL do Webhook.\n\nErro: ${e.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+            }
+        } else {
+            const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${details.join(' + ')}`;
+            setModal({ 
+                isVisible: true, 
+                message: resultMessage, 
+                type: 'info', 
+                onClose: () => setModal({ isVisible: false }),
+                showCopyButton: true,
+                copyText: discordCommand
+            });
+        }
 
     } catch (error) {
        setModal({ isVisible: true, message: `Erro ao executar ação: ${error.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
@@ -1924,6 +1965,15 @@ const App = () => {
                 </div>
 
                 <CharacterInfoSection character={character} user={user} isMaster={isMaster} handleChange={handleChange} handlePhotoUrlClick={handlePhotoUrlClick} toggleSection={toggleSection} />
+                <DiscordIntegrationSection
+                  webhookUrl={character.discordWebhookUrl || ''}
+                  handleChange={handleChange}
+                  isMaster={isMaster}
+                  ownerUid={character.ownerUid}
+                  userUid={user.uid}
+                  toggleSection={toggleSection}
+                  isCollapsed={character.isDiscordCollapsed}
+                />
                 <MainAttributesSection character={character} user={user} isMaster={isMaster} mainAttributeModifiers={mainAttributeModifiers} handleMainAttributeChange={handleMainAttributeChange} handleSingleMainAttributeChange={handleSingleMainAttributeChange} toggleSection={toggleSection} />
                 <ActionsAndBuffsSection 
                     character={character} user={user} isMaster={isMaster} 
