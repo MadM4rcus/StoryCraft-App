@@ -434,27 +434,28 @@ const ActionsAndBuffsSection = ({
                         <div className="space-y-4">
                             {expandedActions.map(action => (
                                 <div key={action.id} className="p-4 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative">
-                                    <div className="flex justify-between items-start gap-2 mb-3">
-                                        <div className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleCustomActionCollapsed(action.id)}>
-                                            <input
-                                                type="text"
-                                                placeholder="Nome da Ação"
-                                                value={action.name}
-                                                onChange={(e) => handleFormulaActionChange(action.id, 'name', e.target.value)}
-                                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold"
-                                                disabled={user.uid !== character.ownerUid && !isMaster}
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                        </div>
-                                        <button onClick={() => handleExecuteFormulaAction(action.id)} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap">Usar</button>
+                                    <div className="flex justify-between items-center gap-2 mb-3">
+                                        <span className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => handleToggleCustomActionCollapsed(action.id)}>
+                                            {action.name || 'Ação Sem Nome'}
+                                        </span>
+                                        <button onClick={(e) => { e.stopPropagation(); handleExecuteFormulaAction(action.id); }} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap">Usar</button>
                                          {(user.uid === character.ownerUid || isMaster) && (
                                             <button onClick={() => handleRemoveFormulaAction(action.id)} className="w-10 h-10 bg-red-600 text-white text-lg rounded-md flex items-center justify-center font-bold">X</button>
                                         )}
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-500 pt-3 mt-3">
                                         <div>
-                                            <label className="text-sm font-medium text-gray-300 block mb-2">Fórmula:</label>
+                                            <label className="text-sm font-medium text-gray-300 block mb-1">Nome da Ação:</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Nome da Ação"
+                                                value={action.name}
+                                                onChange={(e) => handleFormulaActionChange(action.id, 'name', e.target.value)}
+                                                className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold mb-3"
+                                                disabled={user.uid !== character.ownerUid && !isMaster}
+                                            />
+                                            <label className="text-sm font-medium text-gray-300 block mb-2">Componentes da Fórmula:</label>
                                             <div className="space-y-2 mb-3">
                                                 {(action.components || []).map(comp => (
                                                     <div key={comp.id} className="flex items-center gap-2">
@@ -1253,7 +1254,15 @@ const App = () => {
                 });
                 
                 // Merge with initial state to ensure all keys exist
-                const fullCharacter = { ...initialCharState, ...deserializedData };
+                let fullCharacter = { ...initialCharState, ...deserializedData };
+
+                // Data migration for formulaActions
+                if (fullCharacter.formulaActions && Array.isArray(fullCharacter.formulaActions)) {
+                  fullCharacter.formulaActions = fullCharacter.formulaActions.map(action => ({
+                    ...action,
+                    isCollapsed: action.isCollapsed === undefined ? true : action.isCollapsed
+                  }));
+                }
 
                 setCharacter(fullCharacter);
             } else {
@@ -1919,3 +1928,4 @@ const App = () => {
 };
 
 export default App;
+
