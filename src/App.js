@@ -533,10 +533,10 @@ const ActionsAndBuffsSection = ({
                                                 placeholder="1"
                                                 disabled={user.uid !== character.ownerUid && !isMaster}
                                             />
-                                            <label htmlFor={`discordText-${action.id}`} className="text-sm font-medium text-gray-300 block mb-2">Texto para Discord:</label>
+                                            <label htmlFor={`discordText-${action.id}`} className="text-sm font-medium text-gray-300 block mb-2">Descrição da Ação:</label>
                                             <AutoResizingTextarea
                                                 id={`discordText-${action.id}`}
-                                                placeholder="{NOME} usa sua ação..."
+                                                placeholder="Descrição da ação para Discord/Roll20..."
                                                 value={action.discordText}
                                                 onChange={(e) => handleFormulaActionChange(action.id, 'discordText', e.target.value)}
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
@@ -618,8 +618,8 @@ const ActionsAndBuffsSection = ({
                                             </label>
                                             {(user.uid === character.ownerUid || isMaster) && (
                                                 <button onClick={() => handleRemoveBuff(buff.id)} className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white text-lg font-bold rounded-full flex items-center justify-center flex-shrink-0" aria-label="Remover Buff">X</button>
-                                            )}
-                                        </div>
+                                        )}
+                                    </div>
                                     </div>
                                     <div className="mt-3 pt-3 border-t border-gray-500">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-center">
@@ -1544,7 +1544,25 @@ const App = () => {
         }
         return { ...prev, mainAttributes: newMain };
     });
-    setModal({ isVisible: true, message, type: 'info', onClose: () => setModal({isVisible: false}) });
+
+    if (character.discordWebhookUrl) {
+        fetch(character.discordWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                embeds: [{
+                    author: {
+                        name: character.name || 'Personagem',
+                        icon_url: character.photoUrl || 'https://placehold.co/64x64/7c3aed/FFFFFF?text=SC'
+                    },
+                    description: message,
+                    color: actionModal.type === 'heal' ? 0x22c55e : 0xef4444
+                }]
+            })
+        }).catch(e => console.error("Falha ao enviar para o Discord:", e));
+    } else {
+        setModal({ isVisible: true, message, type: 'info', onClose: () => setModal({isVisible: false}) });
+    }
   };
   
   // --- Formula Action Handlers ---
@@ -1560,8 +1578,10 @@ const App = () => {
       name: 'Nova Ação',
       components: [{ id: crypto.randomUUID(), type: 'dice', value: '1d6' }],
       multiplier: 1,
-      discordText: '{NOME} usa Nova Ação.',
+      discordText: 'Usa sua nova ação.',
       isCollapsed: false,
+      costValue: 0,
+      costType: '',
     };
     setCharacter(prev => ({ ...prev, formulaActions: [...(prev.formulaActions || []), newAction] }));
   };
@@ -1623,17 +1643,21 @@ const App = () => {
     try {
         const multiplier = action.multiplier || 1;
         let totalCost = { HP: 0, MP: 0 };
+        let costDetails = [];
 
-        // Custo da própria ação (não é multiplicado)
+        // Custo da própria ação
         if (action.costType && action.costValue > 0) {
             totalCost[action.costType] += action.costValue;
+            costDetails.push(`Ação: ${action.costValue} ${action.costType}`);
         }
 
-        // Custo dos buffs ativos (é multiplicado, mantendo a lógica anterior)
+        // Custo dos buffs ativos
         const activeBuffs = (character.buffs || []).filter(b => b.isActive);
         activeBuffs.forEach(buff => {
             if(buff.costType && buff.costValue > 0) {
-                totalCost[buff.costType] += buff.costValue * multiplier;
+                const buffCost = buff.costValue * multiplier;
+                totalCost[buff.costType] += buffCost;
+                costDetails.push(`${buff.name}: ${buffCost} ${buff.costType}`);
             }
         });
 
@@ -1646,73 +1670,96 @@ const App = () => {
         if(totalCost.HP > 0) tempCharacter.mainAttributes.hp.current -= totalCost.HP;
         if(totalCost.MP > 0) tempCharacter.mainAttributes.mp.current -= totalCost.MP;
         
-        let formulaForDiscord = '';
+        let rollFormulaForRoll20 = '';
         let totalResult = 0;
-        let details = [];
+        let rollDetails = [];
 
         for (let i = 0; i < multiplier; i++) {
             for (const comp of action.components) {
                 if (comp.type === 'dice') {
                     const match = comp.value.match(/(\d+)d(\d+)/i);
+                    rollFormulaForRoll20 += `+${comp.value}`;
                     if (match) {
                         const numDice = parseInt(match[1], 10);
                         const numSides = parseInt(match[2], 10);
-                        let rollTotal = 0;
+                        let rolls = [];
                         for (let d = 0; d < numDice; d++) {
-                            rollTotal += Math.floor(Math.random() * numSides) + 1;
+                            const roll = Math.floor(Math.random() * numSides) + 1;
+                            rolls.push(roll === numSides ? `**${roll}**` : roll);
+                            totalResult += roll;
                         }
-                        totalResult += rollTotal;
-                        details.push(`${comp.value}: ${rollTotal}`);
-                        formulaForDiscord += `+${comp.value}`;
+                        rollDetails.push(`${comp.value}(${rolls.join('+')})`);
                     } else {
                         const num = parseInt(comp.value, 10) || 0;
                         totalResult += num;
-                        details.push(`${num}`);
-                        formulaForDiscord += `+${num}`;
+                        rollDetails.push(`${num}`);
                     }
                 } else { // attribute
                     const attrName = comp.value;
                     let attrValue = 0;
                      if (['Iniciativa', 'FA', 'FM', 'FD'].includes(attrName)) {
-                         attrValue = (character.mainAttributes[attrName.toLowerCase()] || 0) + (mainAttributeModifiers[attrName] || 0);
+                         attrValue = (tempCharacter.mainAttributes[attrName.toLowerCase()] || 0) + (mainAttributeModifiers[attrName] || 0);
                      } else {
-                         const dynamicAttr = character.attributes.find(a => a.name === attrName);
+                         const dynamicAttr = tempCharacter.attributes.find(a => a.name === attrName);
                          if(dynamicAttr) {
                             attrValue = (dynamicAttr.base || 0) + (dynamicAttr.perm || 0) + (dynamicAttr.arma || 0) + (dynamicAttributeModifiers[attrName] || 0);
                          }
                      }
                     totalResult += attrValue;
-                    details.push(`${attrName}: ${attrValue}`);
-                    formulaForDiscord += `+${attrValue}`;
+                    rollDetails.push(`${attrName}(${attrValue})`);
+                    rollFormulaForRoll20 += `+${attrValue}`;
                 }
             }
         }
         
+        // Adicionar buffs ativos ao cálculo e aos detalhes
+        activeBuffs.forEach(buff => {
+            if (buff.type === 'attribute' && buff.value !== 0) {
+                totalResult += buff.value;
+                rollDetails.push(`${buff.name}(${buff.value > 0 ? '+' : ''}${buff.value})`);
+                rollFormulaForRoll20 += `${buff.value > 0 ? '+' : ''}${buff.value}`;
+            }
+        });
+        
         setCharacter(tempCharacter);
         
-        const discordText = (action.discordText || '').replace('{NOME}', character.name || 'Personagem');
-        const discordCommand = `r${formulaForDiscord.substring(1)} "${discordText}"`;
-        
         if (character.discordWebhookUrl) {
+            const embed = {
+                author: {
+                    name: character.name || 'Personagem',
+                    icon_url: character.photoUrl || 'https://placehold.co/64x64/7c3aed/FFFFFF?text=SC'
+                },
+                title: action.name || 'Ação Sem Nome',
+                description: `${action.discordText || ''}\n\n**Resultado Final: ${totalResult}**`,
+                fields: [
+                    { name: 'Detalhes da Rolagem', value: rollDetails.join(' + '), inline: false }
+                ],
+                color: 0x8b5cf6, // Cor roxa
+                footer: {}
+            };
+            if(costDetails.length > 0) {
+                embed.footer.text = `Custo Total: ${costDetails.join(' | ')}`;
+            }
+
             try {
                 await fetch(character.discordWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: discordCommand })
+                    body: JSON.stringify({ embeds: [embed] })
                 });
-                setModal({ isVisible: true, message: 'Comando de rolagem enviado para o Discord!', type: 'info', onClose: () => setModal({ isVisible: false }) });
             } catch (e) {
                 setModal({ isVisible: true, message: `Falha ao enviar para o Discord. Verifique a URL do Webhook.\n\nErro: ${e.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
             }
         } else {
-            const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${details.join(' + ')}`;
+            const roll20Command = `/r ${rollFormulaForRoll20.substring(1)} ${action.discordText || ''}`;
+            const resultMessage = `Resultado: ${totalResult}\n\nDetalhes: ${rollDetails.join(' + ')}`;
             setModal({ 
                 isVisible: true, 
                 message: resultMessage, 
                 type: 'info', 
                 onClose: () => setModal({ isVisible: false }),
                 showCopyButton: true,
-                copyText: discordCommand
+                copyText: roll20Command
             });
         }
 
