@@ -1040,7 +1040,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isAbilitiesCollapsed && (
                 <>
-                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {(character.abilities || []).map(ability => (
                             <div key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
@@ -1079,7 +1079,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isSpecializationsCollapsed && (
                  <>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {(character.specializations || []).map(spec => (
                             <div key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
@@ -1118,7 +1118,7 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isEquippedItemsCollapsed && (
                 <>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {(character.equippedItems || []).map(item => (
                             <div key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
