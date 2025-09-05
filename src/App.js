@@ -930,7 +930,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                                             {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
                                         </span>
                                         <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                                            <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
+                                            <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Mostrar</button>
                                             {(user.uid === character.ownerUid || isMaster) && (
                                                 <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                             )}
