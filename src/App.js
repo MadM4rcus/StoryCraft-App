@@ -910,65 +910,89 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
     </section>
 );
 
-const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => (
-    <div id="inventory">
-        <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isInventoryCollapsed')}>
-                Inventário
-                <span>{character.isInventoryCollapsed ? '▼' : '▲'}</span>
-            </h2>
-            {!character.isInventoryCollapsed && (
-                <>
-                    <ul className="space-y-2">
-                        {(character.inventory || []).length === 0 ? (
-                            <li className="text-gray-400 italic">Nenhum item no inventário.</li>
-                        ) : (
-                            character.inventory.map((item) => (
-                                <li key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="font-semibold text-lg w-full cursor-pointer text-white" onClick={() => toggleItemCollapsed('inventory', item.id)}>
-                                            {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
-                                        </span>
-                                        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                                            <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Mostrar</button>
-                                            {(user.uid === character.ownerUid || isMaster) && (
-                                                <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
-                                            )}
-                                        </div>
+const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => {
+    
+    // NOVO: Separa os itens em duas listas: colapsados e expandidos.
+    const collapsedItems = useMemo(() => (character.inventory || []).filter(item => item.isCollapsed), [character.inventory]);
+    const expandedItems = useMemo(() => (character.inventory || []).filter(item => !item.isCollapsed), [character.inventory]);
+
+    return (
+        <div id="inventory">
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+                <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isInventoryCollapsed')}>
+                    Inventário
+                    <span>{character.isInventoryCollapsed ? '▼' : '▲'}</span>
+                </h2>
+                {!character.isInventoryCollapsed && (
+                    <>
+                        {/* NOVO: Grelha para os itens colapsados */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            {collapsedItems.map(item => (
+                                <div key={item.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center">
+                                    <span className="font-semibold text-lg cursor-pointer text-white flex-grow" onClick={() => toggleItemCollapsed('inventory', item.id)}>
+                                        {item.name || 'Item Sem Nome'}
+                                    </span>
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                        <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Mostrar</button>
+                                        {(user.uid === character.ownerUid || isMaster) && (
+                                            <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                        )}
                                     </div>
-                                    {!item.isCollapsed && (
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {/* ALTERADO: Mantém uma lista vertical apenas para os itens expandidos */}
+                        <div className="space-y-2">
+                            {(character.inventory || []).length === 0 ? (
+                                <p className="text-gray-400 italic">Nenhum item no inventário.</p>
+                            ) : (
+                                expandedItems.map((item) => (
+                                    <div key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="font-semibold text-lg w-full cursor-pointer text-white" onClick={() => toggleItemCollapsed('inventory', item.id)}>
+                                                {item.name || 'Item Sem Nome'}
+                                            </span>
+                                            <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                                <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Mostrar</button>
+                                                {(user.uid === character.ownerUid || isMaster) && (
+                                                    <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* A lógica para o item expandido permanece a mesma */}
                                         <>
                                             <input type="text" value={item.name} onChange={(e) => handleInventoryItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white mb-2" placeholder="Nome do Item" disabled={user.uid !== character.ownerUid && !isMaster} />
                                             <AutoResizingTextarea value={item.description} onChange={(e) => handleInventoryItemChange(item.id, 'description', e.target.value)} placeholder="Descrição do item" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md text-white" disabled={user.uid !== character.ownerUid && !isMaster} />
                                         </>
-                                    )}
-                                </li>
-                            ))
-                        )}
-                    </ul>
-                    {(user.uid === character.ownerUid || isMaster) && (
-                        <div className="flex justify-end mt-4">
-                            <button onClick={handleAddItem} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label="Adicionar Item">+</button>
+                                    </div>
+                                ))
+                            )}
                         </div>
-                    )}
-                </>
-            )}
-        </section>
-        <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
-            <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isWalletCollapsed')}>
-                Zeni: {character.wallet?.zeni || 0}
-                <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
-            </h2>
-            {!character.isWalletCollapsed && (
-                <div className="flex items-center gap-2 w-full">
-                    <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
-                    <button onClick={handleAddZeni} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Adicionar</button>
-                    <button onClick={handleRemoveZeni} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Remover</button>
-                </div>
-            )}
-        </section>
-    </div>
-);
+                        {(user.uid === character.ownerUid || isMaster) && (
+                            <div className="flex justify-end mt-4">
+                                <button onClick={handleAddItem} className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white text-2xl font-bold rounded-full shadow-lg" aria-label="Adicionar Item">+</button>
+                            </div>
+                        )}
+                    </>
+                )}
+            </section>
+            <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
+                <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isWalletCollapsed')}>
+                    Zeni: {character.wallet?.zeni || 0}
+                    <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
+                </h2>
+                {!character.isWalletCollapsed && (
+                    <div className="flex items-center gap-2 w-full">
+                        <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
+                        <button onClick={handleAddZeni} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Adicionar</button>
+                        <button onClick={handleRemoveZeni} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Remover</button>
+                    </div>
+                )}
+            </section>
+        </div>
+    );
+};
 
 const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => (
     <section id="perks" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
