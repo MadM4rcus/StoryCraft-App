@@ -837,7 +837,7 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
                         return (
                             <div 
                                 key={attr.id} 
-                                className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative flex flex-col gap-2" 
+                                className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative flex flex-col gap-3" 
                                 draggable 
                                 onDragStart={(e) => handleDragStart(e, index, 'attributes')} 
                                 onDragOver={handleDragOver} 
@@ -885,8 +885,16 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
                                         <input type="number" value={totalValue === 0 ? '' : totalValue} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" />
                                     </div>
                                 </div>
-                                {(user.uid === character.ownerUid && !isMaster) && (
-                                    <button onClick={() => handleRemoveAttribute(attr.id)} className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out" aria-label="Remover Atributo">X</button>
+                                {(user.uid === character.ownerUid || isMaster) && (
+                                     <div className="flex justify-start pt-2 mt-2 border-t border-gray-500/50" onClick={(e) => e.stopPropagation()}>
+                                        <button 
+                                            onClick={() => handleRemoveAttribute(attr.id)} 
+                                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md transition duration-200 ease-in-out" 
+                                            aria-label="Remover Atributo"
+                                        >
+                                            Remover
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         );
@@ -2352,3 +2360,4 @@ const App = () => {
 };
 
 export default App;
+
