@@ -490,7 +490,7 @@ const DiscordIntegrationSection = ({ webhookUrl, handleChange, isMaster, ownerUi
                     value={webhookUrl}
                     onChange={handleChange}
                     className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500 text-white"
-                    placeholder="Cole a URL do Webhook do seu canal do  aqui"
+                    placeholder="Cole a URL do Webhook do seu canal do Discord aqui"
                     disabled={userUid !== ownerUid && !isMaster}
                 />
                 <p className="text-xs text-gray-400 mt-2">
@@ -623,9 +623,6 @@ const ActionsAndBuffsSection = ({
                                                 id={`discordText-${action.id}`}
                                                 placeholder="Descrição da ação para Discord/Roll20..."
                                                 value={action.discordText}
-
-
-
                                                 onChange={(e) => handleFormulaActionChange(action.id, 'discordText', e.target.value)}
                                                 className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-white text-sm"
                                                 disabled={user.uid !== character.ownerUid && !isMaster}
@@ -933,7 +930,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                                             {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
                                         </span>
                                         <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                                            <button onClick={() => handleShowOn(item.name, item.description)} title="Mostrar no " className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap"></button>
+                                            <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
                                             {(user.uid === character.ownerUid || isMaster) && (
                                                 <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                             )}
