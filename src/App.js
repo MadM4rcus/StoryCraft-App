@@ -910,7 +910,7 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
     </section>
 );
 
-const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection }) => (
+const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => (
     <div id="inventory">
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
             <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isInventoryCollapsed')}>
@@ -929,9 +929,12 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                                         <span className="font-semibold text-lg w-full cursor-pointer text-white" onClick={() => toggleItemCollapsed('inventory', item.id)}>
                                             {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
                                         </span>
-                                        {(user.uid === character.ownerUid || isMaster) && (
-                                            <button onClick={() => handleRemoveItem(item.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
-                                        )}
+                                        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                            <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
+                                            {(user.uid === character.ownerUid || isMaster) && (
+                                                <button onClick={() => handleRemoveItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                            )}
+                                        </div>
                                     </div>
                                     {!item.isCollapsed && (
                                         <>
@@ -967,7 +970,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
     </div>
 );
 
-const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection }) => (
+const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePerk, handlePerkChange, handlePerkOriginChange, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => (
     <section id="perks" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isPerksCollapsed')}>
             Vantagens e Desvantagens
@@ -988,9 +991,12 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
                                             <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed(type, perk.id)}>
                                                 {perk.name || `Sem Nome`} {perk.isCollapsed ? '...' : ''}
                                             </span>
-                                            {(user.uid === character.ownerUid || isMaster) && (
-                                                <button onClick={() => handleRemovePerk(type, perk.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
-                                            )}
+                                            <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                                <button onClick={() => handleShowOnDiscord(perk.name, perk.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
+                                                {(user.uid === character.ownerUid || isMaster) && (
+                                                    <button onClick={() => handleRemovePerk(type, perk.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                                )}
+                                            </div>
                                         </div>
                                         {!perk.isCollapsed && (
                                             <>
@@ -1024,16 +1030,7 @@ const PerksSection = ({ character, user, isMaster, handleAddPerk, handleRemovePe
     </section>
 );
 
-const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemoveAbility, handleAbilityChange, handleAddSpecialization, handleRemoveSpecialization, handleSpecializationChange, handleAddEquippedItem, handleRemoveEquippedItem, handleEquippedItemChange, toggleItemCollapsed, toggleSection }) => {
-    const collapsedAbilities = useMemo(() => (character.abilities || []).filter(item => item.isCollapsed), [character.abilities]);
-    const expandedAbilities = useMemo(() => (character.abilities || []).filter(item => !item.isCollapsed), [character.abilities]);
-    
-    const collapsedSpecializations = useMemo(() => (character.specializations || []).filter(item => item.isCollapsed), [character.specializations]);
-    const expandedSpecializations = useMemo(() => (character.specializations || []).filter(item => !item.isCollapsed), [character.specializations]);
-
-    const collapsedEquippedItems = useMemo(() => (character.equippedItems || []).filter(item => item.isCollapsed), [character.equippedItems]);
-    const expandedEquippedItems = useMemo(() => (character.equippedItems || []).filter(item => !item.isCollapsed), [character.equippedItems]);
-
+const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemoveAbility, handleAbilityChange, handleAddSpecialization, handleRemoveSpecialization, handleSpecializationChange, handleAddEquippedItem, handleRemoveEquippedItem, handleEquippedItemChange, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => {
     return (
     <div id="skills">
         <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
@@ -1043,28 +1040,26 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isAbilitiesCollapsed && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                        {collapsedAbilities.map(ability => (
-                            <div key={ability.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
-                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{ability.title || 'Habilidade Sem Título'}</span>
-                            </div>
-                        ))}
-                    </div>
                     <div className="space-y-2">
-                        {expandedAbilities.map(ability => (
+                        {(character.abilities || []).map(ability => (
                             <div key={ability.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('abilities', ability.id)}>
-                                        {ability.title || 'Habilidade Sem Título'}
+                                        {ability.title || 'Habilidade Sem Título'} {ability.isCollapsed ? '...' : ''}
                                     </span>
-                                    {(user.uid === character.ownerUid || isMaster) && (
-                                        <button onClick={() => handleRemoveAbility(ability.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
-                                    )}
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                        <button onClick={() => handleShowOnDiscord(ability.title, ability.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
+                                        {(user.uid === character.ownerUid || isMaster) && (
+                                            <button onClick={() => handleRemoveAbility(ability.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                        )}
+                                    </div>
                                 </div>
-                                <>
-                                    <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                </>
+                                {!ability.isCollapsed && (
+                                    <>
+                                        <input type="text" value={ability.title} onChange={(e) => handleAbilityChange(ability.id, 'title', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Título" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                        <AutoResizingTextarea value={ability.description} onChange={(e) => handleAbilityChange(ability.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -1084,31 +1079,26 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isSpecializationsCollapsed && (
                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                         {collapsedSpecializations.map(spec => (
-                            <div key={spec.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
-                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{spec.name || 'Especialização Sem Nome'}</span>
-                            </div>
-                        ))}
-                    </div>
                     <div className="space-y-2">
-                        {expandedSpecializations.map(spec => (
+                        {(character.specializations || []).map(spec => (
                             <div key={spec.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('specializations', spec.id)}>
-                                        {spec.name || 'Especialização Sem Nome'}
+                                        {spec.name || 'Especialização Sem Nome'} {spec.isCollapsed ? '...' : ''}
                                     </span>
                                     {(user.uid === character.ownerUid || isMaster) && (
                                         <button onClick={() => handleRemoveSpecialization(spec.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
                                     )}
                                 </div>
-                                <>
-                                    <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <div className="flex gap-4 text-sm">
-                                        <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
-                                        <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
-                                    </div>
-                                </>
+                                {!spec.isCollapsed && (
+                                    <>
+                                        <input type="text" value={spec.name} onChange={(e) => handleSpecializationChange(spec.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                        <div className="flex gap-4 text-sm">
+                                            <label className="flex items-center gap-1">Mod: <input type="number" value={spec.modifier === 0 ? '' : spec.modifier} onChange={(e) => handleSpecializationChange(spec.id, 'modifier', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
+                                            <label className="flex items-center gap-1">Bônus: <input type="number" value={spec.bonus === 0 ? '' : spec.bonus} onChange={(e) => handleSpecializationChange(spec.id, 'bonus', e.target.value)} className="w-12 p-1 bg-gray-700 border border-gray-500 rounded-md" disabled={user.uid !== character.ownerUid && !isMaster} /></label>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -1128,29 +1118,27 @@ const SkillsSection = ({ character, user, isMaster, handleAddAbility, handleRemo
             </h2>
             {!character.isEquippedItemsCollapsed && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                        {collapsedEquippedItems.map(item => (
-                             <div key={item.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
-                                <span className="font-semibold text-lg cursor-pointer text-white flex-grow">{item.name || 'Item Sem Nome'}</span>
-                            </div>
-                        ))}
-                    </div>
                     <div className="space-y-2">
-                        {expandedEquippedItems.map(item => (
+                        {(character.equippedItems || []).map(item => (
                             <div key={item.id} className="flex flex-col p-3 bg-gray-600 rounded-md shadow-sm">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-semibold text-lg w-full cursor-pointer" onClick={() => toggleItemCollapsed('equippedItems', item.id)}>
-                                        {item.name || 'Item Sem Nome'}
+                                        {item.name || 'Item Sem Nome'} {item.isCollapsed ? '...' : ''}
                                     </span>
-                                    {(user.uid === character.ownerUid || isMaster) && (
-                                        <button onClick={() => handleRemoveEquippedItem(item.id)} className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
-                                    )}
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                                        <button onClick={() => handleShowOnDiscord(item.name, item.description)} title="Mostrar no Discord" className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-md whitespace-nowrap">Discord</button>
+                                        {(user.uid === character.ownerUid || isMaster) && (
+                                            <button onClick={() => handleRemoveEquippedItem(item.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-md">Remover</button>
+                                        )}
+                                    </div>
                                 </div>
-                                <>
-                                    <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                </>
+                                {!item.isCollapsed && (
+                                    <>
+                                        <input type="text" value={item.name} onChange={(e) => handleEquippedItemChange(item.id, 'name', e.target.value)} className="font-semibold text-lg w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" placeholder="Nome" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                        <AutoResizingTextarea value={item.description} onChange={(e) => handleEquippedItemChange(item.id, 'description', e.target.value)} placeholder="Descrição" className="text-sm text-gray-300 italic w-full p-1 bg-gray-700 border border-gray-500 rounded-md mb-2" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                        <AutoResizingTextarea value={item.attributes} onChange={(e) => handleEquippedItemChange(item.id, 'attributes', e.target.value)} placeholder="Atributos/Efeitos" className="w-full p-2 bg-gray-700 border border-gray-500 rounded-md text-sm" disabled={user.uid !== character.ownerUid && !isMaster} />
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -2248,6 +2236,43 @@ const App = () => {
         setModal({ isVisible: false });
     }, onCancel: () => { setModal({ isVisible: false }); } });
   };
+  
+  const handleShowOnDiscord = async (title, description) => {
+    if (!character) return;
+
+    const embed = {
+        author: {
+            name: character.name || 'Personagem',
+            icon_url: character.photoUrl || 'https://placehold.co/64x64/7c3aed/FFFFFF?text=SC'
+        },
+        title: title || "Sem Título",
+        description: description || "Sem Descrição.",
+        color: 0x7c3aed, // Roxo
+    };
+
+    if (character.discordWebhookUrl) {
+        try {
+            await fetch(character.discordWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+            });
+        } catch (e) {
+            console.error("Falha ao enviar para o Discord:", e);
+            setModal({ isVisible: true, message: `Falha ao enviar para o Discord: ${e.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+        }
+    } else {
+        const discordCommand = `**${title || "Sem Título"}**\n${description || "Sem Descrição."}`;
+        setModal({
+            isVisible: true,
+            message: 'Copie e cole no Discord:',
+            type: 'info',
+            showCopyButton: true,
+            copyText: discordCommand,
+            onClose: () => setModal({ isVisible: false }),
+        });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 font-inter">
@@ -2328,9 +2353,9 @@ const App = () => {
                   handleToggleAttributeCollapsed={handleToggleAttributeCollapsed}
                   handleOpenRollModal={handleOpenRollModal}
                 />
-                <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
-                <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
-                <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
+                <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
+                <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
+                <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
                 <StoryAndNotesSection character={character} user={user} isMaster={isMaster} addHistoryBlock={addHistoryBlock} removeHistoryBlock={removeHistoryBlock} updateHistoryBlock={updateHistoryBlock} addNoteBlock={addNoteBlock} removeNoteBlock={removeNoteBlock} updateNoteBlock={updateNoteBlock} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
                 <DiscordIntegrationSection
                   webhookUrl={character.discordWebhookUrl || ''}
@@ -2360,4 +2385,3 @@ const App = () => {
 };
 
 export default App;
-
