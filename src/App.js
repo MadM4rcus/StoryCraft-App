@@ -18,7 +18,6 @@ const ActionModal = ({ title, onConfirm, onClose }) => {
             onConfirm(numericAmount, target);
             onClose();
         } else {
-            // Em vez de alert, podemos mostrar um erro no modal no futuro
             console.error('Valor inválido inserido.');
         }
     };
@@ -392,7 +391,6 @@ const CharacterInfoSection = ({ character, user, isMaster, handleChange, handleP
 const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifiers, dynamicAttributeModifiers, handleMainAttributeChange, handleSingleMainAttributeChange, toggleSection }) => {
 
     const dexterityValue = useMemo(() => {
-        // AJUSTE: Procura por um atributo que contenha 'dex', 'des', ou 'agi'
         const searchTerms = ['dex', 'des', 'agi'];
         const dexterityAttr = character.attributes.find(attr => {
             if (!attr.name) return false;
@@ -401,8 +399,7 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
         });
 
         if (!dexterityAttr) return 0;
-
-        // Usa o nome real do atributo encontrado para buscar modificadores temporários
+        
         const tempValue = dynamicAttributeModifiers[dexterityAttr.name] || 0;
         return (dexterityAttr.base || 0) + (dexterityAttr.perm || 0) + tempValue + (dexterityAttr.arma || 0);
     }, [character.attributes, dynamicAttributeModifiers]);
@@ -417,7 +414,6 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
             </h2>
             {!character.isMainAttributesCollapsed && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* HP Unificado e Bloqueado */}
                     <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                          <label className="text-lg font-medium text-gray-300 mb-1 uppercase">HP</label>
                         <div className="flex items-center gap-1">
@@ -428,7 +424,6 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
                             <input type="number" name="temp" title="HP Temporário" data-attribute="hp" value={character.mainAttributes.hp.temp === 0 ? '' : character.mainAttributes.hp.temp} onChange={handleMainAttributeChange} className="w-14 p-2 text-center bg-gray-700 border border-blue-400 rounded-md text-blue-300 text-xl font-bold" disabled={!isMaster} />
                         </div>
                     </div>
-                    {/* MP Bloqueado */}
                     <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                         <label className="text-lg font-medium text-gray-300 mb-1 uppercase">MP</label>
                         <div className="flex items-center gap-2">
@@ -438,7 +433,6 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
                         </div>
                     </div>
                     
-                    {/* Iniciativa Calculada */}
                     <div className="flex flex-col items-center p-2 bg-gray-600 rounded-md">
                         <label className="capitalize text-lg font-medium text-gray-300 mb-1">Iniciativa:</label>
                         <div className="flex items-center gap-2">
@@ -448,7 +442,6 @@ const MainAttributesSection = ({ character, user, isMaster, mainAttributeModifie
                         </div>
                     </div>
                     
-                    {/* Outros Atributos com totais calculados */}
                     {[
                         { key: 'fa', label: 'FA', modifierKey: 'FA' },
                         { key: 'fm', label: 'FM', modifierKey: 'FM' },
@@ -910,9 +903,9 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
     </section>
 );
 
-const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection, handleShowOnDiscord }) => {
+const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZeniChange, handleAddZeni, handleRemoveZeni, handleAddItem, handleInventoryItemChange, handleRemoveItem, toggleItemCollapsed, toggleSection, handleShowOnDiscord, handleAddInspiration, handleRemoveInspiration }) => {
     
-    // NOVO: Separa os itens em duas listas: colapsados e expandidos.
+    // Separa os itens em duas listas: colapsados e expandidos.
     const collapsedItems = useMemo(() => (character.inventory || []).filter(item => item.isCollapsed), [character.inventory]);
     const expandedItems = useMemo(() => (character.inventory || []).filter(item => !item.isCollapsed), [character.inventory]);
 
@@ -925,7 +918,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                 </h2>
                 {!character.isInventoryCollapsed && (
                     <>
-                        {/* NOVO: Grelha para os itens colapsados */}
+                        {/* Grelha para os itens colapsados */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             {collapsedItems.map(item => (
                                 <div key={item.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center">
@@ -942,7 +935,7 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
                             ))}
                         </div>
                         
-                        {/* ALTERADO: Mantém uma lista vertical apenas para os itens expandidos */}
+                        {/* Mantém uma lista vertical apenas para os itens expandidos */}
                         <div className="space-y-2">
                             {(character.inventory || []).length === 0 ? (
                                 <p className="text-gray-400 italic">Nenhum item no inventário.</p>
@@ -979,14 +972,28 @@ const InventoryWalletSection = ({ character, user, isMaster, zeniAmount, handleZ
             </section>
             <section className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
                 <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isWalletCollapsed')}>
-                    Zeni: {character.wallet?.zeni || 0}
-                    <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
+                    <span>Zeni: {character.wallet?.zeni || 0}</span>
+                    <div className="flex items-center gap-4">
+                        <span>Inspiração: {character.wallet?.inspiration || 0}</span>
+                        <span>{character.isWalletCollapsed ? '▼' : '▲'}</span>
+                    </div>
                 </h2>
                 {!character.isWalletCollapsed && (
-                    <div className="flex items-center gap-2 w-full">
-                        <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-16 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
-                        <button onClick={handleAddZeni} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Adicionar</button>
-                        <button onClick={handleRemoveZeni} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg" disabled={user.uid !== character.ownerUid && !isMaster}>Remover</button>
+                     <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
+                        {/* Controles do Zeni */}
+                        <div className="flex items-center gap-2">
+                            <span className="hidden sm:inline font-semibold">Zeni:</span>
+                            <input type="number" value={zeniAmount === 0 ? '' : zeniAmount} onChange={handleZeniChange} className="w-20 p-2 bg-gray-600 border border-gray-500 rounded-md text-white text-lg" placeholder="Valor" disabled={user.uid !== character.ownerUid && !isMaster} />
+                            <button onClick={handleAddZeni} className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm" disabled={user.uid !== character.ownerUid && !isMaster}>Adicionar</button>
+                            <button onClick={handleRemoveZeni} className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm" disabled={user.uid !== character.ownerUid && !isMaster}>Remover</button>
+                        </div>
+
+                        {/* Controles da Inspiração */}
+                        <div className="flex items-center gap-2">
+                            <span className="hidden sm:inline font-semibold">Inspiração:</span>
+                            <button onClick={handleAddInspiration} className="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-sm" disabled={user.uid !== character.ownerUid && !isMaster}>+1</button>
+                            <button onClick={handleRemoveInspiration} className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg text-sm" disabled={user.uid !== character.ownerUid && !isMaster}>-1</button>
+                        </div>
                     </div>
                 )}
             </section>
@@ -1291,7 +1298,7 @@ const ActionButtons = ({ character, user, isMaster, isLoading, handleExportJson,
 const initialCharState = {
   name: '', photoUrl: '', age: '', height: '', gender: '', race: '', class: '', alignment: '', level: 0, xp: 100,
   mainAttributes: { hp: { current: 0, max: 0, temp: 0 }, mp: { current: 0, max: 0 }, initiative: 0, fa: 0, fm: 0, fd: 0 },
-  attributes: [], inventory: [], wallet: { zeni: 0 }, advantages: [], disadvantages: [], abilities: [],
+  attributes: [], inventory: [], wallet: { zeni: 0, inspiration: 0 }, advantages: [], disadvantages: [], abilities: [],
   specializations: [], equippedItems: [], history: [], notes: [], buffs: [], formulaActions: [],
   discordWebhookUrl: '',
   isUserStatusCollapsed: false, isCharacterInfoCollapsed: false, isMainAttributesCollapsed: false,
@@ -1474,7 +1481,6 @@ const App = () => {
                 
                 let fullCharacter = { ...initialCharState, ...deserializedData };
                 
-                // Garantir que novas propriedades existam nos dados antigos
                  if (fullCharacter.attributes && Array.isArray(fullCharacter.attributes)) {
                   fullCharacter.attributes = fullCharacter.attributes.map(attr => ({
                     ...attr,
@@ -1586,6 +1592,13 @@ const App = () => {
   const handleAddZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: ((prev.wallet || {}).zeni || 0) + zeniAmount } })); setZeniAmount(0); };
   const handleRemoveZeni = () => { setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, zeni: Math.max(0, ((prev.wallet || {}).zeni || 0) - zeniAmount) } })); setZeniAmount(0); };
   
+  const handleAddInspiration = () => {
+    setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, inspiration: ((prev.wallet || {}).inspiration || 0) + 1 } }));
+  };
+  const handleRemoveInspiration = () => {
+    setCharacter(prev => ({ ...prev, wallet: { ...prev.wallet, inspiration: Math.max(0, ((prev.wallet || {}).inspiration || 0) - 1) } }));
+  };
+
   const handleAddPerk = (type) => setCharacter(prev => ({ ...prev, [type]: [...(prev[type] || []), { id: crypto.randomUUID(), name: '', description: '', origin: { class: false, race: false, manual: false }, value: 0, isCollapsed: false }] }));
   const handlePerkChange = (type, id, field, value) => setCharacter(prev => ({ ...prev, [type]: (prev[type] || []).map(p => p.id === id ? { ...p, [field]: field === 'value' ? parseInt(value, 10) || 0 : value } : p) }));
   const handleRemovePerk = (type, id) => setCharacter(prev => ({ ...prev, [type]: (prev[type] || []).filter(p => p.id !== id) }));
@@ -2377,7 +2390,23 @@ const App = () => {
                   handleToggleAttributeCollapsed={handleToggleAttributeCollapsed}
                   handleOpenRollModal={handleOpenRollModal}
                 />
-                <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
+                <InventoryWalletSection 
+                    character={character} 
+                    user={user} 
+                    isMaster={isMaster} 
+                    zeniAmount={zeniAmount} 
+                    handleZeniChange={handleZeniChange} 
+                    handleAddZeni={handleAddZeni} 
+                    handleRemoveZeni={handleRemoveZeni} 
+                    handleAddItem={handleAddItem} 
+                    handleInventoryItemChange={handleInventoryItemChange} 
+                    handleRemoveItem={handleRemoveItem} 
+                    toggleItemCollapsed={toggleItemCollapsed} 
+                    toggleSection={toggleSection} 
+                    handleShowOnDiscord={handleShowOnDiscord}
+                    handleAddInspiration={handleAddInspiration}
+                    handleRemoveInspiration={handleRemoveInspiration}
+                />
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
                 <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} handleShowOnDiscord={handleShowOnDiscord} />
                 <StoryAndNotesSection character={character} user={user} isMaster={isMaster} addHistoryBlock={addHistoryBlock} removeHistoryBlock={removeHistoryBlock} updateHistoryBlock={updateHistoryBlock} addNoteBlock={addNoteBlock} removeNoteBlock={removeNoteBlock} updateNoteBlock={updateNoteBlock} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
