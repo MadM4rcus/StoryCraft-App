@@ -18,7 +18,8 @@ const ActionModal = ({ title, onConfirm, onClose }) => {
             onConfirm(numericAmount, target);
             onClose();
         } else {
-            alert('Por favor, insira um valor numérico válido.');
+            // Em vez de alert, podemos mostrar um erro no modal no futuro
+            console.error('Valor inválido inserido.');
         }
     };
 
@@ -47,6 +48,60 @@ const ActionModal = ({ title, onConfirm, onClose }) => {
                         <input type="radio" name="target" value="MP" checked={target === 'MP'} onChange={(e) => setTarget(e.target.value)} className="form-radio text-purple-500" />
                         MP
                     </label>
+                </div>
+                <div className="flex justify-around gap-4">
+                    <button onClick={handleConfirm} className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Confirmar</button>
+                    <button onClick={onClose} className="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Modal para Rolagem de Atributo
+const RollAttributeModal = ({ attributeName, onConfirm, onClose }) => {
+    const [dice, setDice] = useState('1d20');
+    const [bonus, setBonus] = useState('');
+
+    const handleConfirm = () => {
+        onConfirm(dice, parseInt(bonus, 10) || 0);
+        onClose();
+    };
+    
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleConfirm();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+                <h3 className="text-xl text-yellow-300 font-bold mb-4 text-center">Rolar {attributeName}</h3>
+                <div className="mb-4">
+                    <label htmlFor="dice-input" className="block text-sm font-medium text-gray-300 mb-1">Dado:</label>
+                    <input
+                        id="dice-input"
+                        type="text"
+                        value={dice}
+                        onChange={(e) => setDice(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-lg focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="Ex: 1d20, 2d6"
+                        autoFocus
+                    />
+                </div>
+                <div className="mb-6">
+                    <label htmlFor="bonus-input" className="block text-sm font-medium text-gray-300 mb-1">Bônus Adicional:</label>
+                    <input
+                        id="bonus-input"
+                        type="number"
+                        value={bonus}
+                        onChange={(e) => setBonus(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-center text-lg focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="0"
+                    />
                 </div>
                 <div className="flex justify-around gap-4">
                     <button onClick={handleConfirm} className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">Confirmar</button>
@@ -740,7 +795,7 @@ const ActionsAndBuffsSection = ({
     );
 };
 
-const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifiers, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection }) => (
+const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifiers, handleAddAttribute, handleRemoveAttribute, handleAttributeChange, handleDragStart, handleDragOver, handleDrop, toggleSection, handleToggleAttributeCollapsed, handleOpenRollModal }) => (
     <section id="attributes" className="mb-8 p-6 bg-gray-700 rounded-xl shadow-inner border border-gray-600">
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 border-b-2 border-yellow-500 pb-2 cursor-pointer flex justify-between items-center" onClick={() => toggleSection('isAttributesCollapsed')}>
             Atributos
@@ -752,34 +807,85 @@ const AttributesSection = ({ character, user, isMaster, dynamicAttributeModifier
                     {(character.attributes || []).map((attr, index) => {
                         const tempValue = dynamicAttributeModifiers[attr.name] || 0;
                         const totalValue = (attr.base || 0) + (attr.perm || 0) + tempValue + (attr.arma || 0);
+                        
+                        if (attr.isCollapsed) {
+                            return (
+                                <div 
+                                    key={attr.id} 
+                                    className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 flex justify-between items-center cursor-pointer"
+                                    onClick={() => handleToggleAttributeCollapsed(attr.id)}
+                                >
+                                    <span className="font-semibold text-lg text-white flex-grow">
+                                        {attr.name || 'Atributo Sem Nome'} 
+                                        <span className="ml-2 font-bold text-purple-300">
+                                            {totalValue >= 0 ? '+' : ''}{totalValue}
+                                        </span>
+                                    </span>
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            handleOpenRollModal(attr.id);
+                                        }} 
+                                        className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg whitespace-nowrap ml-4 text-sm shadow-md"
+                                    >
+                                        Rolar
+                                    </button>
+                                </div>
+                            );
+                        }
+
                         return (
-                            <div key={attr.id} className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative" draggable onDragStart={(e) => handleDragStart(e, index, 'attributes')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index, 'attributes')}>
-                                <div className="flex flex-col sm:flex-row items-center gap-3">
-                                    <input type="text" placeholder="Nome do Atributo" value={attr.name} onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} className="w-full sm:w-1/4 p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold" disabled={user.uid !== character.ownerUid && !isMaster} />
-                                    <div className="flex items-center gap-2 text-xs flex-grow justify-end w-full sm:w-auto">
-                                        {['base', 'perm', 'temp', 'arma'].map(field => {
-                                            const isTempField = field === 'temp';
-                                            return (
-                                                <div key={field} className="flex flex-col items-center">
-                                                    <span className="text-gray-400 text-xs text-center capitalize">{field}</span>
-                                                    <input 
-                                                      type="number" 
-                                                      value={isTempField ? (tempValue === 0 ? '' : tempValue) : (attr[field] === 0 ? '' : attr[field])} 
-                                                      onChange={isTempField ? undefined : (e) => handleAttributeChange(attr.id, field, e.target.value)} 
-                                                      className={`w-12 p-1 border rounded-md text-white text-center ${isTempField ? 'bg-gray-800 border-gray-600 cursor-not-allowed' : 'bg-gray-700 border-gray-500'}`} 
-                                                      readOnly={isTempField}
-                                                      disabled={!isTempField && user.uid !== character.ownerUid && !isMaster}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-gray-400 text-xs text-center">Total</span>
-                                            <input type="number" value={totalValue === 0 ? '' : totalValue} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" />
+                            <div 
+                                key={attr.id} 
+                                className="p-3 bg-gray-600 rounded-md shadow-sm border border-gray-500 relative flex flex-col gap-2" 
+                                draggable 
+                                onDragStart={(e) => handleDragStart(e, index, 'attributes')} 
+                                onDragOver={handleDragOver} 
+                                onDrop={(e) => handleDrop(e, index, 'attributes')}
+                            >
+                                <div 
+                                    className="flex items-center gap-2 cursor-pointer"
+                                    onClick={() => handleToggleAttributeCollapsed(attr.id)}
+                                >
+                                    <input 
+                                        type="text" 
+                                        placeholder="Nome do Atributo" 
+                                        value={attr.name} 
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => handleAttributeChange(attr.id, 'name', e.target.value)} 
+                                        className="w-full flex-grow p-2 bg-gray-700 border border-gray-500 rounded-md text-white font-semibold cursor-text" 
+                                        disabled={user.uid !== character.ownerUid && !isMaster} 
+                                    />
+                                    <span className="text-gray-400 text-xs whitespace-nowrap">Recolher ▲</span>
+                                </div>
+                                <div className="flex items-center gap-1 sm:gap-2 text-xs justify-end w-full" onClick={(e) => e.stopPropagation()}>
+                                    {['base', 'perm', 'arma'].map(field => (
+                                        <div key={field} className="flex flex-col items-center">
+                                            <span className="text-gray-400 text-xs text-center capitalize">{field}</span>
+                                            <input 
+                                              type="number" 
+                                              value={(attr[field] === 0 ? '' : attr[field])} 
+                                              onChange={(e) => handleAttributeChange(attr.id, field, e.target.value)} 
+                                              className={`w-12 p-1 border rounded-md text-white text-center bg-gray-700 border-gray-500`} 
+                                              disabled={user.uid !== character.ownerUid && !isMaster}
+                                            />
                                         </div>
+                                    ))}
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-gray-400 text-xs text-center capitalize">temp</span>
+                                        <input 
+                                          type="number" 
+                                          value={(tempValue === 0 ? '' : tempValue)} 
+                                          className={`w-12 p-1 border rounded-md text-white text-center bg-gray-800 border-gray-600 cursor-not-allowed`} 
+                                          readOnly
+                                        />
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-gray-400 text-xs text-center">Total</span>
+                                        <input type="number" value={totalValue === 0 ? '' : totalValue} readOnly className="w-12 p-1 bg-gray-800 border border-gray-600 rounded-md text-white font-bold cursor-not-allowed text-center" />
                                     </div>
                                 </div>
-                                {(user.uid === character.ownerUid || isMaster) && (
+                                {(user.uid === character.ownerUid && !isMaster) && (
                                     <button onClick={() => handleRemoveAttribute(attr.id)} className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center transition duration-200 ease-in-out" aria-label="Remover Atributo">X</button>
                                 )}
                             </div>
@@ -1198,6 +1304,7 @@ const App = () => {
   const [viewingAllCharacters, setViewingAllCharacters] = useState(false);
   const [modal, setModal] = useState({ isVisible: false, message: '', type: '', onConfirm: () => {}, onCancel: () => {} });
   const [actionModal, setActionModal] = useState({ isVisible: false, type: '', title: '' });
+  const [rollModal, setRollModal] = useState({ isVisible: false, attribute: null });
   const [isLoading, setIsLoading] = useState(false);
   const [zeniAmount, setZeniAmount] = useState(0);
   const fileInputRef = useRef(null);
@@ -1346,6 +1453,14 @@ const App = () => {
                 });
                 
                 let fullCharacter = { ...initialCharState, ...deserializedData };
+                
+                // Garantir que novas propriedades existam nos dados antigos
+                 if (fullCharacter.attributes && Array.isArray(fullCharacter.attributes)) {
+                  fullCharacter.attributes = fullCharacter.attributes.map(attr => ({
+                    ...attr,
+                    isCollapsed: attr.isCollapsed === undefined ? true : attr.isCollapsed
+                  }));
+                }
 
                 if (fullCharacter.formulaActions && Array.isArray(fullCharacter.formulaActions)) {
                   fullCharacter.formulaActions = fullCharacter.formulaActions.map(action => ({
@@ -1420,7 +1535,7 @@ const App = () => {
     setCharacter(prev => ({ ...prev, mainAttributes: { ...prev.mainAttributes, [name]: parseInt(value, 10) || 0 } }));
   };
 
-  const handleAddAttribute = () => setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, temp: 0, arma: 0 }] }));
+  const handleAddAttribute = () => setCharacter(prev => ({ ...prev, attributes: [...(prev.attributes || []), { id: crypto.randomUUID(), name: '', base: 0, perm: 0, temp: 0, arma: 0, isCollapsed: false }] }));
   const handleRemoveAttribute = (id) => setCharacter(prev => ({ ...prev, attributes: (prev.attributes || []).filter(attr => attr.id !== id) }));
   const handleAttributeChange = (id, field, value) => {
     setCharacter(prev => ({
@@ -1433,6 +1548,14 @@ const App = () => {
       })
     }));
   };
+   const handleToggleAttributeCollapsed = (id) => {
+        setCharacter(prev => ({
+            ...prev,
+            attributes: (prev.attributes || []).map(attr =>
+                attr.id === id ? { ...attr, isCollapsed: !attr.isCollapsed } : attr
+            )
+        }));
+    };
   
   const toggleItemCollapsed = (listName, id) => setCharacter(prev => ({ ...prev, [listName]: (prev[listName] || []).map(item => item.id === id ? { ...item, isCollapsed: !item.isCollapsed } : item) }));
   const handleAddItem = () => setCharacter(prev => ({ ...prev, inventory: [...(prev.inventory || []), { id: crypto.randomUUID(), name: '', description: '', isCollapsed: true }] }));
@@ -1699,6 +1822,88 @@ const App = () => {
     });
     return { mainAttributeModifiers: mainMods, dynamicAttributeModifiers: dynamicMods };
   }, [character?.buffs]);
+
+  const handleOpenRollModal = (attributeId) => {
+        const attribute = character.attributes.find(attr => attr.id === attributeId);
+        if (attribute) {
+            setRollModal({ isVisible: true, attribute: attribute });
+        }
+    };
+
+    const handleConfirmAttributeRoll = async (dice, bonus) => {
+        if (!rollModal.attribute) return;
+        
+        const attribute = rollModal.attribute;
+        const tempValue = dynamicAttributeModifiers[attribute.name] || 0;
+        const attributeTotal = (attribute.base || 0) + (attribute.perm || 0) + tempValue + (attribute.arma || 0);
+
+        let diceResult = 0;
+        let diceDetails = '';
+        let rollFormulaForRoll20 = '';
+
+        const match = dice.match(/(\d+)d(\d+)/i);
+        if (match) {
+            const numDice = parseInt(match[1], 10);
+            const numSides = parseInt(match[2], 10);
+            let rolls = [];
+            for (let d = 0; d < numDice; d++) {
+                const roll = Math.floor(Math.random() * numSides) + 1;
+                rolls.push(roll === numSides ? `**${roll}**` : roll);
+                diceResult += roll;
+            }
+            diceDetails = `${dice}(${rolls.join('+')})`;
+            rollFormulaForRoll20 = dice;
+        } else {
+            diceResult = parseInt(dice, 10) || 0;
+            diceDetails = `${diceResult}`;
+            rollFormulaForRoll20 = `${diceResult}`;
+        }
+        
+        const finalTotal = diceResult + attributeTotal + bonus;
+        
+        const details = [diceDetails, `${attribute.name}(${attributeTotal})`];
+        if (bonus !== 0) {
+            details.push(`Bônus(${bonus > 0 ? '+' : ''}${bonus})`);
+        }
+        
+        const roll20Bonus = `+${attributeTotal}${bonus !== 0 ? (bonus > 0 ? `+${bonus}`: bonus) : ''}`;
+        const roll20Command = `/r ${rollFormulaForRoll20}${roll20Bonus} Rolando ${attribute.name}`;
+
+        if (character.discordWebhookUrl) {
+            const embed = {
+                author: {
+                    name: character.name || 'Personagem',
+                    icon_url: character.photoUrl || 'https://placehold.co/64x64/7c3aed/FFFFFF?text=SC'
+                },
+                title: `Rolagem de ${attribute.name}`,
+                description: `**Resultado Final: ${finalTotal}**`,
+                fields: [
+                    { name: 'Detalhes', value: details.join(' + '), inline: false }
+                ],
+                color: 0x8b5cf6,
+            };
+            try {
+                await fetch(character.discordWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ embeds: [embed] })
+                });
+            } catch (e) {
+                setModal({ isVisible: true, message: `Falha ao enviar para o Discord: ${e.message}`, type: 'info', onClose: () => setModal({ isVisible: false }) });
+            }
+        } else {
+             setModal({ 
+                isVisible: true, 
+                message: `Resultado: ${finalTotal}\n\nDetalhes: ${details.join(' + ')}`, 
+                type: 'info', 
+                onClose: () => setModal({ isVisible: false }),
+                showCopyButton: true,
+                copyText: roll20Command
+            });
+        }
+        
+        setRollModal({ isVisible: false, attribute: null });
+    };
 
   const handleExecuteFormulaAction = async (actionId) => {
     const action = character.formulaActions.find(a => a.id === actionId);
@@ -2100,7 +2305,21 @@ const App = () => {
                     handleToggleCustomActionCollapsed={handleToggleCustomActionCollapsed}
                     toggleSection={toggleSection} 
                 />
-                <AttributesSection character={character} user={user} isMaster={isMaster} dynamicAttributeModifiers={dynamicAttributeModifiers} handleAddAttribute={handleAddAttribute} handleRemoveAttribute={handleRemoveAttribute} handleAttributeChange={handleAttributeChange} handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop} toggleSection={toggleSection} />
+                <AttributesSection 
+                  character={character} 
+                  user={user} 
+                  isMaster={isMaster} 
+                  dynamicAttributeModifiers={dynamicAttributeModifiers} 
+                  handleAddAttribute={handleAddAttribute} 
+                  handleRemoveAttribute={handleRemoveAttribute} 
+                  handleAttributeChange={handleAttributeChange} 
+                  handleDragStart={handleDragStart} 
+                  handleDragOver={handleDragOver} 
+                  handleDrop={handleDrop} 
+                  toggleSection={toggleSection}
+                  handleToggleAttributeCollapsed={handleToggleAttributeCollapsed}
+                  handleOpenRollModal={handleOpenRollModal}
+                />
                 <InventoryWalletSection character={character} user={user} isMaster={isMaster} zeniAmount={zeniAmount} handleZeniChange={handleZeniChange} handleAddZeni={handleAddZeni} handleRemoveZeni={handleRemoveZeni} handleAddItem={handleAddItem} handleInventoryItemChange={handleInventoryItemChange} handleRemoveItem={handleRemoveItem} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <PerksSection character={character} user={user} isMaster={isMaster} handleAddPerk={handleAddPerk} handleRemovePerk={handleRemovePerk} handlePerkChange={handlePerkChange} handlePerkOriginChange={handlePerkOriginChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
                 <SkillsSection character={character} user={user} isMaster={isMaster} handleAddAbility={handleAddAbility} handleRemoveAbility={handleRemoveAbility} handleAbilityChange={handleAbilityChange} handleAddSpecialization={handleAddSpecialization} handleRemoveSpecialization={handleRemoveSpecialization} handleSpecializationChange={handleSpecializationChange} handleAddEquippedItem={handleAddEquippedItem} handleRemoveEquippedItem={handleRemoveEquippedItem} handleEquippedItemChange={handleEquippedItemChange} toggleItemCollapsed={toggleItemCollapsed} toggleSection={toggleSection} />
@@ -2126,6 +2345,7 @@ const App = () => {
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
       {modal.isVisible && <CustomModal {...modal} onClose={() => setModal({ ...modal, isVisible: false })} />}
       {actionModal.isVisible && <ActionModal title={actionModal.title} onConfirm={handleConfirmAction} onClose={() => setActionModal({ isVisible: false, type: '', title: '' })} />}
+      {rollModal.isVisible && <RollAttributeModal attributeName={rollModal.attribute.name} onConfirm={handleConfirmAttributeRoll} onClose={() => setRollModal({ isVisible: false, attribute: null })} />}
       {isLoading && <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="text-white text-xl font-bold">Carregando...</div></div>}
     </div>
   );
